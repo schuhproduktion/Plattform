@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Bestellungen | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-orders" data-page="bestellungen" data-breadcrumb="ERP-Bestellungen">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="orders">
+        <form class="filters" id="orderFilters">
+          <label>Status
+            <select name="status">
+              <option value="">Alle</option>
+              <option value="ORDER_EINGEREICHT">🔵 Eingereicht</option>
+              <option value="ORDER_BESTAETIGT">🟡 Bestätigt</option>
+              <option value="RUECKFRAGEN_OFFEN">🟠 Rückfragen</option>
+              <option value="PRODUKTION_LAEUFT">🟢 Produktion</option>
+              <option value="WARE_ABHOLBEREIT">🟣 Versandbereit</option>
+              <option value="UEBERGEBEN_AN_SPEDITION">⚪ Abgeschlossen</option>
+            </select>
+          </label>
+          <label>Bestellart
+            <select name="orderType">
+              <option value="">Alle</option>
+              <option value="BESTELLUNG">Bestellung</option>
+              <option value="PPS">PPS</option>
+              <option value="SMS">SMS</option>
+              <option value="MUSTER">Muster</option>
+            </select>
+          </label>
+          <label>Kunde
+            <input type="search" name="customer" placeholder="Name oder Kundennummer" />
+          </label>
+          <label>Bestellnummer
+            <input type="search" name="orderNumber" placeholder="z. B. PO-1001" />
+          </label>
+          <button type="submit">Filtern</button>
+          <button type="button" class="ghost" data-action="poll-orders">Neu laden</button>
+        </form>
+        <article class="card order-list">
+          <table class="order-table">
+            <thead>
+            <tr>
+              <th>Bestellnummer</th>
+              <th>Status</th>
+              <th>Kunde</th>
+              <th>Bestellart</th>
+              <th>Lieferdatum</th>
+              <th>Summe</th>
+            </tr>
+            </thead>
+            <tbody id="orderTable"></tbody>
+          </table>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

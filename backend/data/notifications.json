@@ -1,0 +1,983 @@
+[
+  {
+    "id": "NOT-1",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt RUECKFRAGEN_OFFEN",
+    "read": false,
+    "ts": "2024-05-10T11:20:00.000Z"
+  },
+  {
+    "id": "NOT-2",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-bate-1",
+    "message": "Neuer Kommentar zur Position POS-1001-1",
+    "read": true,
+    "ts": "2024-05-10T11:22:00.000Z"
+  },
+  {
+    "id": "NOT-3",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1002",
+    "user_id": "u-bate-1",
+    "message": "Ticket TIC-5002 wurde erstellt",
+    "read": true,
+    "ts": "2024-05-15T08:35:00.000Z"
+  },
+  {
+    "id": "NOT-d36ad7d4-d435-4249-97a6-5ebec1f0e1ef",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt PRODUKTION_LAEUFT",
+    "read": false,
+    "ts": "2025-11-07T08:10:48.200Z"
+  },
+  {
+    "id": "NOT-b5ea21db-abfc-456b-8971-394a59d6fcb8",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Flags aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T08:31:08.617Z"
+  },
+  {
+    "id": "NOT-ea619b62-38f2-431e-822b-9a05b76e2f69",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Flags aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T08:57:15.997Z"
+  },
+  {
+    "id": "NOT-10d57f3c-0697-4183-8df2-51b1534de5c5",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Produktion läuft",
+    "read": false,
+    "ts": "2025-11-07T09:44:46.540Z"
+  },
+  {
+    "id": "NOT-3f8cbfd1-2e89-4ba0-8b5f-0bd9979b3beb",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Rückfragen offen",
+    "read": false,
+    "ts": "2025-11-07T12:49:54.768Z"
+  },
+  {
+    "id": "NOT-62f3ffae-5b40-4d97-af39-c2a4826046a5",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Bestellung eingereicht",
+    "read": false,
+    "ts": "2025-11-07T12:50:00.820Z"
+  },
+  {
+    "id": "NOT-ee06071b-2931-4e28-b56a-fa7ef602b423",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Produktion läuft",
+    "read": false,
+    "ts": "2025-11-07T13:00:02.748Z"
+  },
+  {
+    "id": "NOT-5f0f2dc1-7f1d-4851-9151-3d761595b138",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Bestellung eingereicht",
+    "read": false,
+    "ts": "2025-11-07T13:00:05.008Z"
+  },
+  {
+    "id": "NOT-9fa070de-1b8c-43d8-9591-6d68ee420bb6",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Produktion läuft",
+    "read": false,
+    "ts": "2025-11-07T14:17:36.153Z"
+  },
+  {
+    "id": "NOT-2facee5d-c61a-44cd-b90a-2b558586e663",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Ware abholbereit",
+    "read": false,
+    "ts": "2025-11-07T14:17:43.947Z"
+  },
+  {
+    "id": "NOT-29e56831-ea92-4751-891c-c424e683cdbe",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T15:16:31.511Z"
+  },
+  {
+    "id": "NOT-bc0ea91e-d9ec-4f26-9ac4-1cfcae688369",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T15:34:51.412Z"
+  },
+  {
+    "id": "NOT-0001abde-82d3-4499-8bb0-7e4e3303d845",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T15:35:05.604Z"
+  },
+  {
+    "id": "NOT-c6d7c43f-112d-4b2e-8e61-d3d945bee8cf",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-2",
+    "read": false,
+    "ts": "2025-11-07T15:40:08.159Z"
+  },
+  {
+    "id": "NOT-f4445b99-de64-42cf-9625-f3f02fb6a2e9",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-2",
+    "read": false,
+    "ts": "2025-11-07T15:41:07.134Z"
+  },
+  {
+    "id": "NOT-3b421d5e-7117-4c62-8335-a4cd88d5ebf5",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:19:10.720Z"
+  },
+  {
+    "id": "NOT-68108791-8065-43e0-85d9-ec290292d15c",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:19:11.833Z"
+  },
+  {
+    "id": "NOT-79220986-a1f5-4655-806a-1ad9f2e17dff",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:19:12.382Z"
+  },
+  {
+    "id": "NOT-d819c36e-2ffc-4726-b5e5-68c71d59240c",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:19:13.147Z"
+  },
+  {
+    "id": "NOT-d094e421-be81-4000-96c7-6b2a73110073",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:25:14.562Z"
+  },
+  {
+    "id": "NOT-5fcb51c8-208f-469b-98f2-93e682223ec0",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild ersetzt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:29:23.054Z"
+  },
+  {
+    "id": "NOT-9c268796-d020-44a9-87c4-178caabd8d18",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:34:23.141Z"
+  },
+  {
+    "id": "NOT-b65ec83d-084b-470b-b7e2-1d5879be3da4",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:36:26.016Z"
+  },
+  {
+    "id": "NOT-07ef22a7-b4fb-4402-99fa-a3061cda42b0",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:37:59.994Z"
+  },
+  {
+    "id": "NOT-e5ce75ef-9452-4a52-99d2-bb8dc2a30aea",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:38:19.198Z"
+  },
+  {
+    "id": "NOT-678ded3c-b09f-4791-8589-4c5b984c615e",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:38:33.794Z"
+  },
+  {
+    "id": "NOT-4ab9a24b-1faa-442b-8f7b-6c20b17394ec",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T17:56:31.950Z"
+  },
+  {
+    "id": "NOT-a5fbfbee-a88a-41d2-b934-05c58c5054c5",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:12:02.707Z"
+  },
+  {
+    "id": "NOT-4933a455-4457-4c61-947a-66989057b352",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:12:51.282Z"
+  },
+  {
+    "id": "NOT-8d7f7323-fa04-42a0-8e40-f64e263fffd3",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild ersetzt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:13:03.975Z"
+  },
+  {
+    "id": "NOT-d393ef0d-8481-4d00-9f9c-547b04bf7367",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild ersetzt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:13:20.389Z"
+  },
+  {
+    "id": "NOT-a553f125-7c73-4f00-aadd-defced808a5b",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:13:27.627Z"
+  },
+  {
+    "id": "NOT-4e9e7e9a-ea12-496b-88e8-6ace447af4d4",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:13:43.302Z"
+  },
+  {
+    "id": "NOT-449f8f85-a69f-49fc-946e-99d1fbd0fee6",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild ersetzt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:14:12.469Z"
+  },
+  {
+    "id": "NOT-25578665-b336-4647-ac7b-8ca2d800063d",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild entfernt für POS-1001-2",
+    "read": false,
+    "ts": "2025-11-07T18:14:43.480Z"
+  },
+  {
+    "id": "NOT-dfc9ef84-d7e5-4466-a28d-70e4bddbb91a",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T18:28:33.855Z"
+  },
+  {
+    "id": "NOT-769df65b-d65f-47a8-8241-29d810ebf571",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T18:28:34.435Z"
+  },
+  {
+    "id": "NOT-ac433ce7-56c2-46f5-81dd-3c6246301ea4",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T18:28:35.553Z"
+  },
+  {
+    "id": "NOT-43e84969-852d-44ad-a974-d4a7b681927f",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T18:28:35.987Z"
+  },
+  {
+    "id": "NOT-a71bae14-5b0f-409b-94ea-d054a32c5e94",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T18:29:12.352Z"
+  },
+  {
+    "id": "NOT-d878b906-2ceb-4a49-8799-37a4adae0659",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:29:23.571Z"
+  },
+  {
+    "id": "NOT-c1bffa01-ef83-4167-881d-5ba1169fc813",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T18:29:31.722Z"
+  },
+  {
+    "id": "NOT-9b191598-aaaa-4b7e-a3e8-95e8a6a220db",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T18:29:33.287Z"
+  },
+  {
+    "id": "NOT-1227baf1-e49a-47e7-9d02-665ae94cbe31",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:19.859Z"
+  },
+  {
+    "id": "NOT-30dfce98-efae-4c14-8bd9-a9de63e4e20e",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:20.824Z"
+  },
+  {
+    "id": "NOT-64e56c82-1c88-476d-93ed-df504c1284f6",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:21.354Z"
+  },
+  {
+    "id": "NOT-c6482f49-7b7d-43e4-b8b3-094d25f60fe7",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:22.484Z"
+  },
+  {
+    "id": "NOT-5a052b28-1cd9-43a8-9bd4-0151cb937f43",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:28.407Z"
+  },
+  {
+    "id": "NOT-efa95a7e-70e8-4e89-a161-7621cbec6c1b",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:33.045Z"
+  },
+  {
+    "id": "NOT-012858cb-800f-4a06-8179-e09e1bf8bc31",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:41.739Z"
+  },
+  {
+    "id": "NOT-1ab5e4c1-bf42-4a43-b58b-4d6cea16de91",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T19:51:43.474Z"
+  },
+  {
+    "id": "NOT-fcbb274f-c9e9-43d3-9994-8b957063285d",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T19:51:56.077Z"
+  },
+  {
+    "id": "NOT-afd1ede2-d4a2-4908-b740-f6a68ef1599b",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T19:51:59.271Z"
+  },
+  {
+    "id": "NOT-42049a69-a2bb-449d-bbbb-80d665503b29",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T20:00:48.313Z"
+  },
+  {
+    "id": "NOT-3e5df052-6717-4824-9d84-8564b7443990",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T20:13:53.634Z"
+  },
+  {
+    "id": "NOT-c5f80856-1952-4714-8ead-ac22ca7d812d",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-6b9401c4-d54c-4639-85d1-252f525d1a4e erstellt",
+    "read": false,
+    "ts": "2025-11-07T20:37:31.810Z"
+  },
+  {
+    "id": "NOT-39523bee-c427-4f25-bbc1-40abd7f24403",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-6b9401c4-d54c-4639-85d1-252f525d1a4e aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T20:37:41.847Z"
+  },
+  {
+    "id": "NOT-9681fe71-e9d7-46e1-8458-4e9fe7584fee",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Annotation entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T20:45:48.940Z"
+  },
+  {
+    "id": "NOT-8c693616-0cc7-423c-8e25-463065534955",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T20:45:58.543Z"
+  },
+  {
+    "id": "NOT-df55b9ca-2669-4842-abb9-7c3ddc47c902",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Annotation entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T20:47:08.134Z"
+  },
+  {
+    "id": "NOT-b5136318-a95b-4d01-bb9c-167b4f5603cf",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-6b9401c4-d54c-4639-85d1-252f525d1a4e aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T20:47:49.101Z"
+  },
+  {
+    "id": "NOT-09859f49-02ed-42b6-bd5b-04b183aaad67",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:19:11.727Z"
+  },
+  {
+    "id": "NOT-ebc2efb2-0764-469c-bddf-a17f1ff95229",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:19:18.659Z"
+  },
+  {
+    "id": "NOT-96c48a19-2e0f-4e1b-987d-0bb7fbc6cc6a",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:19:28.224Z"
+  },
+  {
+    "id": "NOT-aabdb5f1-3548-4d4f-a555-ec2745b4e5eb",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:19:30.274Z"
+  },
+  {
+    "id": "NOT-d2f54db7-6609-44f6-a38d-ac9cc1b387f9",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:19:37.988Z"
+  },
+  {
+    "id": "NOT-1ef921a1-aacc-41c9-990c-33464653676e",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:20:11.505Z"
+  },
+  {
+    "id": "NOT-9b6fcc2f-2b62-472c-9756-9340b51562c9",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5001 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:20:13.125Z"
+  },
+  {
+    "id": "NOT-5f1d5943-962d-4c41-a04f-d948eb011c6a",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:21:39.127Z"
+  },
+  {
+    "id": "NOT-2f26da21-fcdb-4483-b43b-7a773f1ae62c",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 erstellt",
+    "read": false,
+    "ts": "2025-11-07T21:23:03.487Z"
+  },
+  {
+    "id": "NOT-a282b307-63fc-47d7-828f-fd7684fcda4f",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:14.819Z"
+  },
+  {
+    "id": "NOT-36bc4b72-ecdd-4591-92d1-ab0faed798fa",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:16.686Z"
+  },
+  {
+    "id": "NOT-30683ba1-0e99-4f79-8e3d-30dc6deed4c0",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:21.069Z"
+  },
+  {
+    "id": "NOT-b8ff6b94-a109-47b7-99b9-3f0ca61c3ea0",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:23:37.584Z"
+  },
+  {
+    "id": "NOT-db7c94d2-e59d-4eb6-a5c2-881c53f55d66",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:41.823Z"
+  },
+  {
+    "id": "NOT-ce88f9d5-d8df-48e7-9963-a23b1166d2e6",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:42.253Z"
+  },
+  {
+    "id": "NOT-7a336cfa-7e27-4954-8c9e-081b97694815",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:42.769Z"
+  },
+  {
+    "id": "NOT-51e8901c-da65-4245-80d4-b6794267b0cc",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71 aktualisiert",
+    "read": false,
+    "ts": "2025-11-07T21:23:56.540Z"
+  },
+  {
+    "id": "NOT-13c3fe89-aca0-48a7-92bf-9b2ce6fd8970",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:23:58.789Z"
+  },
+  {
+    "id": "NOT-c3e28c88-71db-4e7f-9d6a-e26c85f82097",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Bild ersetzt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:44:48.527Z"
+  },
+  {
+    "id": "NOT-c9ee3c8f-4631-4426-9521-9ba2c0ed7384",
+    "type": "SPEC_UPLOAD",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Datei zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-07T21:45:01.251Z"
+  },
+  {
+    "id": "NOT-0a27d0f2-e554-4446-8592-8690621f8f60",
+    "type": "ORDER_STATUS_CHANGED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Status von PO-1001 ist jetzt Bestellung eingereicht",
+    "read": false,
+    "ts": "2025-11-07T23:27:27.887Z"
+  },
+  {
+    "id": "NOT-f1592559-9ea2-4201-86d2-ef4f1bfd3e6a",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-82df0dac-7107-47a5-8728-68037911d362 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:44:10.427Z"
+  },
+  {
+    "id": "NOT-11b398c2-677f-4b33-ab0b-2439445c5044",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-06f02022-210e-4b6b-9ecc-2118299ce9d0 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:44:18.181Z"
+  },
+  {
+    "id": "NOT-3c998562-bd42-4cf9-9c77-d77f84b08fe5",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-37944f56-fb9b-4a4d-8fc1-8765c7f57151 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:50:53.924Z"
+  },
+  {
+    "id": "NOT-d5fb99bc-7fc9-4c87-9105-20ca9c9b1046",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-f7809620-7923-4303-a30c-17faec76e0d7 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:53:42.151Z"
+  },
+  {
+    "id": "NOT-35f46c55-2eef-4669-9769-6e7ec8631863",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-1d5a123c-069f-4621-984f-4f775e2f0db5 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:58:09.987Z"
+  },
+  {
+    "id": "NOT-5ff9beac-7769-4de5-a3de-a190fc38f4e8",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-c5bb4fc0-dcb3-4f78-8e58-50ddfd724b12 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:59:10.053Z"
+  },
+  {
+    "id": "NOT-dada454c-aa0b-4001-ad60-db4b2ce3e15c",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202510000000 erstellt",
+    "read": false,
+    "ts": "2025-11-07T23:59:48.569Z"
+  },
+  {
+    "id": "NOT-81ee1e22-032c-4252-bad9-8c1d92ded787",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202510000000 erstellt",
+    "read": false,
+    "ts": "2025-11-08T00:00:24.501Z"
+  },
+  {
+    "id": "NOT-320ad86b-4935-428c-ba62-a5f5880589f7",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202510000000 erstellt",
+    "read": false,
+    "ts": "2025-11-08T00:00:41.713Z"
+  },
+  {
+    "id": "NOT-2fdf241c-9e8a-462a-964f-50f77a33981b",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202532129434 erstellt",
+    "read": false,
+    "ts": "2025-11-08T00:02:37.820Z"
+  },
+  {
+    "id": "NOT-8b4cb033-e12b-4bfb-97f9-409633eaccd4",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202532129434 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T00:10:32.308Z"
+  },
+  {
+    "id": "NOT-8d9613c5-b7bb-40a4-be42-4a5b4711d0b6",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1002",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5002 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T00:10:41.627Z"
+  },
+  {
+    "id": "NOT-03fa1aec-27cd-4d27-8433-28a0879b836b",
+    "type": "TICKET_CREATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576412 erstellt",
+    "read": false,
+    "ts": "2025-11-08T00:14:46.593Z"
+  },
+  {
+    "id": "NOT-d3a3b901-d431-4d59-87f8-264931092e2e",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202532129434 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T00:18:51.566Z"
+  },
+  {
+    "id": "NOT-7cde30d4-91c7-4ae1-baf0-df5b77e7350d",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Annotation entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-08T00:22:11.157Z"
+  },
+  {
+    "id": "NOT-e136edf2-c6ab-413d-86eb-81627d656bba",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu POS-1001-1",
+    "read": false,
+    "ts": "2025-11-08T00:22:23.056Z"
+  },
+  {
+    "id": "NOT-964ea7af-05a2-4e57-97c3-20f7f79c9dc0",
+    "type": "SPEC_COMMENT",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Annotation entfernt für POS-1001-1",
+    "read": false,
+    "ts": "2025-11-08T00:22:30.169Z"
+  },
+  {
+    "id": "NOT-7214a97a-48c4-4d5e-bb91-2a8f57cdf33a",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202532129434 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T00:24:15.603Z"
+  },
+  {
+    "id": "NOT-109e7697-bd16-4536-b8b7-a2201d172375",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202532129434 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T00:24:17.851Z"
+  },
+  {
+    "id": "NOT-7530463f-dba0-403f-bf06-46ae53f81d1b",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1002",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-5002 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T09:06:58.915Z"
+  },
+  {
+    "id": "NOT-843072d9-4416-465b-9efc-b8f032b11b6f",
+    "type": "TICKET_UPDATED",
+    "order_id": "PO-1001",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202532129434 aktualisiert",
+    "read": false,
+    "ts": "2025-11-08T09:10:02.054Z"
+  },
+  {
+    "id": "NOT-51558467-7e1c-4cc5-9d1f-cfe013395b14",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500016",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T00:16:23.642Z"
+  },
+  {
+    "id": "NOT-bf33e6d6-4f9f-4448-95e3-f1f37f412352",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500016",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T14:34:07.964Z"
+  },
+  {
+    "id": "NOT-7d0e670e-e1fa-429a-a4d2-988376986c09",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500016",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576413 erstellt",
+    "read": false,
+    "ts": "2025-11-09T14:34:29.879Z"
+  }
+]

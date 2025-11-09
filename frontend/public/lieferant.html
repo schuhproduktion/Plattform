@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Lieferanten-Home | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-lieferant" data-page="lieferant" data-breadcrumb="Lieferant">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="supplier">
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Meine Aufträge</h3>
+            </header>
+            <ul id="supplierOrders" class="list"></ul>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Offene Freigaben</h3>
+            </header>
+            <ul id="supplierApprovals" class="list"></ul>
+          </article>
+        </div>
+        <article class="card">
+          <header>
+            <h3>Termine & Tickets</h3>
+          </header>
+          <div class="grid two">
+            <ul id="supplierEvents" class="list"></ul>
+            <ul id="supplierTickets" class="list"></ul>
+          </div>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

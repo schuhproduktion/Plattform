@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Bestellung | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-bestellung" data-page="bestellung">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="bestellung">
+        <div class="card back-card">
+          <button type="button" id="backToList">← Zurück zu Bestellungen</button>
+          <div class="back-card-actions">
+            <button type="button" id="openLabelManager" class="ghost small">Kartons</button>
+            <button type="button" id="openShoeboxManager" class="ghost small">Schuhbox</button>
+          </div>
+        </div>
+
+        <div class="card order-master-card">
+          <div class="order-summary-grid">
+            <div class="summary-card summary-card-lg">
+              <p class="summary-label">Bestellnummer</p>
+              <p class="summary-value order-id" id="orderNumber">-</p>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label">Bestellart</p>
+              <div class="order-type-control" id="orderTypeControl">
+                <span id="orderTypeBadge" class="badge warning order-type-badge">-</span>
+                <select id="orderTypeSelect">
+                  <option value="">-</option>
+                  <option value="MUSTER">Muster</option>
+                  <option value="SMS">SMS</option>
+                  <option value="PPS">PPS</option>
+                  <option value="BESTELLUNG">Bestellung</option>
+                </select>
+              </div>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label">Lieferdatum</p>
+              <p class="summary-value" id="orderDelivery">-</p>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label">Summe</p>
+              <p class="summary-value" id="orderTotal">-</p>
+            </div>
+            <div class="summary-card summary-card-center">
+              <p class="summary-label">Tickets</p>
+              <span id="orderTicketsSummary" class="question-badge question-closed">
+                <span class="dot">✓</span>
+                <span class="count">0</span>
+              </span>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label">Status</p>
+              <div class="status-control">
+                <select id="orderStatusSelect"></select>
+              </div>
+            </div>
+          </div>
+          <div class="order-info-grid">
+            <div class="info-card">
+              <p class="info-label">Absender</p>
+              <p class="info-line info-strong" id="senderName">-</p>
+              <p class="info-line" id="senderStreet">-</p>
+              <p class="info-line" id="senderCity">-</p>
+              <p class="info-line muted" id="senderCountry">-</p>
+            </div>
+            <div class="info-card">
+              <p class="info-label">Kunde</p>
+              <p class="info-line info-strong" id="customerNameValue">-</p>
+              <p class="info-line" id="customerStreet">-</p>
+              <p class="info-line" id="customerCity">-</p>
+              <p class="info-line muted" id="customerCountry">-</p>
+              <p class="info-line info-meta" id="customerTax">Steuernummer: -</p>
+            </div>
+            <div class="info-card">
+              <p class="info-label">Lieferadresse</p>
+              <p class="info-line info-strong" id="deliveryCompany">-</p>
+              <p class="info-line" id="deliveryStreet">-</p>
+              <p class="info-line" id="deliveryCity">-</p>
+              <p class="info-line muted" id="deliveryCountry">-</p>
+            </div>
+          </div>
+        <div class="card info-card info-card-meta info-card-group">
+          <div class="info-card-section">
+            <p class="info-label">Kundenkontakte</p>
+            <div class="info-meta-grid">
+              <div class="meta-block">
+                <p class="meta-label">Kundennummer</p>
+                <p id="customerNumber">-</p>
+              </div>
+              <div class="meta-block">
+                <p class="meta-label">Ansprechpartner</p>
+                <p id="contactName">-</p>
+              </div>
+              <div class="meta-block">
+                <p class="meta-label">E-Mail</p>
+                <p id="contactEmail">-</p>
+              </div>
+              <div class="meta-block">
+                <p class="meta-label">Telefon</p>
+                <p id="contactPhone">-</p>
+              </div>
+            </div>
+          </div>
+          <div class="info-card-section divider">
+            <p class="info-label">Versanddetails</p>
+            <div class="info-meta-grid">
+              <div class="meta-block">
+                <p class="meta-label">Versand bezahlt von</p>
+                <p id="shippingPayer">-</p>
+              </div>
+              <div class="meta-block">
+                <p class="meta-label">Transportart</p>
+                <p id="shippingMethod">-</p>
+              </div>
+              <div class="meta-block">
+                <p class="meta-label">Verpackung</p>
+                <p id="shippingPackaging">-</p>
+              </div>
+              <div class="meta-block">
+                <p class="meta-label">Abholung</p>
+                <p id="shippingPickup">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div class="card positions-card">
+          <div class="section-head">
+            <h4>Artikelpositionen</h4>
+          </div>
+          <div id="positionsList" class="positions-list">
+            <p class="muted">Keine Positionen geladen.</p>
+          </div>
+        </div>
+
+        <div class="card accessories-card">
+          <div class="section-head">
+            <h4>Zubehör</h4>
+            <p class="muted" id="accessoriesSubtitle">Kundenspezifisches Verpackungsset</p>
+          </div>
+          <div id="accessoriesContent" class="accessories-placeholder">
+            <p class="muted">Keine Daten geladen.</p>
+          </div>
+        </div>
+
+        <div class="card totals-card">
+          <table class="totals-table">
+            <tbody>
+              <tr>
+                <td>Nettopreis</td>
+                <td id="netAmount">-</td>
+              </tr>
+              <tr>
+                <td>zzgl. 19 % USt.</td>
+                <td id="taxAmount">-</td>
+              </tr>
+              <tr class="totals-table-total">
+                <td>Rechnungsbetrag</td>
+                <td id="grossAmount">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card tickets-card order-tickets-card">
+          <div class="tickets-header">
+            <h4>Tickets</h4>
+            <span class="badge ghost" id="orderTicketsCount">0</span>
+          </div>
+          <div id="orderTicketsList" class="tickets-list">
+            <p class="muted">Noch keine Tickets.</p>
+          </div>
+          <form id="orderTicketForm" class="ticket-form">
+            <input type="text" name="title" id="orderTicketTitle" placeholder="Neue Rückfrage eingeben" required />
+            <div class="ticket-form-actions">
+              <select name="priority" id="orderTicketPriority">
+                <option value="mittel">Priorität: Mittel</option>
+                <option value="hoch">Priorität: Hoch</option>
+                <option value="niedrig">Priorität: Niedrig</option>
+              </select>
+              <button type="submit">Rückfrage speichern</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card timeline-card">
+          <h4>Aktivität</h4>
+          <div id="timeline" class="timeline-list"></div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

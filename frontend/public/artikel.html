@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Artikel & Spezifikationen | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-artikel" data-page="artikel" data-breadcrumb="Artikel">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="artikel">
+        <div class="artikel-layout">
+          <article class="card artikel-list-card" id="artikelListView">
+            <header class="artikel-list-head">
+              <input type="search" id="artikelSearch" placeholder="Artikel suchen" />
+              <select id="artikelGroupFilter">
+                <option value="">Alle Artikelgruppen</option>
+              </select>
+            </header>
+            <div class="table-scroll">
+              <table class="artikel-table">
+                <thead>
+                  <tr>
+                    <th>Artikelnummer</th>
+                    <th>Produktbild</th>
+                    <th>Artikelname</th>
+                    <th>Farbcode</th>
+                  </tr>
+                </thead>
+                <tbody id="artikelTable">
+                  <tr>
+                    <td colspan="4" class="muted">Keine Artikel geladen.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+          <article class="card artikel-detail-card hidden" id="artikelDetailView">
+            <div class="artikel-toolbar">
+              <button type="button" class="ghost artikel-back-button" id="backToArtikelList">← Zurück zu Artikeln</button>
+              <div id="artikelHeaderLinks" class="artikel-head-links hidden"></div>
+            </div>
+            <div id="artikelDetail">
+              <p class="muted">Bitte einen Artikel auswählen.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Systemstatus | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-diagnostics" data-page="diagnostics">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="diagnostics">
+        <div class="grid kpis" id="diagnosticsSummary"></div>
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Alert-Monitor</h3>
+              <button class="ghost" id="diagnosticsRefresh">Neu laden</button>
+            </header>
+            <ul class="alert-list" id="diagnosticsAlerts"></ul>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Dienste &amp; Sync</h3>
+            </header>
+            <div id="diagnosticsJobs" class="status-list"></div>
+            <div id="diagnosticsServerMeta" class="system-meta"></div>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Bestellungen</h3>
+            </header>
+            <div id="diagnosticsOrdersStatus"></div>
+            <div id="diagnosticsOrdersPhase" class="mt"></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Tickets &amp; Spezifikationen</h3>
+            </header>
+            <div id="diagnosticsTicketsStatus"></div>
+            <div id="diagnosticsTicketsPriority" class="mt"></div>
+            <div id="diagnosticsEscalated" class="mt"></div>
+            <div id="diagnosticsSpecs" class="mt"></div>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Kritische Bestellungen</h3>
+            </header>
+            <table class="status-table">
+              <thead>
+                <tr>
+                  <th>Bestellung</th>
+                  <th>Kunde</th>
+                  <th>Status</th>
+                  <th>Überfällig</th>
+                </tr>
+              </thead>
+              <tbody id="diagnosticsOverdue"></tbody>
+            </table>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Aktivität</h3>
+            </header>
+            <div class="activity-grid">
+              <div>
+                <h4>Logs</h4>
+                <ul id="diagnosticsLogs" class="log-list"></ul>
+              </div>
+              <div>
+                <h4>Kalender</h4>
+                <ul id="diagnosticsEvents" class="log-list"></ul>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

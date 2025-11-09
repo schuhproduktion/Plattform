@@ -1,0 +1,17 @@
+[
+  {
+    "id": "u-bate-1",
+    "email": "anna.bate@example.com",
+    "password_hash": "$2a$10$xQzZvaznlwQbRDVUcHx1IupWKSCtF9NKiP5FNISORor.4SgNuMF6O",
+    "role": "BATE",
+    "locale": "de"
+  },
+  {
+    "id": "u-supp-1",
+    "email": "supplier.meyer@example.com",
+    "password_hash": "$2a$10$egTtvwSwQadofo4imQvISuresNR6u2Rd9eOtE93VHG8cZhMyIqcwm",
+    "role": "SUPPLIER",
+    "supplier_id": "SUP-001",
+    "locale": "de"
+  }
+]

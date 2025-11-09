@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kalender | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-calendar" data-page="kalender">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="calendar">
+        <article class="card calendar-card">
+          <div class="calendar-toolbar">
+            <button class="ghost" id="prevMonthBtn" aria-label="Vorheriger Monat">‹</button>
+            <div>
+              <h3 id="calendarMonthLabel">-</h3>
+              <p class="muted" id="calendarSubtitle">Liefertermine & Ereignisse</p>
+            </div>
+            <button class="ghost" id="nextMonthBtn" aria-label="Nächster Monat">›</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </article>
+        <article class="card calendar-events-card">
+          <header class="calendar-events-head">
+            <h3>Termine</h3>
+            <button id="newEventBtn">Neuer Termin</button>
+          </header>
+          <ul id="calendarList" class="calendar-events-list"></ul>
+        </article>
+        <dialog id="eventDialog">
+          <form method="dialog" id="eventForm">
+            <label>Titel <input type="text" name="title" required /></label>
+            <label>Start <input type="datetime-local" name="start" required /></label>
+            <label>Ende <input type="datetime-local" name="end" required /></label>
+            <label>Order (optional) <input type="text" name="order_id" /></label>
+            <menu>
+              <button value="cancel">Abbrechen</button>
+              <button id="eventSubmit" value="default">Speichern</button>
+            </menu>
+          </form>
+        </dialog>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

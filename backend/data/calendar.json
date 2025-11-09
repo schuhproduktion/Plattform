@@ -1,0 +1,466 @@
+[
+  {
+    "id": "CAL-102",
+    "title": "Supplier Jour Fixe",
+    "type": "manual",
+    "order_id": null,
+    "start": "2024-05-22T09:00:00.000Z",
+    "end": "2024-05-22T10:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500003-prod",
+    "title": "BT-B2500003 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500003",
+    "start": "2024-12-17T00:00:00.000Z",
+    "end": "2024-12-18T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500003-ship",
+    "title": "BT-B2500003 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500003",
+    "start": "2024-12-28T00:00:00.000Z",
+    "end": "2024-12-29T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500003-pickup",
+    "title": "BT-B2500003 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500003",
+    "start": "2024-12-31T00:00:00.000Z",
+    "end": "2024-12-31T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500001-prod",
+    "title": "BT-B2500001 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500001",
+    "start": "2024-12-17T00:00:00.000Z",
+    "end": "2024-12-18T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500001-ship",
+    "title": "BT-B2500001 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500001",
+    "start": "2024-12-28T00:00:00.000Z",
+    "end": "2024-12-29T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500001-pickup",
+    "title": "BT-B2500001 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500001",
+    "start": "2024-12-31T00:00:00.000Z",
+    "end": "2024-12-31T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500002-prod",
+    "title": "BT-B2500002 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500002",
+    "start": "2025-03-21T01:00:00.000Z",
+    "end": "2025-03-22T01:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500002-ship",
+    "title": "BT-B2500002 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500002",
+    "start": "2025-04-01T00:00:00.000Z",
+    "end": "2025-04-02T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500002-pickup",
+    "title": "BT-B2500002 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500002",
+    "start": "2025-04-04T00:00:00.000Z",
+    "end": "2025-04-04T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500007-prod",
+    "title": "BT-B2500007 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500007",
+    "start": "2025-04-09T00:00:00.000Z",
+    "end": "2025-04-10T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500007-ship",
+    "title": "BT-B2500007 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500007",
+    "start": "2025-04-20T00:00:00.000Z",
+    "end": "2025-04-21T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500007-pickup",
+    "title": "BT-B2500007 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500007",
+    "start": "2025-04-23T00:00:00.000Z",
+    "end": "2025-04-23T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500007-1-prod",
+    "title": "BT-B2500007-1 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500007-1",
+    "start": "2025-04-09T00:00:00.000Z",
+    "end": "2025-04-10T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500007-1-ship",
+    "title": "BT-B2500007-1 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500007-1",
+    "start": "2025-04-20T00:00:00.000Z",
+    "end": "2025-04-21T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500007-1-pickup",
+    "title": "BT-B2500007-1 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500007-1",
+    "start": "2025-04-23T00:00:00.000Z",
+    "end": "2025-04-23T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-prod",
+    "title": "BT-B2500005 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500005",
+    "start": "2025-05-30T00:00:00.000Z",
+    "end": "2025-05-31T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-ship",
+    "title": "BT-B2500005 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500005",
+    "start": "2025-06-10T00:00:00.000Z",
+    "end": "2025-06-11T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-pickup",
+    "title": "BT-B2500005 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500005",
+    "start": "2025-06-13T00:00:00.000Z",
+    "end": "2025-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-1-prod",
+    "title": "BT-B2500005-1 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500005-1",
+    "start": "2025-05-30T00:00:00.000Z",
+    "end": "2025-05-31T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-1-ship",
+    "title": "BT-B2500005-1 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500005-1",
+    "start": "2025-06-10T00:00:00.000Z",
+    "end": "2025-06-11T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-1-pickup",
+    "title": "BT-B2500005-1 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500005-1",
+    "start": "2025-06-13T00:00:00.000Z",
+    "end": "2025-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-2-prod",
+    "title": "BT-B2500005-2 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500005-2",
+    "start": "2025-05-30T00:00:00.000Z",
+    "end": "2025-05-31T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-2-ship",
+    "title": "BT-B2500005-2 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500005-2",
+    "start": "2025-06-10T00:00:00.000Z",
+    "end": "2025-06-11T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500005-2-pickup",
+    "title": "BT-B2500005-2 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500005-2",
+    "start": "2025-06-13T00:00:00.000Z",
+    "end": "2025-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500006-prod",
+    "title": "BT-B2500006 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500006",
+    "start": "2025-04-09T00:00:00.000Z",
+    "end": "2025-04-10T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500006-ship",
+    "title": "BT-B2500006 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500006",
+    "start": "2025-04-20T00:00:00.000Z",
+    "end": "2025-04-21T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500006-pickup",
+    "title": "BT-B2500006 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500006",
+    "start": "2025-04-23T00:00:00.000Z",
+    "end": "2025-04-23T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500006-1-prod",
+    "title": "BT-B2500006-1 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500006-1",
+    "start": "2025-04-21T00:00:00.000Z",
+    "end": "2025-04-22T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500006-1-ship",
+    "title": "BT-B2500006-1 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500006-1",
+    "start": "2025-05-02T00:00:00.000Z",
+    "end": "2025-05-03T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500006-1-pickup",
+    "title": "BT-B2500006-1 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500006-1",
+    "start": "2025-05-05T00:00:00.000Z",
+    "end": "2025-05-05T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500008-prod",
+    "title": "BT-B2500008 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500008",
+    "start": "2025-05-21T00:00:00.000Z",
+    "end": "2025-05-22T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500008-ship",
+    "title": "BT-B2500008 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500008",
+    "start": "2025-06-01T00:00:00.000Z",
+    "end": "2025-06-02T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500008-pickup",
+    "title": "BT-B2500008 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500008",
+    "start": "2025-06-04T00:00:00.000Z",
+    "end": "2025-06-04T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500009-prod",
+    "title": "BT-B2500009 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500009",
+    "start": "2025-05-21T00:00:00.000Z",
+    "end": "2025-05-22T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500009-ship",
+    "title": "BT-B2500009 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500009",
+    "start": "2025-06-01T00:00:00.000Z",
+    "end": "2025-06-02T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500009-pickup",
+    "title": "BT-B2500009 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500009",
+    "start": "2025-06-04T00:00:00.000Z",
+    "end": "2025-06-04T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500010-prod",
+    "title": "BT-B2500010 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500010",
+    "start": "2025-05-21T00:00:00.000Z",
+    "end": "2025-05-22T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500010-ship",
+    "title": "BT-B2500010 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500010",
+    "start": "2025-06-01T00:00:00.000Z",
+    "end": "2025-06-02T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500010-pickup",
+    "title": "BT-B2500010 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500010",
+    "start": "2025-06-04T00:00:00.000Z",
+    "end": "2025-06-04T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500012-prod",
+    "title": "BT-B2500012 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500012",
+    "start": "2025-05-21T00:00:00.000Z",
+    "end": "2025-05-22T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500012-ship",
+    "title": "BT-B2500012 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500012",
+    "start": "2025-06-01T00:00:00.000Z",
+    "end": "2025-06-02T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500012-pickup",
+    "title": "BT-B2500012 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500012",
+    "start": "2025-06-04T00:00:00.000Z",
+    "end": "2025-06-04T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500011-prod",
+    "title": "BT-B2500011 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500011",
+    "start": "2025-06-10T00:00:00.000Z",
+    "end": "2025-06-11T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500011-ship",
+    "title": "BT-B2500011 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500011",
+    "start": "2025-06-21T00:00:00.000Z",
+    "end": "2025-06-22T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500011-pickup",
+    "title": "BT-B2500011 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500011",
+    "start": "2025-06-24T00:00:00.000Z",
+    "end": "2025-06-24T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500013-prod",
+    "title": "BT-B2500013 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500013",
+    "start": "2025-11-24T00:00:00.000Z",
+    "end": "2025-11-25T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500013-ship",
+    "title": "BT-B2500013 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500013",
+    "start": "2025-12-05T00:00:00.000Z",
+    "end": "2025-12-06T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500013-pickup",
+    "title": "BT-B2500013 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500013",
+    "start": "2025-12-08T00:00:00.000Z",
+    "end": "2025-12-08T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500014-prod",
+    "title": "BT-B2500014 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500014",
+    "start": "2025-11-24T00:00:00.000Z",
+    "end": "2025-11-25T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500014-ship",
+    "title": "BT-B2500014 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500014",
+    "start": "2025-12-05T00:00:00.000Z",
+    "end": "2025-12-06T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500014-pickup",
+    "title": "BT-B2500014 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500014",
+    "start": "2025-12-08T00:00:00.000Z",
+    "end": "2025-12-08T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500015-prod",
+    "title": "BT-B2500015 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500015",
+    "start": "2025-11-24T00:00:00.000Z",
+    "end": "2025-11-25T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500015-ship",
+    "title": "BT-B2500015 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500015",
+    "start": "2025-12-05T00:00:00.000Z",
+    "end": "2025-12-06T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500015-pickup",
+    "title": "BT-B2500015 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500015",
+    "start": "2025-12-08T00:00:00.000Z",
+    "end": "2025-12-08T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500016-prod",
+    "title": "BT-B2500016 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500016",
+    "start": "2025-12-17T00:00:00.000Z",
+    "end": "2025-12-18T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500016-ship",
+    "title": "BT-B2500016 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500016",
+    "start": "2025-12-28T00:00:00.000Z",
+    "end": "2025-12-29T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500016-pickup",
+    "title": "BT-B2500016 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500016",
+    "start": "2025-12-31T00:00:00.000Z",
+    "end": "2025-12-31T00:00:00.000Z"
+  }
+]

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dashboard | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-dashboard" data-page="dashboard">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="dashboard">
+        <div class="grid kpis">
+          <article class="card">
+            <h3>Neue Bestellungen</h3>
+            <p class="value" id="kpiNewOrders">-</p>
+          </article>
+          <article class="card">
+            <h3>Offene Tickets · Bestellungen</h3>
+            <p class="value" id="kpiOrderTickets">-</p>
+          </article>
+          <article class="card">
+            <h3>Offene Tickets · Techpacks</h3>
+            <p class="value" id="kpiTechpackTickets">-</p>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card" id="productionOverview">
+            <header>
+              <h3>Neue Bestellungen</h3>
+            </header>
+            <table>
+              <thead>
+                <tr>
+                  <th>Bestellnummer</th>
+                  <th>Status</th>
+                  <th>Kunde</th>
+                  <th>Bestellart</th>
+                  <th>Lieferdatum</th>
+                </tr>
+              </thead>
+              <tbody id="productionTable"></tbody>
+            </table>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card open-tickets-card" id="orderTicketCard">
+            <header class="open-tickets-head">
+              <div>
+                <h3>Offene Tickets</h3>
+                <span class="muted">Bestellungen</span>
+              </div>
+              <a class="ghost" href="/tickets.html">Alle</a>
+            </header>
+            <ul id="dashboardOrderTickets" class="list ticket-list"></ul>
+          </article>
+          <article class="card open-tickets-card" id="techpackTicketCard">
+            <header class="open-tickets-head">
+              <div>
+                <h3>Offene Tickets</h3>
+                <span class="muted">Techpacks</span>
+              </div>
+              <a class="ghost" href="/tickets.html">Alle</a>
+            </header>
+            <ul id="dashboardTechpackTickets" class="list ticket-list"></ul>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

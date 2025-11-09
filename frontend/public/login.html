@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Anmeldung | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-login" data-page="login">
+    <div class="language-switcher login-language-switcher">
+      <label for="languageSelect" class="sr-only">Sprache wählen</label>
+      <select id="languageSelect">
+        <option value="de">Deutsch</option>
+        <option value="tr">Türkçe</option>
+      </select>
+    </div>
+    <section class="login-panel">
+      <header>
+        <h1>BATE Supplier Portal</h1>
+        <p>Bitte melden Sie sich mit Ihren Zugangsdaten an.</p>
+      </header>
+      <form id="loginForm" class="card">
+        <label for="email">E-Mail</label>
+        <input type="email" id="email" name="email" required />
+        <label for="password">Passwort</label>
+        <input type="password" id="password" name="password" required />
+        <button type="submit">Login</button>
+      </form>
+      <footer>
+        <small>DE aktiv · EN/TR vorbereitet</small>
+      </footer>
+    </section>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

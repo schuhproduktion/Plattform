@@ -1,0 +1,116 @@
+[
+  {
+    "id": "TIC-5002",
+    "order_id": "PO-1002",
+    "title": "QS-Report Upload",
+    "status": "OPEN",
+    "priority": "mittel",
+    "owner": "u-supp-1",
+    "view_key": "rear",
+    "watchers": [
+      "u-bate-1"
+    ],
+    "comments": [
+      {
+        "id": "tc-2",
+        "author": "u-supp-1",
+        "message": "Report folgt heute 16:00 Uhr.",
+        "ts": "2024-05-16T09:10:00.000Z"
+      },
+      {
+        "id": "tc-cb619ed8-90c8-434c-bfee-0ff87c00753a",
+        "author": "anna.bate@example.com",
+        "message": "kmk",
+        "ts": "2025-11-08T09:33:24.517Z",
+        "attachment": {
+          "filename": "0019.webp",
+          "url": "/uploads/tickets/TIC-5002/0019-1762594404513-d7bcd335-2d30-43be-bc77-780aa1d03d26.webp"
+        }
+      }
+    ],
+    "created_at": "2024-05-15T08:30:00.000Z"
+  },
+  {
+    "id": "TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71",
+    "order_id": "PO-1001",
+    "position_id": "POS-1001-1",
+    "title": "Snfsjn",
+    "status": "CLOSED",
+    "priority": "mittel",
+    "owner": "u-bate-1",
+    "watchers": [],
+    "view_key": "top",
+    "comments": [],
+    "created_at": "2025-11-07T21:23:03.486Z"
+  },
+  {
+    "id": "TIC-BE-202532129434",
+    "order_id": "PO-1001",
+    "position_id": null,
+    "title": "kmllkm",
+    "status": "CLOSED",
+    "priority": "mittel",
+    "owner": "u-bate-1",
+    "watchers": [],
+    "view_key": null,
+    "comments": [
+      {
+        "id": "tc-8a5227b0-0bfd-4da8-9374-55f6b9112a54",
+        "author": "anna.bate@example.com",
+        "message": "kmkmkmkm",
+        "ts": "2025-11-08T00:23:53.287Z"
+      }
+    ],
+    "created_at": "2025-11-08T00:02:37.819Z"
+  },
+  {
+    "id": "TIC-TE-202576412",
+    "order_id": "PO-1001",
+    "position_id": "POS-1001-1",
+    "title": "test",
+    "status": "OPEN",
+    "priority": "mittel",
+    "owner": "u-bate-1",
+    "watchers": [],
+    "view_key": "side",
+    "comments": [],
+    "created_at": "2025-11-08T00:14:46.592Z"
+  },
+  {
+    "id": "TIC-BE-202529435",
+    "order_id": "BT-B2500016",
+    "position_id": null,
+    "title": "sdjsdkjk",
+    "status": "OPEN",
+    "priority": "mittel",
+    "owner": "u-bate-1",
+    "watchers": [],
+    "view_key": null,
+    "comments": [],
+    "created_at": "2025-11-09T14:34:07.962Z"
+  },
+  {
+    "id": "TIC-TE-202576413",
+    "order_id": "BT-B2500016",
+    "position_id": "585idf0ke5",
+    "title": "njnjn",
+    "status": "OPEN",
+    "priority": "mittel",
+    "owner": "u-bate-1",
+    "watchers": [],
+    "view_key": "side",
+    "comments": [
+      {
+        "id": "tc-10bfc12b-56e7-482e-809f-860ba460e069",
+        "author": "anna.bate@example.com",
+        "message": null,
+        "ts": "2025-11-09T14:34:52.061Z",
+        "attachment": {
+          "filename": "H620f7e2e54274c6295e344c1f37c3c49T.jpg_960x960q80.avif",
+          "url": "/uploads/tickets/TIC-TE-202576413/H620f7e2e54274c6295e344c1f37c3c49T.jpg_960x960q80-1762698892050-9235d164-b66e-4567-8bea-ab7d340ec9a2.avif"
+        }
+      }
+    ],
+    "created_at": "2025-11-09T14:34:29.879Z"
+  }
+]
