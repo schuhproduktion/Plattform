@@ -178,9 +178,20 @@ function t(locale, key) {
   return translations[resolved]?.[key] || translations[DEFAULT_LOCALE]?.[key] || key;
 }
 
-app.use(helmet({
-  crossOriginResourcePolicy: false
-}));
+const cspDirectives = {
+  ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+  'img-src': ["'self'", 'data:', 'https://360.schuhproduktion.com'],
+  'script-src': ["'self'", 'blob:']
+};
+
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+    contentSecurityPolicy: {
+      directives: cspDirectives
+    }
+  })
+);
 app.use(cors({
   origin: BASE_URL,
   credentials: true
