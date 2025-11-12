@@ -40,6 +40,12 @@ const TECHPACK_VIEWS = [
   { key: 'sole', label: 'Sohle' },
   { key: 'tongue', label: 'Zunge' }
 ];
+const TECHPACK_VIEWER_PRESETS = [
+  { key: 'side', label: 'Seitenansicht', frame: '0001' },
+  { key: 'front', label: 'Vorderansicht', frame: '0010' },
+  { key: 'inner', label: 'Innenansicht', frame: '0019' },
+  { key: 'rear', label: 'Rückansicht', frame: '0028' }
+];
 const TECHPACK_VIEW_KEYS = new Set(TECHPACK_VIEWS.map((view) => view.key));
 const PLACEHOLDER_MEDIA_PREFIX = 'placeholder-';
 const TECHPACK_PLACEHOLDER_IMAGES = {
@@ -445,6 +451,10 @@ function ensureAutoSyncConfigured(res) {
 async function loadOrders() {
   const orders = (await readJson('purchase_orders.json', [])) || [];
   return orders.map((order) => normalizePortalOrder(order));
+}
+
+async function loadItemsData() {
+  return (await readJson('items.json', [])) || [];
 }
 
 async function loadSpecs() {
@@ -1741,7 +1751,12 @@ function reassignPlaceholderAnnotations(spec, viewKey, mediaId) {
 function removePlaceholderMediaEntry(spec, viewKey) {
   if (!spec?.flags?.medien || !viewKey) return;
   const placeholderId = `${PLACEHOLDER_MEDIA_PREFIX}${viewKey}`;
-  spec.flags.medien = spec.flags.medien.filter((entry) => entry.id !== placeholderId);
+  spec.flags.medien = spec.flags.medien.filter((entry) => {
+    if (!entry) return false;
+    if (entry.id === placeholderId) return false;
+    if (entry.view_key === viewKey && entry.auto_generated) return false;
+    return true;
+  });
 }
 
 function isPlaceholderMediaId(mediaId) {
@@ -1761,6 +1776,67 @@ function buildPlaceholderMediaEntry(viewKey) {
     url: TECHPACK_PLACEHOLDER_IMAGES[view.key] || '',
     is_placeholder: true
   };
+}
+
+function findOrderPosition(order, positionId) {
+  if (!order || !Array.isArray(order.positions)) return null;
+  return order.positions.find((pos) => pos.position_id === positionId || pos.id === positionId);
+}
+
+async function resolveViewerImageBase(orderId, positionId, existingOrder = null) {
+  const order = existingOrder || (await loadOrders()).find((entry) => entry.id === orderId);
+  if (!order) return null;
+  const position = findOrderPosition(order, positionId);
+  if (!position?.item_code) return null;
+  const items = await loadItemsData();
+  const item = items.find((entry) => entry.item_code === position.item_code || entry.id === position.item_code);
+  const rawLink = item?.links?.viewer3d || item?.viewer3d;
+  if (!rawLink) return null;
+  const trimmed = rawLink.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\/+$/, '');
+  return normalized.endsWith('/images') ? normalized : `${normalized}/images`;
+}
+
+async function ensureSpecViewerMedia(spec, orderId, positionId, existingOrder = null) {
+  if (!spec?.flags) return false;
+  spec.flags.medien = Array.isArray(spec.flags.medien) ? spec.flags.medien : [];
+  // Wenn bereits manuelle Medien existieren, nur fehlende Slots füllen.
+  const viewerBase = await resolveViewerImageBase(orderId, positionId, existingOrder);
+  if (!viewerBase) return false;
+  let changed = false;
+  const currentMedia = spec.flags.medien;
+  const viewIndex = new Map();
+  currentMedia.forEach((entry, idx) => {
+    if (entry?.view_key) {
+      viewIndex.set(entry.view_key, { entry, idx });
+    }
+  });
+  TECHPACK_VIEWER_PRESETS.forEach((preset) => {
+    const autoEntry = {
+      id: `viewer-${positionId || orderId}-${preset.key}`,
+      label: `${preset.label} · ${preset.frame}.webp`,
+      filename: `${preset.frame}.webp`,
+      view_key: preset.key,
+      status: 'OPEN',
+      url: `${viewerBase}/${preset.frame}.webp`,
+      auto_generated: true
+    };
+    const existing = viewIndex.get(preset.key);
+    if (!existing) {
+      currentMedia.push(autoEntry);
+      viewIndex.set(preset.key, { entry: autoEntry, idx: currentMedia.length - 1 });
+      changed = true;
+      return;
+    }
+    if (existing.entry.is_placeholder || existing.entry.auto_generated) {
+      reassignPlaceholderAnnotations(spec, preset.key, autoEntry.id);
+      currentMedia[existing.idx] = autoEntry;
+      viewIndex.set(preset.key, { entry: autoEntry, idx: existing.idx });
+      changed = true;
+    }
+  });
+  return changed;
 }
 
 function deriveOrderSizeTotals(order) {
@@ -3316,9 +3392,10 @@ app.post('/api/orders/:id/upload', requireAuth(), upload.single('file'), async (
 });
 
 // Specs
-async function findOrCreateSpec(orderId, positionId) {
+async function findOrCreateSpec(orderId, positionId, options = {}) {
   const specs = await loadSpecs();
   let spec = specs.find((s) => s.order_id === orderId && s.position_id === positionId);
+  const isNewSpec = !spec;
   if (!spec) {
     spec = {
       order_id: orderId,
@@ -3335,9 +3412,15 @@ async function findOrCreateSpec(orderId, positionId) {
       updated_at: new Date().toISOString()
     };
     specs.push(spec);
-    await saveSpecs(specs);
   }
+  let updated = isNewSpec;
   if (ensureSpecMediaAssignments(spec)) {
+    updated = true;
+  }
+  if (await ensureSpecViewerMedia(spec, orderId, positionId, options.order)) {
+    updated = true;
+  }
+  if (updated) {
     await saveSpecs(specs);
   }
   return { spec, specs };
@@ -3345,16 +3428,14 @@ async function findOrCreateSpec(orderId, positionId) {
 
 app.get('/api/specs/:orderId/:positionId', requireAuth(), async (req, res) => {
   const { orderId, positionId } = req.params;
+  let order;
   try {
-    await ensureOrderAccess(orderId, req.session.user);
+    order = await ensureOrderAccess(orderId, req.session.user);
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
   try {
-    const { spec, specs } = await findOrCreateSpec(orderId, positionId);
-    if (ensureSpecMediaAssignments(spec)) {
-      await saveSpecs(specs);
-    }
+    const { spec } = await findOrCreateSpec(orderId, positionId, { order });
     res.json(spec);
   } catch (err) {
     respondError(res, err.statusCode || 500, err.message);
@@ -3371,7 +3452,7 @@ app.post('/api/specs/:orderId/:positionId/comment', requireAuth(), async (req, r
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   const comment = {
     id: `sc-${randomUUID()}`,
     author: req.session.user.email,
@@ -3414,7 +3495,7 @@ app.post('/api/specs/:orderId/:positionId/upload', requireAuth(), upload.single(
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   const fileEntry = {
     id: `file-${randomUUID()}`,
     filename: req.file.filename,
@@ -3473,7 +3554,7 @@ app.post('/api/specs/:orderId/:positionId/media/:mediaId/replace', requireAuth()
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   const mediaEntry = spec.flags.medien?.find((entry) => entry.id === mediaId);
   if (!mediaEntry) {
     return respondError(res, 404, 'Media nicht gefunden');
@@ -3539,7 +3620,7 @@ app.delete('/api/specs/:orderId/:positionId/media/:mediaId', requireAuth(), asyn
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   const mediaEntry = spec.flags.medien?.find((entry) => entry.id === mediaId);
   if (!mediaEntry) {
     return respondError(res, 404, 'Media nicht gefunden');
@@ -3586,7 +3667,7 @@ app.patch('/api/specs/:orderId/:positionId/flags', requireAuth(), async (req, re
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   if (typeof verstanden === 'boolean') spec.flags.verstanden = verstanden;
   if (typeof fertig === 'boolean') spec.flags.fertig = fertig;
   if (typeof rueckfragenIncrement === 'number') spec.flags.rueckfragen = (spec.flags.rueckfragen || 0) + rueckfragenIncrement;
@@ -3630,7 +3711,7 @@ app.post('/api/specs/:orderId/:positionId/annotations', requireAuth(), async (re
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   spec.annotations = spec.annotations || [];
   const entry = {
     id: `ann-${randomUUID()}`,
@@ -3675,7 +3756,7 @@ app.delete('/api/specs/:orderId/:positionId/annotations/:annotationId', requireA
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   const annotations = spec.annotations || [];
   const idx = annotations.findIndex((ann) => ann.id === annotationId);
   if (idx === -1) {
@@ -3721,7 +3802,7 @@ app.patch('/api/specs/:orderId/:positionId/media/:mediaId/status', requireAuth()
   } catch (err) {
     return respondError(res, err.statusCode || 500, err.message);
   }
-  const { spec, specs } = await findOrCreateSpec(orderId, positionId);
+  const { spec, specs } = await findOrCreateSpec(orderId, positionId, { order });
   spec.flags.medien = spec.flags.medien || [];
   let mediaEntry = spec.flags.medien.find((media) => media.id === mediaId);
   if (!mediaEntry && isPlaceholderMediaId(mediaId)) {
