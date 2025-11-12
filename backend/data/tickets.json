@@ -1,36 +1,5 @@
 [
   {
-    "id": "TIC-5002",
-    "order_id": "PO-1002",
-    "title": "QS-Report Upload",
-    "status": "OPEN",
-    "priority": "mittel",
-    "owner": "u-supp-1",
-    "view_key": "rear",
-    "watchers": [
-      "u-bate-1"
-    ],
-    "comments": [
-      {
-        "id": "tc-2",
-        "author": "u-supp-1",
-        "message": "Report folgt heute 16:00 Uhr.",
-        "ts": "2024-05-16T09:10:00.000Z"
-      },
-      {
-        "id": "tc-cb619ed8-90c8-434c-bfee-0ff87c00753a",
-        "author": "anna.bate@example.com",
-        "message": "kmk",
-        "ts": "2025-11-08T09:33:24.517Z",
-        "attachment": {
-          "filename": "0019.webp",
-          "url": "/uploads/tickets/TIC-5002/0019-1762594404513-d7bcd335-2d30-43be-bc77-780aa1d03d26.webp"
-        }
-      }
-    ],
-    "created_at": "2024-05-15T08:30:00.000Z"
-  },
-  {
     "id": "TIC-9011ae58-1934-44b8-9e1c-084e6e6acd71",
     "order_id": "PO-1001",
     "position_id": "POS-1001-1",
@@ -62,19 +31,6 @@
       }
     ],
     "created_at": "2025-11-08T00:02:37.819Z"
-  },
-  {
-    "id": "TIC-TE-202576412",
-    "order_id": "PO-1001",
-    "position_id": "POS-1001-1",
-    "title": "test",
-    "status": "OPEN",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": "side",
-    "comments": [],
-    "created_at": "2025-11-08T00:14:46.592Z"
   },
   {
     "id": "TIC-TE-202576413",
@@ -114,41 +70,6 @@
     "created_at": "2025-11-09T20:42:06.736Z"
   },
   {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500007",
-    "position_id": null,
-    "title": "Hallo",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [
-      {
-        "id": "tc-b13947c8-6110-4f29-9e21-721927fe716e",
-        "author": "anna.bate@example.com",
-        "message": "uhiuhiu",
-        "message_de": "uhiuhiu",
-        "message_tr": null,
-        "ts": "2025-11-12T10:56:32.293Z"
-      }
-    ],
-    "created_at": "2025-11-09T21:26:49.686Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500007",
-    "position_id": null,
-    "title": "Hallo",
-    "status": "OPEN",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-09T21:27:20.048Z"
-  },
-  {
     "id": "TIC-TE-202576415",
     "order_id": "BT-B2500003",
     "position_id": "15uv3tiq1q",
@@ -173,58 +94,6 @@
     "view_key": "side",
     "comments": [],
     "created_at": "2025-11-10T15:59:49.136Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500003",
-    "position_id": null,
-    "title": "Wir können es in rot machen",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-12T09:34:46.974Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500003",
-    "position_id": null,
-    "title": "Das ist grün",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-12T09:35:03.094Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500013",
-    "position_id": null,
-    "title": "ijoijio",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-12T09:54:41.218Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500013",
-    "position_id": null,
-    "title": "iojoijoi",
-    "status": "OPEN",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-12T09:54:44.011Z"
   },
   {
     "id": "TIC-TE-202576417",
@@ -286,62 +155,6 @@
     "view_key": "side",
     "comments": [],
     "created_at": "2025-11-12T10:37:34.460Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500015",
-    "position_id": null,
-    "title": "uhiuhiu",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [
-      {
-        "id": "tc-04dd476e-7614-4753-8976-61bf07107f11",
-        "author": "anna.bate@example.com",
-        "message": "klmlkmkl",
-        "message_de": "klmlkmkl",
-        "message_tr": null,
-        "ts": "2025-11-12T11:34:24.616Z"
-      },
-      {
-        "id": "tc-18ce5fd4-b9fb-4cc9-b362-2aea128ce1d4",
-        "author": "anna.bate@example.com",
-        "message": "lkmlkklmlk",
-        "message_de": "lkmlkklmlk",
-        "message_tr": null,
-        "ts": "2025-11-12T11:34:26.861Z"
-      }
-    ],
-    "created_at": "2025-11-12T10:56:32.271Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500015",
-    "position_id": null,
-    "title": "klmlkmkl",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-12T11:34:24.597Z"
-  },
-  {
-    "id": "TIC-BE-202529435",
-    "order_id": "BT-B2500015",
-    "position_id": null,
-    "title": "lkmlkklmlk",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": null,
-    "comments": [],
-    "created_at": "2025-11-12T11:34:26.855Z"
   },
   {
     "id": "TIC-TE-202576421",
