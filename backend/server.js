@@ -739,9 +739,19 @@ async function buildErpPurchaseOrderDoc(payload, options = {}) {
   if (!dispatchAddress) {
     throw createHttpError(400, 'Absenderadresse wurde nicht gefunden');
   }
-  const contact = payload.contact_id
-    ? contacts.find((entry) => entry.id === payload.contact_id)
-    : null;
+  const contact = payload.contact_id ? contacts.find((entry) => entry.id === payload.contact_id) : null;
+  const contactLinks = Array.isArray(contact?.links) ? contact.links : [];
+  const contactBelongsToParty = contactLinks.some((link) => {
+    if (!link?.link_doctype || !link?.link_name) return false;
+    if (link.link_doctype === 'Company' && link.link_name === (payload.company || ERP_DEFAULT_COMPANY)) {
+      return true;
+    }
+    if (link.link_doctype === 'Supplier' && link.link_name === supplierMeta.id) {
+      return true;
+    }
+    return false;
+  });
+  const contactPersonId = contactBelongsToParty ? contact?.id : undefined;
   const supplierMeta = await resolveSupplierMeta(payload.supplier_id, payload.supplier_name, payload.existingOrders);
   const items = buildErpItems(payload.positions, requestedDelivery);
   if (!items.length) {
@@ -775,7 +785,7 @@ async function buildErpPurchaseOrderDoc(payload, options = {}) {
     billing_address: billingAddress.id,
     shipping_address: shippingAddress.id,
     dispatch_address: dispatchAddress.id,
-    contact_person: contact?.id || undefined,
+    contact_person: contactPersonId,
     contact_display: contact?.full_name || contact?.name || payload.contact_name || undefined,
     contact_email: payload.contact_email || contact?.email || undefined,
     contact_phone: payload.contact_phone || contact?.phone || undefined,
