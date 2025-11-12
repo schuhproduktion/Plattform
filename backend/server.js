@@ -1829,11 +1829,30 @@ async function ensureSpecViewerMedia(spec, orderId, positionId, existingOrder = 
       changed = true;
       return;
     }
-    if (existing.entry.is_placeholder || existing.entry.auto_generated) {
+    if (existing.entry.is_placeholder) {
       reassignPlaceholderAnnotations(spec, preset.key, autoEntry.id);
       currentMedia[existing.idx] = autoEntry;
       viewIndex.set(preset.key, { entry: autoEntry, idx: existing.idx });
       changed = true;
+      return;
+    }
+    if (existing.entry.auto_generated) {
+      const nextEntry = {
+        ...existing.entry,
+        label: autoEntry.label,
+        filename: autoEntry.filename,
+        url: autoEntry.url,
+        auto_generated: true
+      };
+      const needsUpdate =
+        nextEntry.label !== existing.entry.label ||
+        nextEntry.filename !== existing.entry.filename ||
+        nextEntry.url !== existing.entry.url;
+      if (needsUpdate) {
+        currentMedia[existing.idx] = nextEntry;
+        viewIndex.set(preset.key, { entry: nextEntry, idx: existing.idx });
+        changed = true;
+      }
     }
   });
   return changed;
