@@ -35,6 +35,11 @@ const CUSTOM_PORTAL_STATUS_MAP = {
   'ABGESCHLOSSEN': 'UEBERGEBEN_AN_SPEDITION'
 };
 
+const ERP_STATUS_PORTAL_MAP = {
+  COMPLETED: 'UEBERGEBEN_AN_SPEDITION',
+  ABGESCHLOSSEN: 'UEBERGEBEN_AN_SPEDITION'
+};
+
 function stripHtml(value = '') {
   if (typeof value !== 'string') return '';
   return value.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
@@ -48,6 +53,13 @@ function normalizeCustomPortalStatus(value) {
   if (direct) return direct;
   const stripped = upper.replace(/[^A-ZÄÖÜß ]/g, '').replace(/\s+/g, ' ').trim();
   return CUSTOM_PORTAL_STATUS_MAP[stripped] || null;
+}
+
+function normalizeErpStatus(value) {
+  if (!value || typeof value !== 'string') return null;
+  const upper = value.trim().toUpperCase();
+  if (!upper) return null;
+  return ERP_STATUS_PORTAL_MAP[upper] || null;
 }
 
 function uniqueNonEmpty(values = []) {
@@ -437,7 +449,7 @@ function parseSizeBreakdown(item = {}) {
           parsed[match[1]] = Number(value) || 0;
         }
       });
-    } catch (err) {
+    } catch {
       parsed = {};
     }
   }
@@ -533,15 +545,27 @@ function resolveCustomerForOrder(orderDoc, positions, context = {}) {
 }
 
 function normalizeOrders(rawOrders = [], context = {}) {
-  return rawOrders.map((order, idx) => {
-    if (order?.__normalized_order) {
-      return order;
-    }
+  return rawOrders
+    .map((order, idx) => {
+      if (order?.__normalized_order) {
+        const normalizedDocStatus =
+          typeof order?.docstatus === 'number' ? order.docstatus : Number(order?.docstatus);
+        return normalizedDocStatus === 2 ? null : order;
+      }
+      const rawDocStatus = typeof order?.docstatus === 'number' ? order.docstatus : Number(order?.docstatus);
+      if (rawDocStatus === 2) {
+        return null;
+      }
     const id = order?.name || order?.id || `order-${idx}`;
     const positions = normalizeOrderPositions(order?.items || [], order);
     const customerId = resolveCustomerForOrder(order, positions, context);
     const customer = customerId ? context.customersById?.get(customerId) : null;
-    const portalStatus = normalizeCustomPortalStatus(order?.custom_bestellstatus) || order?.portal_status || 'ORDER_EINGEREICHT';
+    const erpStatusOverride = normalizeErpStatus(order?.status);
+    const portalStatus =
+      erpStatusOverride ||
+      normalizeCustomPortalStatus(order?.custom_bestellstatus) ||
+      order?.portal_status ||
+      'ORDER_EINGEREICHT';
     const orderType = normalizeOrderType(order?.custom_c || order?.custom_bestellart || order?.order_type_portal || order?.order_type);
     const customCustomerId = order?.custom_kunde || null;
     const customCustomerName = order?.custom_kunde_name || order?.custom_kunde_title || null;
@@ -563,39 +587,41 @@ function normalizeOrders(rawOrders = [], context = {}) {
           name: displayCustomerName || customCustomerId
         }
       : null;
-    return {
-      ...order,
-      __normalized_order: true,
-      id,
-      order_number: order?.name || order?.order_number || id,
-      customer_id: customerId,
-      customer_name: displayCustomerName,
-      customer_custom_id: customCustomerId,
-      customer_custom_name: customCustomerName,
-      supplier_id: order?.supplier || order?.supplier_id || null,
-      supplier_name: order?.supplier_name || order?.supplier || null,
-      order_type: orderType,
-      requested_delivery: order?.schedule_date || order?.transaction_date || null,
-      currency: order?.currency || 'EUR',
-      total: typeof order?.total === 'number' ? order.total : null,
-      total_amount: typeof order?.grand_total === 'number' ? order.grand_total : order?.total || null,
-      net_total: typeof order?.net_total === 'number' ? order.net_total : null,
-      tax_amount: typeof order?.total_taxes_and_charges === 'number' ? order.total_taxes_and_charges : null,
-      positions,
-      shipping: deriveShippingMeta(order),
-      billing_address_id: order?.billing_address || null,
-      shipping_address_id: order?.shipping_address || null,
-      dispatch_address_id: order?.dispatch_address || null,
-      dispatch_address_display: order?.dispatch_address_display || null,
-      cartons: order?.cartons || [],
-      portal_status: portalStatus,
-      phase: getPhaseForStatus(portalStatus),
-      customer_snapshot: customerSnapshot,
-      created_at: order?.creation ? new Date(order.creation).toISOString() : null,
-      last_updated: order?.modified ? new Date(order.modified).toISOString() : null,
-      timeline: Array.isArray(order?.timeline) ? order.timeline : []
-    };
-  });
+      return {
+        ...order,
+        __normalized_order: true,
+        docstatus: Number.isFinite(rawDocStatus) ? rawDocStatus : order?.docstatus ?? null,
+        id,
+        order_number: order?.name || order?.order_number || id,
+        customer_id: customerId,
+        customer_name: displayCustomerName,
+        customer_custom_id: customCustomerId,
+        customer_custom_name: customCustomerName,
+        supplier_id: order?.supplier || order?.supplier_id || null,
+        supplier_name: order?.supplier_name || order?.supplier || null,
+        order_type: orderType,
+        requested_delivery: order?.schedule_date || order?.transaction_date || null,
+        currency: order?.currency || 'EUR',
+        total: typeof order?.total === 'number' ? order.total : null,
+        total_amount: typeof order?.grand_total === 'number' ? order.grand_total : order?.total || null,
+        net_total: typeof order?.net_total === 'number' ? order.net_total : null,
+        tax_amount: typeof order?.total_taxes_and_charges === 'number' ? order.total_taxes_and_charges : null,
+        positions,
+        shipping: deriveShippingMeta(order),
+        billing_address_id: order?.billing_address || null,
+        shipping_address_id: order?.shipping_address || null,
+        dispatch_address_id: order?.dispatch_address || null,
+        dispatch_address_display: order?.dispatch_address_display || null,
+        cartons: order?.cartons || [],
+        portal_status: portalStatus,
+        phase: getPhaseForStatus(portalStatus),
+        customer_snapshot: customerSnapshot,
+        created_at: order?.creation ? new Date(order.creation).toISOString() : null,
+        last_updated: order?.modified ? new Date(order.modified).toISOString() : null,
+        timeline: Array.isArray(order?.timeline) ? order.timeline : []
+      };
+    })
+    .filter(Boolean);
 }
 
 function normalizeOrderType(value) {

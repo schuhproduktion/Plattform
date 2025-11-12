@@ -12,20 +12,23 @@
       <section class="content" id="calendar">
         <article class="card calendar-card">
           <div class="calendar-toolbar">
-            <button class="ghost" id="prevMonthBtn" aria-label="Vorheriger Monat">‹</button>
             <div>
-              <h3 id="calendarMonthLabel">-</h3>
+              <h3>Termine</h3>
               <p class="muted" id="calendarSubtitle">Liefertermine & Ereignisse</p>
             </div>
-            <button class="ghost" id="nextMonthBtn" aria-label="Nächster Monat">›</button>
+            <div class="calendar-controls">
+              <label for="calendarRange">
+                Zeitraum
+                <select id="calendarRange">
+                  <option value="week">Diese Woche</option>
+                  <option value="month" selected>Diesen Monat</option>
+                  <option value="quarter">Nächste 90 Tage</option>
+                  <option value="all">Alle kommenden Termine</option>
+                </select>
+              </label>
+              <button id="newEventBtn">Neuer Termin</button>
+            </div>
           </div>
-          <div class="calendar-grid" id="calendarGrid"></div>
-        </article>
-        <article class="card calendar-events-card">
-          <header class="calendar-events-head">
-            <h3>Termine</h3>
-            <button id="newEventBtn">Neuer Termin</button>
-          </header>
           <ul id="calendarList" class="calendar-events-list"></ul>
         </article>
         <dialog id="eventDialog">

@@ -13,6 +13,7 @@
         <div class="card back-card">
           <button type="button" id="backToList">← Zurück zu Bestellungen</button>
           <div class="back-card-actions">
+            <button type="button" id="editOrderBtn" class="ghost small">Bearbeiten</button>
             <button type="button" id="openLabelManager" class="ghost small">Kartons</button>
             <button type="button" id="openShoeboxManager" class="ghost small">Schuhbox</button>
           </div>
@@ -42,8 +43,8 @@
               <p class="summary-value" id="orderDelivery">-</p>
             </div>
             <div class="summary-card">
-              <p class="summary-label">Summe</p>
-              <p class="summary-value" id="orderTotal">-</p>
+              <p class="summary-label">Gesamtmenge</p>
+              <p class="summary-value" id="orderQuantity">-</p>
             </div>
             <div class="summary-card summary-card-center">
               <p class="summary-label">Tickets</p>
@@ -129,6 +130,31 @@
         </div>
         </div>
 
+        <div class="card print-card">
+          <div class="print-card-head">
+            <div>
+              <h4>Dokument drucken</h4>
+              <p class="muted">Format, Sprache und Briefkopf wählen, um die ERP-PDF zu erzeugen.</p>
+            </div>
+            <button type="button" class="ghost small" id="refreshPrintOptions">Optionen aktualisieren</button>
+          </div>
+          <div class="print-grid">
+            <label>Druckformat
+              <select id="printFormatSelect"></select>
+            </label>
+            <label>Sprache
+              <select id="printLanguageSelect"></select>
+            </label>
+            <label>Briefkopf
+              <select id="printLetterheadSelect"></select>
+            </label>
+          </div>
+          <div class="print-actions">
+            <button type="button" id="printOrderPdfBtn">PDF anzeigen</button>
+            <p class="muted" id="printOptionsStatus"></p>
+          </div>
+        </div>
+
         <div class="card positions-card">
           <div class="section-head">
             <h4>Artikelpositionen</h4>
@@ -170,22 +196,46 @@
         <div class="card tickets-card order-tickets-card">
           <div class="tickets-header">
             <h4>Tickets</h4>
-            <span class="badge ghost" id="orderTicketsCount">0</span>
+            <div class="tickets-header-actions">
+              <span class="badge ghost" id="orderTicketsCount">0</span>
+              <button type="button" class="btn new-ticket-toggle" id="toggleOrderComposer" aria-expanded="false">
+                +
+              </button>
+            </div>
           </div>
-          <div id="orderTicketsList" class="tickets-list">
-            <p class="muted">Noch keine Tickets.</p>
-          </div>
-          <form id="orderTicketForm" class="ticket-form">
-            <input type="text" name="title" id="orderTicketTitle" placeholder="Neue Rückfrage eingeben" required />
-            <div class="ticket-form-actions">
-              <select name="priority" id="orderTicketPriority">
-                <option value="mittel">Priorität: Mittel</option>
-                <option value="hoch">Priorität: Hoch</option>
-                <option value="niedrig">Priorität: Niedrig</option>
-              </select>
+          <form id="orderTicketForm" class="ticket-form ticket-composer is-hidden">
+            <div class="ticket-composer-head">
+              <div>
+                <strong>Neue Rückfrage</strong>
+                <p class="muted">Text eingeben, bei Bedarf übersetzen lassen und sofort senden.</p>
+              </div>
+              <div class="ticket-composer-meta">
+                <label>
+                  Priorität
+                  <select name="priority" id="orderTicketPriority">
+                    <option value="mittel">Mittel</option>
+                    <option value="hoch">Hoch</option>
+                    <option value="niedrig">Niedrig</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div id="orderTicketInitialComment" class="ticket-comment-initial"></div>
+            <div class="ticket-form-actions composer-actions">
+              <div class="composer-actions-left">
+                <button type="button" class="ghost auto-translate-btn composer-auto">Automatisch übersetzen</button>
+                <label class="file-input">
+                  <span class="file-label">Datei</span>
+                  <span class="file-name" data-file-name>Keine Datei ausgewählt</span>
+                  <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
+                </label>
+              </div>
               <button type="submit">Rückfrage speichern</button>
             </div>
           </form>
+          <div id="orderTicketsList" class="tickets-list">
+            <p class="muted">Noch keine Tickets.</p>
+          </div>
         </div>
 
         <div class="card timeline-card">

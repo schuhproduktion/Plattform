@@ -22,7 +22,7 @@ export function renderTopNav() {
       <span id="breadcrumb">${escapeHtml(rawBreadcrumb)}</span>
     </div>
     <div class="nav-actions">
-      <button class="ghost" id="notificationBell">🔔 <span id="notificationCount">0</span></button>
+      <button class="ghost" id="notificationBell"><span id="notificationCount">0</span></button>
       <span id="userLabel">-</span>
       <button id="logoutBtn">Logout</button>
       <div class="language-switcher">

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Muster Proforma | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-musterrechnung" data-page="musterrechnung">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content">
+        <div class="card back-card proforma-toolbar">
+          <a class="btn btn-primary" id="createProforma" href="/musterrechnung-detail.html">
+            + Neue Muster Proforma
+          </a>
+        </div>
+        <div class="card proforma-archive-card">
+          <div class="table-wrapper">
+            <table id="proformaArchive">
+              <thead>
+                <tr>
+                  <th>Rechnungsnummer</th>
+                  <th>Datum</th>
+                  <th>Gesamtmenge</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="proformaArchiveBody">
+                <tr>
+                  <td colspan="4" class="muted">Noch keine Muster Proformas gespeichert.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

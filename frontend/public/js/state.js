@@ -31,12 +31,27 @@ export const state = {
   activeArtikelCode: null,
   activeCustomerId: null,
   shoeboxRows: [],
+  shoeboxSeason: 'FS',
+  shoeboxYear: new Date().getFullYear(),
   orderDeliveryEvents: [],
   manualCalendarEvents: [],
-  calendarMonth: null,
-  calendarYear: null,
+  calendarRange: 'month',
   diagnostics: null,
   diagnosticsInterval: null,
+  orderPrintOptions: null,
+  autosync: {
+    status: null,
+    logs: [],
+    lastResult: null,
+    metrics: null,
+    errors: []
+  },
+  orderDraft: null,
+  orderDraftSaveTimeout: null,
+  orderDraftEditingId: null,
+  proformaDraft: null,
+  proformaReadOnly: true,
+  proformaArchive: [],
   locale: 'de',
   translations: {},
   translationObserver: null,
@@ -60,10 +75,11 @@ export const NAV_LINKS = [
   { href: '/artikel.html', label: 'Artikel', page: 'artikel' },
   { href: '/kunden.html', label: 'Kunden', page: 'kunden' },
   { href: '/tickets.html', label: 'Tickets', page: 'tickets' },
-  { href: '/kalender.html', label: 'Kalender', page: 'kalender' },
   { href: '/prozessstatus.html', label: 'Prozessstatus', page: 'prozessstatus' },
-  { href: '/lieferant.html', label: 'Lieferant', page: 'lieferant' },
+  { href: '/lieferanten-guide.html', label: 'Lieferanten-Anleitung', page: 'lieferanten-guide' },
+  { href: '/musterrechnung.html', label: 'Muster Proforma', page: 'musterrechnung' },
   { href: '/translations.html', label: 'Übersetzungen', page: 'translations', className: 'bate-only' },
+  { href: '/autosync.html', label: 'AutoSync', page: 'autosync', className: 'bate-only' },
   { href: '/diagnostics.html', label: 'Systemstatus', page: 'diagnostics' }
 ];
 
@@ -122,7 +138,8 @@ export const TECHPACK_VIEWS = [
   { key: 'rear', label: 'Hinteransicht', position: 4 },
   { key: 'top', label: 'Draufsicht', position: 5 },
   { key: 'bottom', label: 'Unteransicht', position: 6 },
-  { key: 'sole', label: 'Sohle', position: 7 }
+  { key: 'sole', label: 'Sohle', position: 7 },
+  { key: 'tongue', label: 'Zunge', position: 8 }
 ];
 
 export const TECHPACK_MEDIA_STATUS = {

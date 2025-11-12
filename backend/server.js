@@ -9,16 +9,26 @@ const helmet = require('helmet');
 const cron = require('node-cron');
 const { randomUUID } = require('crypto');
 const PDFDocument = require('pdfkit');
+const ExcelJS = require('exceljs');
 const multer = require('multer');
 const axios = require('axios');
 
-const { authenticate, sanitizeUser, requireAuth, requireBate, requireSupplierOrOwner, loadUsers } = require('./lib/auth');
+const { authenticate, requireAuth, requireBate, loadUsers } = require('./lib/auth');
 const { upload, UPLOAD_ROOT } = require('./lib/files');
 const { listNotifications, markAsRead, createNotification } = require('./lib/notify');
 const { getWorkflowDefinition, normalizePortalOrder, updateOrderWorkflow, getStatusLabel } = require('./lib/workflows');
 const { syncERPData } = require('./lib/sync');
+const {
+  createPurchaseOrder,
+  updatePurchaseOrder,
+  fetchPrintFormats,
+  fetchLetterheads,
+  downloadPrintPdf,
+  isErpClientEnabled
+} = require('./lib/erpClient');
 const { readJson, writeJson, appendToArray } = require('./lib/dataStore');
 const { listLocales: listTranslationLocales, getLocaleEntries, upsertTranslation, deleteTranslation } = require('./lib/translations');
+const autosyncClient = require('./lib/autosyncClient');
 
 const TECHPACK_VIEWS = [
   { key: 'front', label: 'Vorderansicht' },
@@ -27,9 +37,21 @@ const TECHPACK_VIEWS = [
   { key: 'inner', label: 'Innenansicht' },
   { key: 'top', label: 'Draufsicht' },
   { key: 'bottom', label: 'Unteransicht' },
-  { key: 'sole', label: 'Sohle' }
+  { key: 'sole', label: 'Sohle' },
+  { key: 'tongue', label: 'Zunge' }
 ];
 const TECHPACK_VIEW_KEYS = new Set(TECHPACK_VIEWS.map((view) => view.key));
+const PLACEHOLDER_MEDIA_PREFIX = 'placeholder-';
+const TECHPACK_PLACEHOLDER_IMAGES = {
+  front: '/images/techpack-placeholders/front.png',
+  rear: '/images/techpack-placeholders/rear.png',
+  side: '/images/techpack-placeholders/side.png',
+  inner: '/images/techpack-placeholders/inner.png',
+  top: '/images/techpack-placeholders/top.png',
+  bottom: '/images/techpack-placeholders/bottom.png',
+  sole: '/images/techpack-placeholders/sole.png',
+  tongue: '/images/techpack-placeholders/Zunge.png'
+};
 const TECHPACK_MEDIA_STATUSES = new Set(['OPEN', 'OK']);
 const ACCESSORY_SLOTS = [
   { key: 'shoe_box', label: 'Schuhbox', description: 'Primäre Schuhbox mit Branding.' },
@@ -41,10 +63,45 @@ const ACCESSORY_SLOT_MAP = ACCESSORY_SLOTS.reduce((acc, slot) => {
   return acc;
 }, {});
 const ACCESSORY_SLOT_KEYS = new Set(ACCESSORY_SLOTS.map((slot) => slot.key));
+const WORKFLOW_META = getWorkflowDefinition();
+const PORTAL_STATUS_SET = new Set(WORKFLOW_META.statuses);
+const STATUS_ICON_MAP = {
+  ORDER_EINGEREICHT: '🔵',
+  ORDER_BESTAETIGT: '🟡',
+  RUECKFRAGEN_OFFEN: '🟠',
+  RUECKFRAGEN_GEKLAERT: '🟠',
+  PRODUKTION_LAEUFT: '🟢',
+  WARE_ABHOLBEREIT: '🟣',
+  UEBERGEBEN_AN_SPEDITION: '⚪'
+};
+const ERP_STATUS_LABEL_MAP = {
+  ORDER_EINGEREICHT: 'Eingereicht',
+  ORDER_BESTAETIGT: 'Bestätigt',
+  RUECKFRAGEN_OFFEN: 'Rückfragen',
+  RUECKFRAGEN_GEKLAERT: 'Rückfragen',
+  PRODUKTION_LAEUFT: 'Produktion',
+  WARE_ABHOLBEREIT: 'Versandbereit',
+  UEBERGEBEN_AN_SPEDITION: 'Abgeschlossen'
+};
+const ORDER_TYPE_CHOICES = new Set(['MUSTER', 'SMS', 'PPS', 'BESTELLUNG']);
+const ORDER_TYPE_LABELS = {
+  MUSTER: 'Muster',
+  SMS: 'SMS',
+  PPS: 'PPS',
+  BESTELLUNG: 'Bestellung'
+};
 const PACKAGING_TYPES = new Set(['carton', 'shoebox']);
 const CM_TO_PT = 28.3464567;
 const SHOEBOX_LABEL_SIZE = [CM_TO_PT * 8.5, CM_TO_PT * 6];
 const COMPLETED_ORDER_STATUSES = new Set(['WARE_ABHOLBEREIT', 'UEBERGEBEN_AN_SPEDITION']);
+const ERP_DEFAULT_SUPPLIER = process.env.ERP_SUPPLIER_ID || null;
+const ERP_DEFAULT_SUPPLIER_NAME = process.env.ERP_SUPPLIER_NAME || ERP_DEFAULT_SUPPLIER;
+const ERP_DEFAULT_COMPANY = process.env.ERP_COMPANY || 'BATE GmbH';
+const ERP_DEFAULT_CURRENCY = process.env.ERP_CURRENCY || 'EUR';
+const ERP_DEFAULT_PRICE_LIST = process.env.ERP_PRICE_LIST || 'Standard-Einkauf';
+const ERP_DEFAULT_SERIES = process.env.ERP_PURCHASE_ORDER_SERIES || 'BT-B.YY.#####';
+const ERP_DEFAULT_WAREHOUSE = process.env.ERP_DEFAULT_WAREHOUSE || null;
+const ERP_DEFAULT_TAX_TEMPLATE = process.env.ERP_TAX_TEMPLATE || null;
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -58,6 +115,44 @@ const LOCALE_LABELS = {
   de: 'Deutsch',
   tr: 'Türkçe'
 };
+
+const PROFORMA_STORE_FILE = 'proforma_invoices.json';
+const PROFORMA_SEQUENCE_BASE = 34338;
+const PROFORMA_UNIT_LABELS = {
+  PAIR: 'Paar',
+  LEFT_SHOE: 'Linker Schuh',
+  RIGHT_SHOE: 'Rechter Schuh'
+};
+const PDF_TEXT_SANITIZER = /[\u0300-\u036f]/g;
+const SEASON_DIGIT_MAP = {
+  FS: '1',
+  HW: '2'
+};
+const EAN_PARITY_TABLE = [
+  ['L', 'L', 'L', 'L', 'L', 'L'],
+  ['L', 'L', 'G', 'L', 'G', 'G'],
+  ['L', 'L', 'G', 'G', 'L', 'G'],
+  ['L', 'L', 'G', 'G', 'G', 'L'],
+  ['L', 'G', 'L', 'L', 'G', 'G'],
+  ['L', 'G', 'G', 'L', 'L', 'G'],
+  ['L', 'G', 'G', 'G', 'L', 'L'],
+  ['L', 'G', 'L', 'G', 'L', 'G'],
+  ['L', 'G', 'L', 'G', 'G', 'L'],
+  ['L', 'G', 'G', 'L', 'G', 'L']
+];
+const EAN_L_CODES = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+const EAN_G_CODES = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111'];
+const EAN_R_CODES = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100'];
+
+function sanitizePdfText(value) {
+  if (value === null || value === undefined) return '';
+  return value
+    .toString()
+    .replace(/\u0131/g, 'i')
+    .replace(/\u0130/g, 'I')
+    .normalize('NFD')
+    .replace(PDF_TEXT_SANITIZER, '');
+}
 
 const translations = {
   de: {
@@ -168,32 +263,6 @@ const accessoriesUpload = multer({
   }
 });
 
-const accessoryFileStorage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    try {
-      const customerId = req.params.id || 'misc';
-      const slot = req.params.slot || 'generic';
-      const dest = path.join(UPLOAD_ROOT, 'customers', customerId, 'accessories', slot);
-      await fs.mkdir(dest, { recursive: true });
-      cb(null, dest);
-    } catch (err) {
-      cb(err);
-    }
-  },
-  filename: (req, file, cb) => {
-    const safeName = file.originalname?.replace(/[^a-zA-Z0-9.\-_]/g, '_') || 'attachment';
-    const ext = path.extname(safeName);
-    const base = path.basename(safeName, ext);
-    cb(null, `${base}-${Date.now()}-${randomUUID()}${ext}`);
-  }
-});
-
-const accessoryFileUpload = multer({
-  storage: accessoryFileStorage,
-  limits: {
-    fileSize: 25 * 1024 * 1024
-  }
-});
 app.get('/', (req, res) => {
   if (req.session?.user) {
     return res.redirect('/dashboard.html');
@@ -207,15 +276,159 @@ async function ensureUploads() {
 }
 ensureUploads();
 
-async function deleteUploadedFile(url) {
-  if (!url || !url.startsWith('/uploads')) return;
-  const relative = url.replace('/uploads', '');
-  const absolutePath = path.join(UPLOAD_ROOT, relative);
-  await fs.unlink(absolutePath).catch(() => null);
-}
-
 function respondError(res, statusCode, message) {
   return res.status(statusCode).json({ error: message });
+}
+
+function createHttpError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+function extractErpErrorMessage(err) {
+  const data = err?.response?.data;
+  if (!data) return null;
+  if (typeof data === 'string') return data;
+  if (data.message) return data.message;
+  if (data.exception) return data.exception;
+  if (data._server_messages) {
+    try {
+      const parsed = JSON.parse(data._server_messages);
+      if (Array.isArray(parsed) && parsed.length) {
+        const cleaned = parsed
+          .map((entry) => {
+            if (!entry) return null;
+            try {
+              const inner = JSON.parse(entry);
+              if (inner?.message) return inner.message;
+              if (typeof inner === 'string') return inner;
+            } catch {
+              return entry;
+            }
+            return null;
+          })
+          .filter(Boolean);
+        if (cleaned.length) {
+          return cleaned.join(' ');
+        }
+      }
+    } catch (parseErr) {
+      return parseErr.message;
+    }
+  }
+  return null;
+}
+
+function normalizeAutoSyncLog(entry = {}) {
+  if (!entry || typeof entry !== 'object') {
+    return {
+      sku: null,
+      timestamp: null,
+      erp_ok: false,
+      woo_ok: false,
+      telegram_ok: false
+    };
+  }
+  const timestamp = entry.timestamp || entry.time || entry.ts || null;
+  return {
+    ...entry,
+    timestamp,
+    sku: entry.sku || entry.article_number || entry.code || null,
+    erp_ok: Boolean(entry.erp_ok),
+    woo_ok: Boolean(entry.woo_ok),
+    telegram_ok: entry.telegram_ok === undefined ? null : Boolean(entry.telegram_ok)
+  };
+}
+
+function computeAutoSyncStats(rawLogs = []) {
+  const logs = rawLogs.map((entry) => normalizeAutoSyncLog(entry));
+  const total = logs.length;
+  let success = 0;
+  let telegramSuccess = 0;
+  let erpFailures = 0;
+  let wooFailures = 0;
+  let lastSuccess = null;
+  let lastFailure = null;
+  const failures = [];
+
+  for (const entry of logs) {
+    const ok = entry.erp_ok && entry.woo_ok;
+    if (ok) {
+      success += 1;
+      if (!lastSuccess) {
+        lastSuccess = entry;
+      }
+    } else {
+      if (!lastFailure) {
+        lastFailure = entry;
+      }
+      failures.push(entry);
+      if (!entry.erp_ok) erpFailures += 1;
+      if (!entry.woo_ok) wooFailures += 1;
+    }
+    if (entry.telegram_ok) {
+      telegramSuccess += 1;
+    }
+  }
+
+  return {
+    total,
+    success,
+    failures: Math.max(0, total - success),
+    success_rate: total ? Math.round((success / total) * 100) : null,
+    last_run: logs[0]?.timestamp || null,
+    last_success: lastSuccess?.timestamp || null,
+    last_failure: lastFailure?.timestamp || null,
+    erp_failures: erpFailures,
+    woo_failures: wooFailures,
+    telegram_success: telegramSuccess,
+    recent_errors: failures.slice(0, 5)
+  };
+}
+
+async function getAutoSyncSnapshot({ limit = 25, sku = null } = {}) {
+  if (!autosyncClient.isEnabled()) {
+    return {
+      enabled: false,
+      online: false,
+      message: 'AutoSync-Service nicht konfiguriert.',
+      logs: [],
+      stats: null
+    };
+  }
+
+  const health = await autosyncClient.getHealth();
+  let logsPayload = null;
+  let logsError = null;
+  try {
+    logsPayload = sku
+      ? await autosyncClient.fetchSkuLogs(sku, { limit })
+      : await autosyncClient.fetchLatestLogs(limit);
+  } catch (err) {
+    logsPayload = { entries: [] };
+    logsError = err.message;
+  }
+
+  const logsRaw = logsPayload?.entries || logsPayload?.logs || [];
+  const logs = logsRaw.map((entry) => normalizeAutoSyncLog(entry));
+  const stats = computeAutoSyncStats(logs);
+
+  return {
+    ...health,
+    logs,
+    stats,
+    logs_error: logsError || logsPayload?.error || null,
+    sku: sku || null
+  };
+}
+
+function ensureAutoSyncConfigured(res) {
+  if (!autosyncClient.isEnabled()) {
+    respondError(res, 503, 'AutoSync-Service ist nicht konfiguriert.');
+    return false;
+  }
+  return true;
 }
 
 async function loadOrders() {
@@ -237,6 +450,10 @@ async function loadCustomersData() {
 
 async function loadAddressesData() {
   return (await readJson('addresses.json', [])) || [];
+}
+
+async function loadContactsData() {
+  return (await readJson('contacts.json', [])) || [];
 }
 
 async function loadCustomerAccessoriesData() {
@@ -263,6 +480,352 @@ function findCustomerPackagingEntry(store, customerId, type) {
   return store.find((entry) => entry.customer_id === customerId && entry.type === type);
 }
 
+async function appendOrderTimelineEntry(orderId, entry, logAction = null, actorId = null) {
+  if (!orderId || !entry) return null;
+  const orders = await loadOrders();
+  const idx = orders.findIndex((order) => order.id === orderId);
+  if (idx === -1) return null;
+  const order = orders[idx];
+  order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
+  order.timeline.push(entry);
+  orders[idx] = order;
+  await writeJson('purchase_orders.json', orders);
+  if (logAction) {
+    await appendToArray('status_logs.json', {
+      id: `LOG-${randomUUID()}`,
+      order_id: orderId,
+      action: logAction,
+      actor: actorId || 'system',
+      ts: entry.created_at
+    });
+  }
+  return order;
+}
+
+function buildPortalTimelineEntry(type, message, actor, label = null) {
+  let statusLabel = label;
+  if (!statusLabel) {
+    if (type === 'ORDER_CREATED') {
+      statusLabel = 'Portal: erstellt';
+    } else if (type === 'ORDER_UPDATED') {
+      statusLabel = 'Portal: aktualisiert';
+    } else {
+      statusLabel = 'Portal';
+    }
+  }
+  return {
+    id: `tl-${randomUUID()}`,
+    type,
+    status_label: statusLabel,
+    message,
+    actor: actor || 'system',
+    created_at: new Date().toISOString()
+  };
+}
+
+function sanitizeText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function sanitizeBoolean(value) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['1', 'true', 'yes', 'ja'].includes(normalized);
+  }
+  return false;
+}
+
+function normalizeOrderTypeInput(value) {
+  if (!value) return 'BESTELLUNG';
+  const normalized = value.toString().trim().toUpperCase();
+  if (!normalized) return 'BESTELLUNG';
+  if (ORDER_TYPE_CHOICES.has(normalized)) return normalized;
+  if (normalized.includes('MUSTER')) return 'MUSTER';
+  if (normalized.includes('SMS')) return 'SMS';
+  if (normalized.includes('PPS')) return 'PPS';
+  return 'BESTELLUNG';
+}
+
+function formatOrderTypeLabel(value) {
+  const normalized = normalizeOrderTypeInput(value);
+  return ORDER_TYPE_LABELS[normalized] || ORDER_TYPE_LABELS.BESTELLUNG;
+}
+
+function ensurePortalStatus(value) {
+  const normalized = value ? value.toString().trim().toUpperCase() : '';
+  if (normalized && PORTAL_STATUS_SET.has(normalized)) {
+    return normalized;
+  }
+  return 'ORDER_EINGEREICHT';
+}
+
+function toErpDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+  const str = value.toString().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(str) ? str : null;
+}
+
+function sanitizeSizeBreakdown(map) {
+  if (!map || typeof map !== 'object') return {};
+  return Object.entries(map).reduce((acc, [size, raw]) => {
+    const key = sanitizeText(size);
+    if (!key) return acc;
+    if (raw === '' || raw === null || raw === undefined) return acc;
+    const amount = Number(raw);
+    if (Number.isNaN(amount)) return acc;
+    acc[key] = amount;
+    return acc;
+  }, {});
+}
+
+function serializeSizeBreakdown(sizeBreakdown = {}) {
+  const entries = Object.entries(sizeBreakdown);
+  if (!entries.length) return {};
+  const jsonPayload = {};
+  const displayParts = [];
+  entries.forEach(([size, amount]) => {
+    const sanitizedSize = size.toString().trim();
+    if (!sanitizedSize) return;
+    const numeric = Number(amount) || 0;
+    const key = sanitizedSize.replace(/[^0-9A-Za-z]/g, '_') || sanitizedSize;
+    jsonPayload[`amount_${key}`] = numeric;
+    displayParts.push(`${sanitizedSize}: ${numeric}`);
+  });
+  if (!Object.keys(jsonPayload).length) return {};
+  return {
+    sizes: JSON.stringify(jsonPayload),
+    sizes_display: displayParts.join(' | ')
+  };
+}
+
+function compactObject(obj = {}) {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value !== undefined && value !== null)
+  );
+}
+
+function formatCustomStatus(status) {
+  const base = ERP_STATUS_LABEL_MAP[status] || getStatusLabel(status) || status;
+  const icon = STATUS_ICON_MAP[status];
+  return icon ? `${icon} ${base}` : base;
+}
+
+async function resolveSupplierMeta(explicitId, explicitName, existingOrders = null) {
+  if (explicitId) {
+    return {
+      id: explicitId,
+      name: explicitName || explicitId
+    };
+  }
+  if (ERP_DEFAULT_SUPPLIER) {
+    return {
+      id: ERP_DEFAULT_SUPPLIER,
+      name: ERP_DEFAULT_SUPPLIER_NAME || ERP_DEFAULT_SUPPLIER
+    };
+  }
+  const source = existingOrders || (await loadOrders());
+  const reference = source.find((entry) => entry.supplier_id);
+  if (reference) {
+    return {
+      id: reference.supplier_id,
+      name: reference.supplier_name || reference.supplier_id
+    };
+  }
+  throw createHttpError(500, 'Kein Lieferant konfiguriert');
+}
+
+function sanitizePositions(rawPositions, requestedDelivery) {
+  if (!Array.isArray(rawPositions)) return [];
+  const sanitized = [];
+  rawPositions.forEach((position) => {
+    const itemCode = sanitizeText(position?.item_code);
+    const quantity = Number(position?.quantity);
+    if (!itemCode || !Number.isFinite(quantity) || quantity <= 0) {
+      return;
+    }
+    const sanitizedPosition = {
+      item_code: itemCode,
+      description: sanitizeText(position?.description) || itemCode,
+      color_code: sanitizeText(position?.color_code),
+      quantity,
+      rate: Number(position?.rate) || 0,
+      amount:
+        typeof position?.amount === 'number'
+          ? position.amount
+          : position?.amount
+          ? Number(position.amount)
+          : null,
+      uom: sanitizeText(position?.uom),
+      warehouse: sanitizeText(position?.warehouse),
+      supplier_part_no: sanitizeText(position?.supplier_part_no),
+      brand: sanitizeText(position?.brand),
+      schedule_date: toErpDate(position?.schedule_date) || requestedDelivery,
+      size_breakdown: sanitizeSizeBreakdown(position?.size_breakdown || {})
+    };
+    sanitized.push(sanitizedPosition);
+  });
+  return sanitized;
+}
+
+function buildErpItems(positions = [], requestedDelivery) {
+  return positions.map((position, index) => {
+    const qty = Number(position.quantity) || 0;
+    const rate = Number(position.rate) || 0;
+    const totalAmount = typeof position.amount === 'number' ? position.amount : qty * rate;
+    const sizeFields = serializeSizeBreakdown(position.size_breakdown);
+    return compactObject({
+      doctype: 'Purchase Order Item',
+      idx: index + 1,
+      item_code: position.item_code,
+      item_name: position.description || position.item_code,
+      description: position.description || position.item_code,
+      qty,
+      uom: position.uom || undefined,
+      stock_uom: position.uom || undefined,
+      schedule_date: position.schedule_date || requestedDelivery,
+      rate,
+      amount: totalAmount,
+      base_rate: rate,
+      base_amount: totalAmount,
+      warehouse: position.warehouse || undefined,
+      brand: position.brand || undefined,
+      zusammenstellung: position.color_code || undefined,
+      color_code: position.color_code || undefined,
+      supplier_part_no: position.supplier_part_no || undefined,
+      ...sizeFields
+    });
+  });
+}
+
+async function buildErpPurchaseOrderDoc(payload, options = {}) {
+  const requestedDelivery = toErpDate(payload.requested_delivery);
+  if (!requestedDelivery) {
+    throw createHttpError(400, 'Lieferdatum fehlt oder ist ungültig');
+  }
+  const [customers, addresses, contacts] = await Promise.all([
+    loadCustomersData(),
+    loadAddressesData(),
+    loadContactsData()
+  ]);
+  const customer = customers.find((entry) => entry.id === payload.customer_id);
+  if (!customer) {
+    throw createHttpError(400, 'Kunde wurde nicht gefunden');
+  }
+  const billingAddress = addresses.find((entry) => entry.id === payload.billing_address_id);
+  if (!billingAddress) {
+    throw createHttpError(400, 'Rechnungsadresse wurde nicht gefunden');
+  }
+  const shippingAddress = addresses.find((entry) => entry.id === payload.shipping_address_id);
+  if (!shippingAddress) {
+    throw createHttpError(400, 'Lieferadresse wurde nicht gefunden');
+  }
+  const dispatchAddress = addresses.find((entry) => entry.id === payload.dispatch_address_id);
+  if (!dispatchAddress) {
+    throw createHttpError(400, 'Absenderadresse wurde nicht gefunden');
+  }
+  const contact = payload.contact_id
+    ? contacts.find((entry) => entry.id === payload.contact_id)
+    : null;
+  const supplierMeta = await resolveSupplierMeta(payload.supplier_id, payload.supplier_name, payload.existingOrders);
+  const items = buildErpItems(payload.positions, requestedDelivery);
+  if (!items.length) {
+    throw createHttpError(400, 'Mindestens eine gültige Position wird benötigt');
+  }
+  const transactionDate = toErpDate(payload.transaction_date) || toErpDate(new Date());
+  const orderTypeLabel = formatOrderTypeLabel(payload.order_type);
+  const doc = compactObject({
+    doctype: 'Purchase Order',
+    name: payload.order_number || undefined,
+    naming_series: payload.order_number ? undefined : payload.naming_series || ERP_DEFAULT_SERIES,
+    company: payload.company || ERP_DEFAULT_COMPANY,
+    supplier: supplierMeta.id,
+    supplier_name: supplierMeta.name,
+    transaction_date: transactionDate,
+    schedule_date: requestedDelivery,
+    order_type: orderTypeLabel,
+    custom_c: orderTypeLabel,
+    custom_bestellstatus: formatCustomStatus(payload.portal_status),
+    portal_status: payload.portal_status,
+    currency: payload.currency || ERP_DEFAULT_CURRENCY,
+    price_list_currency: payload.currency || ERP_DEFAULT_CURRENCY,
+    buying_price_list: ERP_DEFAULT_PRICE_LIST,
+    conversion_rate: 1,
+    plc_conversion_rate: 1,
+    customer: customer.id,
+    customer_name: customer.customer_name || customer.name || customer.id,
+    custom_kunde: customer.id,
+    custom_kunde_name: customer.customer_name || customer.name || customer.id,
+    customer_number: payload.customer_number || undefined,
+    billing_address: billingAddress.id,
+    shipping_address: shippingAddress.id,
+    dispatch_address: dispatchAddress.id,
+    contact_person: contact?.id || undefined,
+    contact_display: contact?.full_name || contact?.name || payload.contact_name || undefined,
+    contact_email: payload.contact_email || contact?.email || undefined,
+    contact_phone: payload.contact_phone || contact?.phone || undefined,
+    shipping_method: payload.shipping_method || 'Spedition',
+    incoterm: payload.shipping_payer === 'KUNDE' ? 'EXW' : 'DAP',
+    taxes_and_charges: payload.tax_template || undefined,
+    set_warehouse: ERP_DEFAULT_WAREHOUSE || undefined,
+    custom_versand_bezahlt_von: payload.shipping_payer || undefined,
+    custom_transportart: payload.shipping_method || undefined,
+    custom_verpackung: payload.shipping_packaging || undefined,
+    docstatus: typeof options.docstatus === 'number' ? options.docstatus : undefined,
+    items
+  });
+  doc.items = items;
+  return doc;
+}
+
+function sanitizeOrderCreatePayload(raw = {}) {
+  const requestedDelivery = toErpDate(raw.requested_delivery);
+  const sanitized = {
+    order_number: sanitizeText(raw.order_number) || null,
+    order_type: normalizeOrderTypeInput(raw.order_type),
+    requested_delivery: requestedDelivery,
+    portal_status: ensurePortalStatus(raw.portal_status),
+    customer_id: sanitizeText(raw.customer_id),
+    customer_number: sanitizeText(raw.customer_number) || undefined,
+    billing_address_id: sanitizeText(raw.billing_address_id),
+    shipping_address_id: sanitizeText(raw.shipping_address_id),
+    dispatch_address_id: sanitizeText(raw.dispatch_address_id),
+    contact_id: sanitizeText(raw.contact_id) || undefined,
+    contact_name: sanitizeText(raw.contact_name) || undefined,
+    contact_email: sanitizeText(raw.contact_email) || undefined,
+    contact_phone: sanitizeText(raw.contact_phone) || undefined,
+    shipping_payer: sanitizeText(raw.shipping_payer) || 'BATE',
+    shipping_method: sanitizeText(raw.shipping_method) || 'Spedition',
+  shipping_packaging: sanitizeText(raw.shipping_packaging) || undefined,
+  shipping_pickup: sanitizeBoolean(raw.shipping_pickup),
+  supplier_id: sanitizeText(raw.supplier_id) || undefined,
+  supplier_name: sanitizeText(raw.supplier_name) || undefined,
+  naming_series: sanitizeText(raw.naming_series) || null,
+  company: sanitizeText(raw.company) || ERP_DEFAULT_COMPANY,
+  tax_template: sanitizeText(raw.tax_template) || ERP_DEFAULT_TAX_TEMPLATE,
+  currency: sanitizeText(raw.currency) || ERP_DEFAULT_CURRENCY,
+    transaction_date: toErpDate(raw.transaction_date),
+    positions: sanitizePositions(raw.positions, requestedDelivery)
+  };
+  const missing = [];
+  if (!sanitized.requested_delivery) missing.push('requested_delivery');
+  if (!sanitized.customer_id) missing.push('customer_id');
+  if (!sanitized.billing_address_id) missing.push('billing_address_id');
+  if (!sanitized.shipping_address_id) missing.push('shipping_address_id');
+  if (!sanitized.dispatch_address_id) missing.push('dispatch_address_id');
+  if (!sanitized.positions.length) missing.push('positions');
+  if (!sanitized.order_number && !sanitized.naming_series) missing.push('naming_series');
+  if (!sanitized.company) missing.push('company');
+  if (missing.length) {
+    throw createHttpError(400, `Felder fehlen oder sind ungültig: ${missing.join(', ')}`);
+  }
+  return sanitized;
+}
+
 function supportsPdfImage(url) {
   if (!url) return false;
   const clean = url.split('?')[0].toLowerCase();
@@ -274,37 +837,789 @@ async function fetchImageBuffer(url) {
   try {
     const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
     return Buffer.from(response.data);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
 
+function toNumber(value, fallback = 0) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function toStringValue(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
+}
+
+function sanitizeLines(value) {
+  if (!value && value !== 0) return [];
+  if (Array.isArray(value)) {
+    return value.map((entry) => toStringValue(entry)).filter(Boolean);
+  }
+  return toStringValue(value)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function buildStructuredAddressLines(street, postalCode, city, country) {
+  const lines = [];
+  const safeStreet = toStringValue(street);
+  const safePostal = toStringValue(postalCode);
+  const safeCity = toStringValue(city);
+  const safeCountry = toStringValue(country);
+  if (safeStreet) lines.push(safeStreet);
+  const cityLine = [safePostal, safeCity].filter(Boolean).join(' ').trim();
+  if (cityLine) lines.push(cityLine);
+  if (safeCountry) lines.push(safeCountry);
+  return sanitizeLines(lines);
+}
+
+function collectPartyLines(party, { sanitize = false } = {}) {
+  if (!party) return [];
+  const lines = [];
+  const format = (value) => {
+    if (sanitize) return sanitizePdfText(value);
+    return toStringValue(value);
+  };
+  const pushLine = (value) => {
+    const formatted = format(value);
+    if (formatted) lines.push(formatted);
+  };
+  const addLabeledLine = (value, label) => {
+    const safeValue = toStringValue(value);
+    if (!safeValue) return;
+    const lowerLabel = label.toLowerCase();
+    if (safeValue.toLowerCase().includes(lowerLabel)) {
+      pushLine(safeValue);
+    } else {
+      pushLine(`${label}: ${safeValue}`);
+    }
+  };
+  pushLine(party.name);
+  const streetValue = toStringValue(party.street);
+  if (streetValue) pushLine(streetValue);
+  const cityLine = [party.postalCode, party.city].filter(Boolean).join(' ').trim();
+  if (cityLine) pushLine(cityLine);
+  const countryValue = toStringValue(party.country);
+  if (countryValue) pushLine(countryValue);
+  addLabeledLine(party.email, 'E-Mail');
+  addLabeledLine(party.website, 'Website');
+  addLabeledLine(party.taxId, 'Steuernummer');
+  addLabeledLine(party.court, 'Amtsgericht');
+  addLabeledLine(party.ceo, 'Geschäftsführer');
+  const structuredAddressProvided = Boolean(streetValue || cityLine || countryValue);
+  if (!structuredAddressProvided && party.address) {
+    sanitizeLines(party.address).forEach((line) => pushLine(line));
+  }
+  const hasExplicitContact = Boolean(toStringValue(party.email) || toStringValue(party.website));
+  if (!hasExplicitContact && party.contact) {
+    pushLine(party.contact);
+  }
+  return lines.filter(Boolean);
+}
+
+function formatCurrencyValue(amount, currency = 'EUR') {
+  if (!Number.isFinite(amount)) return '-';
+  try {
+    return new Intl.NumberFormat('de-DE', {
+      style: 'currency',
+      currency
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+function formatDateLabel(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '-';
+  try {
+    return new Intl.DateTimeFormat('de-DE').format(date);
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
+}
+
+function sanitizeDigits(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/\D+/g, '');
+}
+
+function formatArticleDigits(value) {
+  const digits = sanitizeDigits(value);
+  if (!digits) return '0000000';
+  return digits.slice(-7).padStart(7, '0');
+}
+
+function formatSizeDigits(value) {
+  const digits = sanitizeDigits(value);
+  if (!digits) return '00';
+  return digits.slice(-2).padStart(2, '0');
+}
+
+function formatYearDigits(year) {
+  const digits = sanitizeDigits(year);
+  if (digits.length < 2) {
+    throw new Error('Ungültiges Jahr für EAN');
+  }
+  return digits.slice(-2);
+}
+
+function buildShoeboxEanBase(entry) {
+  const seasonDigit = SEASON_DIGIT_MAP[String(entry.season_code || '').toUpperCase()];
+  if (!seasonDigit) {
+    throw new Error('Ungültige Saison');
+  }
+  const yearDigits = formatYearDigits(entry.season_year);
+  const articleDigits = formatArticleDigits(entry.article_number);
+  const sizeDigits = formatSizeDigits(entry.size);
+  const base = `${seasonDigit}${yearDigits}${articleDigits}${sizeDigits}`;
+  if (base.length !== 12) {
+    throw new Error('EAN-Basis hat eine unerwartete Länge');
+  }
+  return base;
+}
+
+function computeEan13(base12) {
+  if (base12.length !== 12 || /\D/.test(base12)) {
+    throw new Error('Ungültige EAN-Basis');
+  }
+  let sum = 0;
+  for (let i = 0; i < base12.length; i += 1) {
+    const digit = Number(base12[base12.length - 1 - i]);
+    if (Number.isNaN(digit)) {
+      throw new Error('Ungültige Ziffer in der EAN-Basis');
+    }
+    if ((i + 1) % 2 === 0) {
+      sum += digit * 3;
+    } else {
+      sum += digit;
+    }
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return `${base12}${checkDigit}`;
+}
+
+function buildShoeboxEan(entry) {
+  const base = buildShoeboxEanBase(entry);
+  return computeEan13(base);
+}
+
+function encodeEan13Pattern(code) {
+  if (!code || code.length !== 13 || /\D/.test(code)) {
+    throw new Error('EAN-Code ungültig');
+  }
+  const digits = code.split('').map((d) => Number(d));
+  const parity = EAN_PARITY_TABLE[digits[0]] || EAN_PARITY_TABLE[0];
+  let pattern = '101';
+  for (let i = 1; i <= 6; i += 1) {
+    const digit = digits[i];
+    const encoding = parity[i - 1] === 'G' ? EAN_G_CODES[digit] : EAN_L_CODES[digit];
+    pattern += encoding;
+  }
+  pattern += '01010';
+  for (let i = 7; i <= 12; i += 1) {
+    const digit = digits[i];
+    pattern += EAN_R_CODES[digit];
+  }
+  pattern += '101';
+  return pattern;
+}
+
+function drawEanBarcode(doc, code, x, y, options = {}) {
+  if (!code) return;
+  const { moduleWidth = 1.05, barHeight = 42, maxWidth = null, align = 'left' } = options;
+  let pattern;
+  try {
+    pattern = encodeEan13Pattern(code);
+  } catch {
+    return;
+  }
+  let effectiveModule = moduleWidth;
+  if (maxWidth) {
+    effectiveModule = Math.min(moduleWidth, maxWidth / pattern.length);
+  }
+  const totalWidth = pattern.length * effectiveModule;
+  let startX = x;
+  if (align === 'center') {
+    startX = x - totalWidth / 2;
+  } else if (align === 'right') {
+    startX = x - totalWidth;
+  }
+  doc.save();
+  doc.fillColor('#000000');
+  for (let i = 0; i < pattern.length; i += 1) {
+    const bit = pattern[i];
+    const isGuard = i < 3 || (i >= 45 && i < 50) || i >= 92;
+    const height = isGuard ? barHeight + 6 : barHeight;
+    if (bit === '1') {
+      doc.rect(startX + i * effectiveModule, y, effectiveModule, height).fill();
+    }
+  }
+  doc.restore();
+  doc.font('Helvetica').fontSize(10).text(code, startX, y + barHeight + 12, {
+    width: totalWidth,
+    align: 'center'
+  });
+}
+
+function formatProformaYearCode(year) {
+  const safeYear = Number.isFinite(year) ? year : new Date().getFullYear();
+  return String(safeYear).slice(-2).padStart(2, '0');
+}
+
+function generateProformaNumber(year, sequence = PROFORMA_SEQUENCE_BASE) {
+  const prefix = `BT-M${formatProformaYearCode(year)}`;
+  return `${prefix}${String(sequence).padStart(5, '0')}`;
+}
+
+function nextProformaSequence(entries, year) {
+  const prefix = `BT-M${formatProformaYearCode(year)}`;
+  const used = entries
+    .map((entry) => {
+      if (!entry?.number?.startsWith(prefix)) return 0;
+      const suffix = entry.number.slice(prefix.length);
+      const parsed = Number.parseInt(suffix, 10);
+      return Number.isFinite(parsed) ? parsed : 0;
+    })
+    .filter((value) => value > 0);
+  if (!used.length) return PROFORMA_SEQUENCE_BASE;
+  return Math.max(...used) + 1;
+}
+
+async function loadProformaEntries() {
+  return (await readJson(PROFORMA_STORE_FILE, [])) || [];
+}
+
+async function writeProformaEntries(entries) {
+  await writeJson(PROFORMA_STORE_FILE, entries);
+  return entries;
+}
+
+async function persistProformaEntry(proforma, user, existingId = null) {
+  const entries = await loadProformaEntries();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const docDate = proforma.document?.date ? new Date(proforma.document.date) : now;
+  const targetYear = Number.isNaN(docDate.getTime()) ? now.getFullYear() : docDate.getFullYear();
+  if (existingId) {
+    const index = entries.findIndex((entry) => entry.id === existingId);
+    if (index !== -1) {
+      const entry = entries[index];
+      if (!proforma.document.invoiceNumber) {
+        proforma.document.invoiceNumber = entry.number;
+      }
+      entry.payload = {
+        ...proforma,
+        meta: {
+          id: entry.id,
+          number: entry.number
+        }
+      };
+      entry.updated_at = nowIso;
+      entries[index] = entry;
+      await writeProformaEntries(entries);
+      return entry;
+    }
+  }
+  const nextSequence = nextProformaSequence(entries, targetYear);
+  const number = generateProformaNumber(targetYear, nextSequence);
+  proforma.document.invoiceNumber = proforma.document.invoiceNumber || number;
+  const entry = {
+    id: randomUUID(),
+    number,
+    created_at: nowIso,
+    updated_at: nowIso,
+    created_by: user?.email || user?.id || 'system',
+    payload: {
+      ...proforma,
+      meta: {
+        id: null,
+        number
+      }
+    }
+  };
+  entry.payload.meta.id = entry.id;
+  entries.push(entry);
+  await writeProformaEntries(entries);
+  return entry;
+}
+
+function normalizePartyInput(partyInput = {}, options = {}) {
+  const fallbackName = options.fallbackName || '';
+  const name = toStringValue(partyInput.name) || fallbackName || '';
+  const street = toStringValue(partyInput.street);
+  const postalCode = toStringValue(partyInput.postalCode);
+  const city = toStringValue(partyInput.city);
+  const country = toStringValue(partyInput.country);
+  const email = toStringValue(partyInput.email);
+  const website = toStringValue(partyInput.website);
+  let taxId = toStringValue(partyInput.taxId);
+  let court = toStringValue(partyInput.court);
+  let ceo = toStringValue(partyInput.ceo);
+  if (taxId && taxId.includes('\n')) {
+    const segments = taxId
+      .split(/\r?\n/)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    let extractedTaxId = '';
+    segments.forEach((segment) => {
+      const lower = segment.toLowerCase();
+      if (lower.includes('steuernummer') && !extractedTaxId) {
+        const match = segment.match(/steuernummer[:\s-]*(.+)/i);
+        extractedTaxId = match ? match[1].trim() : segment.replace(/steuernummer/i, '').trim();
+      } else if (lower.includes('amtsgericht') && !court) {
+        const match = segment.match(/amtsgericht[:\s-]*(.+)/i);
+        court = match ? match[1].trim() : segment;
+      } else if (lower.includes('geschäftsführer') && !ceo) {
+        const match = segment.match(/geschäftsführer[:\s-]*(.+)/i);
+        ceo = match ? match[1].trim() : segment;
+      }
+    });
+    if (extractedTaxId) {
+      taxId = extractedTaxId;
+    }
+  }
+  const structuredLines = buildStructuredAddressLines(street, postalCode, city, country);
+  const addressLines = structuredLines.length ? structuredLines : sanitizeLines(partyInput.address);
+  const contactLine = [email, website].filter(Boolean).join(' – ') || toStringValue(partyInput.contact);
+  return {
+    name,
+    street,
+    postalCode,
+    city,
+    country,
+    email,
+    website,
+    taxId,
+    court,
+    ceo,
+    address: addressLines.join('\n'),
+    addressLines,
+    contact: contactLine
+  };
+}
+
+function normalizeProformaPayload(rawBody) {
+  const body = rawBody || {};
+  const docInput = body.document || {};
+  const sellerInput = body.seller || {};
+  const buyerInput = body.buyer || {};
+  const shippingInput = body.shipping || {};
+  const rawItems = Array.isArray(body.items) ? body.items : [];
+
+  const parsedDate = docInput.date ? new Date(docInput.date) : new Date();
+  const safeDate = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  const normalizedSeller = normalizePartyInput(sellerInput, { fallbackName: 'BATE GmbH' });
+  const normalizedBuyer = normalizePartyInput(buyerInput, { fallbackName: '' });
+  const sellerName = normalizedSeller.name || 'BATE GmbH';
+
+  const normalizedDocument = {
+    reference: toStringValue(docInput.reference),
+    invoiceNumber: toStringValue(docInput.invoiceNumber),
+    paymentTerms: toStringValue(docInput.paymentTerms),
+    currency: (toStringValue(docInput.currency) || 'EUR').toUpperCase(),
+    date: safeDate.toISOString().slice(0, 10)
+  };
+
+  const fallbackTransported = [shippingInput.transportedBy, shippingInput.carrier, shippingInput.carrierDocument]
+    .map((value) => toStringValue(value))
+    .filter(Boolean)
+    .join(' ');
+  const normalizedShipping = {
+    transportedBy: fallbackTransported || '',
+    shipmentInfo: toStringValue(shippingInput.shipmentInfo) || toStringValue(shippingInput.transportMode),
+    place:
+      toStringValue(shippingInput.place) ||
+      normalizedSeller.city ||
+      normalizedSeller.addressLines[normalizedSeller.addressLines.length - 1] ||
+      ''
+  };
+
+  const items = rawItems
+    .map((item, index) => {
+      const quantity = toNumber(item.quantity, 0);
+      const unitPrice = toNumber(item.unitPrice, 0);
+      const vatRate = toNumber(item.vatRate, 0);
+      const declaredValueInput = Number(item.declaredValue);
+      const declaredValue = Number.isFinite(declaredValueInput) ? declaredValueInput : quantity * unitPrice;
+      const materialUpper = toStringValue(item.materialUpper || item.materialsUpper);
+      const materialLining = toStringValue(item.materialLining || item.materialsLining);
+      const materialSole = toStringValue(item.materialSole || item.materialsSole);
+      const materialLines = [
+        materialUpper ? `Upper Material: ${materialUpper}` : null,
+        materialLining ? `Lining Material: ${materialLining}` : null,
+        materialSole ? `Sole: ${materialSole}` : null
+      ]
+        .filter(Boolean)
+        .join('\n');
+      return {
+        position: index + 1,
+        articleNumber: toStringValue(item.articleNumber),
+        color: toStringValue(item.color),
+        description: toStringValue(item.description),
+        size: toStringValue(item.size),
+        materialUpper,
+        materialLining,
+        materialSole,
+        materials: materialLines,
+        materialsLines: materialLines ? materialLines.split('\n') : [],
+        customsCode: toStringValue(item.customsCode),
+        producer: toStringValue(item.producer) || sellerName,
+        quantity,
+        unit: toStringValue(item.unit) || 'Paar',
+        unitType: toStringValue(item.unitType) || 'PAIR',
+        quantityLabel: toStringValue(item.quantityLabel),
+        unitPrice,
+        purchasePrice: toNumber(item.purchasePrice, 0),
+        vatRate,
+        declaredValue,
+        imageData: toStringValue(item.imageData)
+      };
+    })
+    .filter((item) => item.quantity > 0 && (item.articleNumber || item.description));
+
+  if (!items.length) {
+    throw createHttpError(400, 'Mindestens eine Position mit Menge > 0 wird benötigt.');
+  }
+
+  const totals = items.reduce(
+    (acc, item) => {
+      const lineNet = item.quantity * item.unitPrice;
+      const lineTax = lineNet * item.vatRate;
+      acc.net += lineNet;
+      acc.tax += lineTax;
+      acc.gross += lineNet + lineTax;
+      acc.declared += Number.isFinite(item.declaredValue) ? item.declaredValue : lineNet + lineTax;
+      return acc;
+    },
+    { net: 0, tax: 0, gross: 0, declared: 0 }
+  );
+
+  return {
+    meta: {
+      id: body.meta?.id || null
+    },
+    document: normalizedDocument,
+    seller: normalizedSeller,
+    buyer: normalizedBuyer,
+    shipping: normalizedShipping,
+    items,
+    totals
+  };
+}
+
+function buildProformaTableRows(items, currency) {
+  return items.map((item) => {
+    const articleParts = [item.articleNumber, item.color ? `Color: ${item.color}` : null]
+      .filter(Boolean)
+      .map(sanitizePdfText);
+    const descriptionParts = [item.description, item.size ? `Size: ${item.size}` : null]
+      .filter(Boolean)
+      .map(sanitizePdfText);
+    const unitLabel = PROFORMA_UNIT_LABELS[item.unitType] || item.unit || 'Paar';
+    const quantityLabel = item.quantity ? `${item.quantity} ${unitLabel}` : unitLabel;
+    return {
+      article: articleParts.join('\n') || '-',
+      description: descriptionParts.join('\n') || '-',
+      materials: sanitizePdfText(item.materials) || '-',
+      customs: sanitizePdfText(item.customsCode) || '-',
+      producer: sanitizePdfText(item.producer) || '-',
+      quantity: sanitizePdfText(quantityLabel) || '-',
+      unitPrice: formatCurrencyValue(item.unitPrice, currency),
+      declared: formatCurrencyValue(item.declaredValue, currency)
+    };
+  });
+}
+
+function drawProformaTable(doc, rows) {
+  const columns = [
+    { key: 'article', label: 'Artikel-Nr. /\nArticle No.', width: 80 },
+    { key: 'description', label: 'Beschreibung /\nDescription', width: 118 },
+    { key: 'materials', label: 'Materialien /\nMaterials', width: 134 },
+    { key: 'customs', label: 'Zolltarifnummer /\nCustoms tariff code', width: 114 },
+    { key: 'producer', label: 'Hersteller /\nProducer', width: 70 },
+    { key: 'quantity', label: 'Menge /\nQuantity', width: 80 },
+    { key: 'unitPrice', label: 'Einzelpreis /\nUnit Price', width: 70 },
+    { key: 'declared', label: 'Warenwert /\nDeclared Value', width: 80 }
+  ];
+  const startX = doc.page.margins.left;
+  const usableHeight = doc.page.height - doc.page.margins.bottom;
+  let y = doc.y + 10;
+
+  const drawHeader = () => {
+    doc.font('Helvetica-Bold').fontSize(9);
+    let x = startX;
+    const headerHeight = 28;
+    columns.forEach((column) => {
+      doc.rect(x, y, column.width, headerHeight).stroke();
+      const headerLines = column.label.split('\n');
+      headerLines.forEach((line, index) => {
+        doc.text(line, x + 4, y + 4 + index * 10, {
+          width: column.width - 8,
+          align: 'center',
+          lineBreak: false
+        });
+      });
+      x += column.width;
+    });
+    y += headerHeight;
+    doc.font('Helvetica').fontSize(9);
+  };
+
+  const ensureSpace = (requiredHeight) => {
+    if (y + requiredHeight <= usableHeight) return;
+    doc.addPage({ size: 'A4', margin: 48, layout: 'landscape' });
+    y = doc.page.margins.top;
+    drawHeader();
+  };
+
+  drawHeader();
+  rows.forEach((row) => {
+    const rowHeight =
+      columns.reduce((max, column) => {
+        const text = row[column.key] || '';
+        const height = doc.heightOfString(text, {
+          width: column.width - 8,
+          align: 'left',
+          lineGap: 3
+        });
+        return Math.max(max, height + 14);
+      }, 28);
+    ensureSpace(rowHeight);
+    let x = startX;
+    columns.forEach((column) => {
+      const text = row[column.key] || '';
+      doc.rect(x, y, column.width, rowHeight).stroke();
+      let align = 'left';
+      if (column.key === 'unitPrice' || column.key === 'declared') {
+        align = 'right';
+      } else if (column.key === 'quantity') {
+        align = 'center';
+      }
+      doc.text(text, x + 4, y + 6, {
+        width: column.width - 8,
+        align,
+        lineGap: 3
+      });
+      x += column.width;
+    });
+    y += rowHeight;
+  });
+  doc.moveDown(1);
+}
+
+function measureInfoCell(doc, label, value, width) {
+  const safeLabel = sanitizePdfText(label || '-');
+  const safeValue = sanitizePdfText(value || '-');
+  doc.font('Helvetica-Bold').fontSize(10);
+  const labelHeight = doc.heightOfString(safeLabel, { width: width - 12 });
+  doc.font('Helvetica').fontSize(10);
+  const valueHeight = doc.heightOfString(safeValue, { width: width - 12 });
+  return labelHeight + valueHeight + 12;
+}
+
+function drawInfoCell(doc, label, value, x, y, width, height) {
+  doc.rect(x, y, width, height).stroke();
+  doc.font('Helvetica-Bold').fontSize(10).text(sanitizePdfText(label || '-'), x + 6, y + 6, { width: width - 12 });
+  doc.font('Helvetica').fontSize(10).text(sanitizePdfText(value || '-'), x + 6, y + 18, {
+    width: width - 12,
+    lineGap: 2
+  });
+}
+
+function drawInfoTable(doc, rows) {
+  const totalWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const colWidth = totalWidth / 2;
+  let y = doc.y;
+  rows.forEach((row) => {
+    const leftHeight = measureInfoCell(doc, row.leftLabel, row.leftValue, colWidth);
+    const rightHeight = measureInfoCell(doc, row.rightLabel, row.rightValue, colWidth);
+    const rowHeight = Math.max(32, leftHeight, rightHeight);
+    drawInfoCell(doc, row.leftLabel, row.leftValue, doc.page.margins.left, y, colWidth, rowHeight);
+    drawInfoCell(doc, row.rightLabel, row.rightValue, doc.page.margins.left + colWidth, y, colWidth, rowHeight);
+    y += rowHeight;
+  });
+  doc.y = y;
+  doc.moveDown(0.5);
+}
+
+function buildProformaPdf(doc, payload) {
+  const { document, seller, buyer, shipping, items, totals } = payload;
+  const documentDate = document.date ? new Date(document.date) : new Date();
+  const currency = document.currency || 'EUR';
+  doc.font('Helvetica-Bold').fontSize(16).text('PROFORMA INVOICE / PROFORMA-RECHNUNG', { align: 'center' });
+  doc.moveDown(0.3);
+  doc.font('Helvetica').fontSize(10).text('Nicht zum Verkauf bestimmt – Nur Musterware / Not for sale – Sample only', {
+    align: 'center'
+  });
+  doc.moveDown(1);
+
+  const columnWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right - 32) / 2;
+  const leftX = doc.page.margins.left;
+  const rightX = leftX + columnWidth + 32;
+  const topY = doc.y;
+
+  const exporterLines = collectPartyLines(seller, { sanitize: true });
+  const importerLines = collectPartyLines(buyer, { sanitize: true });
+  const exporterText = exporterLines.length ? exporterLines.join('\n') : '-';
+  const importerText = importerLines.length ? importerLines.join('\n') : '-';
+
+  doc.font('Helvetica-Bold').fontSize(10).text('Exporteur / Exporter:', leftX, topY);
+  doc.font('Helvetica').text(exporterText, leftX, topY + 14, { width: columnWidth, align: 'left' });
+
+  doc.font('Helvetica-Bold').text('Importeur / Importer:', rightX, topY);
+  doc.font('Helvetica').text(importerText, rightX, topY + 14, { width: columnWidth, align: 'left' });
+
+  const exporterHeight = doc.heightOfString(exporterText, { width: columnWidth });
+  const importerHeight = doc.heightOfString(importerText, { width: columnWidth });
+  const blockBottom = topY + 14 + Math.max(exporterHeight, importerHeight);
+  doc.y = blockBottom;
+  doc.moveDown(0.8);
+
+  const infoRows = [
+    {
+      leftLabel: 'Transportiert durch / Carried by:',
+      leftValue: shipping.transportedBy || '-',
+      rightLabel: 'Rechnungsnummer / Invoice No.:',
+      rightValue: document.invoiceNumber || '-'
+    },
+    {
+      leftLabel: 'Versandart / Shipment:',
+      leftValue: shipping.shipmentInfo || '-',
+      rightLabel: 'Datum / Date:',
+      rightValue: formatDateLabel(documentDate)
+    }
+  ];
+  drawInfoTable(doc, infoRows);
+  doc.moveDown(0.4);
+  doc.font('Helvetica-Bold').text('Warenbeschreibung / Goods Description:', doc.page.margins.left, doc.y, {
+    width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+    align: 'left'
+  });
+  doc.moveDown(0.6);
+
+  const tableRows = buildProformaTableRows(items, currency);
+  drawProformaTable(doc, tableRows);
+
+  doc.addPage({ size: 'A4', margin: 72, layout: 'landscape' });
+  doc.font('Helvetica-Bold').fontSize(12).text('Gesamtwert nur zu Zollzwecken / Total Value for Customs Purposes Only:', {
+    continued: true
+  });
+  doc.text(` ${formatCurrencyValue(totals.declared, currency)}`);
+  doc.moveDown(1);
+
+  const noteText = [
+    'Diese Sendung enthält ausschließlich Mustersendungen von Schuhen für unseren Showroom.',
+    'Die Schuhe sind nicht für den Weiterverkauf bestimmt, sondern dienen ausschließlich als Ausstellungs- und Vorführmuster.',
+    'Die angegebenen Werte dienen nur der zolltechnischen Deklaration.',
+    '',
+    'This shipment contains shoe samples for our showroom only.',
+    'They are not intended for resale but solely for presentation and demonstration purposes.',
+    'Declared values are for customs purposes only.'
+  ].join('\n');
+
+  doc.font('Helvetica-Bold').fontSize(11).text('Hinweis / Note:');
+  doc.moveDown(0.3);
+  doc.font('Helvetica').fontSize(11).text(noteText, { lineGap: 4 });
+  doc.moveDown(1.2);
+
+  doc.font('Helvetica-Bold').text('Ort / Place:', { continued: true });
+  doc.font('Helvetica').text(` ${shipping.place || '-'}`);
+  doc.font('Helvetica-Bold').text('Datum / Date:', { continued: true });
+  doc.font('Helvetica').text(` ${formatDateLabel(documentDate)}`);
+  doc.moveDown(2);
+  doc.font('Helvetica-Bold').text('Unterschrift / Signature (Exporteur):');
+  const lineY = doc.y + 12;
+  doc.moveTo(doc.page.margins.left, lineY).lineTo(doc.page.width - doc.page.margins.right, lineY).stroke();
+}
+
+
 async function drawShoeboxLabel(doc, entry, imageCache) {
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const height = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-  const textWidth = width * 0.55;
-  const imageWidth = width - textWidth - 12;
-  let cursorY = doc.page.margins.top;
+  const leftColumnWidth = width * 0.62;
+  const imageWidth = width - leftColumnWidth - 28;
+  const leftX = doc.page.margins.left;
+  const rightX = leftX + leftColumnWidth + 24;
+  const topY = doc.page.margins.top;
+  const valueColor = '#0a1426';
+  const labelColor = '#6d7385';
+  let cursorY = topY;
 
-  doc.font('Helvetica-Bold').fontSize(18).text(entry.name || 'ARTIKEL', doc.page.margins.left, cursorY, {
-    width: textWidth
-  });
-  cursorY = doc.y + 6;
-  doc.font('Helvetica').fontSize(10).text('Artikelnummer', doc.page.margins.left, cursorY, { width: textWidth });
-  cursorY = doc.y + 2;
-  doc.font('Helvetica-Bold').fontSize(18).text(entry.article_number || '-', doc.page.margins.left, cursorY, {
-    width: textWidth
-  });
-  cursorY = doc.y + 6;
-  doc.font('Helvetica').fontSize(10).text('Farbcode', doc.page.margins.left, cursorY, { width: textWidth });
-  cursorY = doc.y + 2;
-  doc.font('Helvetica-Bold').fontSize(18).text(entry.color_code || '-', doc.page.margins.left, cursorY, {
-    width: textWidth
-  });
+  const writeInfoLine = (label, value, valueSize = 30) => {
+    doc.font('Helvetica').fontSize(14).fillColor(labelColor).text(label, leftX, cursorY, {
+      width: leftColumnWidth,
+      lineBreak: false
+    });
+    cursorY = doc.y + 4;
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(valueSize)
+      .fillColor(valueColor)
+      .text(value || '-', leftX, cursorY, {
+        width: leftColumnWidth,
+        lineBreak: false,
+        ellipsis: true
+      });
+    cursorY = doc.y + 18;
+  };
 
-  const imageX = doc.page.margins.left + textWidth + 12;
-  const imageY = doc.page.margins.top;
-  const imageHeight = height - 50;
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(44)
+    .fillColor(valueColor)
+    .text((entry.name || 'ARTIKEL').toUpperCase(), leftX, cursorY, {
+      width: leftColumnWidth,
+      lineBreak: false,
+      ellipsis: true
+    });
+  cursorY = doc.y + 32;
+  writeInfoLine('Artikelnummer', entry.article_number || '-', 34);
+  writeInfoLine('Farbcode', entry.color_code || '-', 34);
+
+  let eanCode = null;
+  try {
+    eanCode = buildShoeboxEan(entry);
+  } catch {
+    eanCode = null;
+  }
+
+  const barcodeBottom = doc.page.margins.top + height - 20;
+  const barcodeHeight = 58;
+  const barcodeY = barcodeBottom - barcodeHeight - 34;
+  doc
+    .font('Helvetica')
+    .fontSize(14)
+    .fillColor(labelColor)
+    .text('EAN', leftX, barcodeY - 18, { width: leftColumnWidth, lineBreak: false });
+  if (eanCode) {
+    drawEanBarcode(doc, eanCode, leftX + leftColumnWidth / 2, barcodeY, {
+      maxWidth: leftColumnWidth - 20,
+      barHeight: barcodeHeight,
+      align: 'center'
+    });
+    doc
+      .font('Helvetica')
+      .fontSize(18)
+      .fillColor(labelColor)
+      .text(eanCode, leftX, barcodeBottom - 18, {
+        width: leftColumnWidth,
+        align: 'center',
+        lineBreak: false
+      });
+  } else {
+    doc
+      .font('Helvetica')
+      .fontSize(16)
+      .fillColor(labelColor)
+      .text('EAN nicht verfügbar', leftX, barcodeY + 20, { width: leftColumnWidth, align: 'center' });
+  }
+
+  const imageSize = Math.min(imageWidth, height - 60);
+  const imageY = topY;
+  const imageX = rightX;
   let buffer = null;
   if (entry.image_url) {
     if (imageCache.has(entry.image_url)) {
@@ -316,30 +1631,38 @@ async function drawShoeboxLabel(doc, entry, imageCache) {
   }
   doc.save();
   if (buffer) {
-    doc.image(buffer, imageX, imageY, { fit: [imageWidth, imageHeight], align: 'center', valign: 'center' });
+    doc.image(buffer, imageX, imageY, { fit: [imageWidth, imageSize], align: 'center', valign: 'center' });
   } else {
-    doc.rect(imageX, imageY, imageWidth, imageHeight).strokeColor('#d1d5db').stroke();
-    doc
-      .font('Helvetica')
-      .fontSize(10)
-      .fillColor('#6b7280')
-      .text('Kein Bild', imageX, imageY + imageHeight / 2 - 5, { width: imageWidth, align: 'center' });
+    doc.rect(imageX, imageY, imageWidth, imageSize).fillAndStroke(valueColor, valueColor);
   }
-  doc.fillColor('#000');
   doc.restore();
 
   doc
     .font('Helvetica-Bold')
-    .fontSize(42)
-    .text(String(entry.size || '-'), doc.page.margins.left, doc.page.height - doc.page.margins.bottom - 52, {
-      width,
-      align: 'right'
+    .fontSize(88)
+    .fillColor(valueColor)
+    .text(String(entry.size || '-'), imageX, barcodeBottom - 96, {
+      width: imageWidth,
+      align: 'center',
+      lineBreak: false
     });
 }
 
 function normalizeTicketViewKey(value) {
   const normalized = (value || '').toString().toLowerCase();
   return TECHPACK_VIEW_KEYS.has(normalized) ? normalized : null;
+}
+
+function buildTicketKey(ticket) {
+  if (!ticket) return '';
+  const segments = [
+    ticket.id || '',
+    ticket.order_id || '',
+    ticket.position_id || '',
+    ticket.created_at || '',
+    ticket.title || ''
+  ];
+  return segments.join('::');
 }
 
 async function loadTicketsData() {
@@ -381,6 +1704,42 @@ function ensureSpecMediaAssignments(spec) {
     return normalized;
   });
   return changed;
+}
+
+function reassignPlaceholderAnnotations(spec, viewKey, mediaId) {
+  if (!spec || !viewKey || !mediaId) return;
+  if (!Array.isArray(spec.annotations) || !spec.annotations.length) return;
+  const placeholderId = `${PLACEHOLDER_MEDIA_PREFIX}${viewKey}`;
+  spec.annotations.forEach((annotation) => {
+    if (annotation.media_id === placeholderId) {
+      annotation.media_id = mediaId;
+    }
+  });
+}
+
+function removePlaceholderMediaEntry(spec, viewKey) {
+  if (!spec?.flags?.medien || !viewKey) return;
+  const placeholderId = `${PLACEHOLDER_MEDIA_PREFIX}${viewKey}`;
+  spec.flags.medien = spec.flags.medien.filter((entry) => entry.id !== placeholderId);
+}
+
+function isPlaceholderMediaId(mediaId) {
+  return typeof mediaId === 'string' && mediaId.startsWith(PLACEHOLDER_MEDIA_PREFIX);
+}
+
+function buildPlaceholderMediaEntry(viewKey) {
+  if (!TECHPACK_VIEW_KEYS.has(viewKey)) return null;
+  const view = TECHPACK_VIEWS.find((entry) => entry.key === viewKey);
+  if (!view) return null;
+  return {
+    id: `${PLACEHOLDER_MEDIA_PREFIX}${view.key}`,
+    label: `${view.label} · Platzhalter`,
+    filename: null,
+    view_key: view.key,
+    status: 'OPEN',
+    url: TECHPACK_PLACEHOLDER_IMAGES[view.key] || '',
+    is_placeholder: true
+  };
 }
 
 function deriveOrderSizeTotals(order) {
@@ -652,14 +2011,15 @@ async function translateText(text, source, target) {
 
 async function collectDiagnostics(currentUserId) {
   const now = Date.now();
-  const [orders, tickets, specs, notifications, lastSync, calendar, statusLogs] = await Promise.all([
+  const [orders, tickets, specs, notifications, lastSync, calendar, statusLogs, autosyncSnapshot] = await Promise.all([
     loadOrders(),
     readJson('tickets.json', []),
     loadSpecs(),
     readJson('notifications.json', []),
     readJson('last_sync.json', { last_run: null, source: null }),
     readJson('calendar.json', []),
-    readJson('status_logs.json', [])
+    readJson('status_logs.json', []),
+    getAutoSyncSnapshot({ limit: 10 })
   ]);
 
   const ordersByStatus = mapCounts(countBy(orders, (order) => order.portal_status || 'UNBEKANNT'), getStatusLabel);
@@ -755,6 +2115,15 @@ async function collectDiagnostics(currentUserId) {
       healthy: syncAgeMinutes !== null && syncAgeMinutes < 45
     }
   ];
+  if (autosyncSnapshot?.enabled) {
+    jobs.push({
+      name: 'AutoSync',
+      schedule: 'Webhook/Manuell',
+      lastRun: autosyncSnapshot.stats?.last_run || null,
+      ageMinutes: minutesSince(autosyncSnapshot.stats?.last_run),
+      healthy: Boolean(autosyncSnapshot.online)
+    });
+  }
 
   return {
     generated_at: new Date(now).toISOString(),
@@ -778,6 +2147,7 @@ async function collectDiagnostics(currentUserId) {
       age_minutes: syncAgeMinutes,
       schedule: SYNC_CRON
     },
+    autosync: autosyncSnapshot,
     jobs,
     orders: {
       total: orders.length,
@@ -1072,6 +2442,14 @@ app.post('/api/customers/:id/packaging/:type', requireAuth(), async (req, res) =
 app.post('/api/orders/:id/shoebox-labels/pdf', requireAuth(), async (req, res) => {
   const orderId = req.params.id;
   const labels = Array.isArray(req.body?.labels) ? req.body.labels : [];
+  const seasonInput = (req.body?.season || '').toString().toUpperCase();
+  const seasonYear = Number(req.body?.year);
+  if (!SEASON_DIGIT_MAP[seasonInput]) {
+    return respondError(res, 400, 'Ungültige Saison. Bitte FS oder HW wählen.');
+  }
+  if (!Number.isInteger(seasonYear) || seasonYear < 2000 || seasonYear > 2099) {
+    return respondError(res, 400, 'Ungültiges Jahr für die EAN-Berechnung.');
+  }
   if (!labels.length) {
     return respondError(res, 400, 'Keine Etiketten übermittelt');
   }
@@ -1092,7 +2470,9 @@ app.post('/api/orders/:id/shoebox-labels/pdf', requireAuth(), async (req, res) =
         name: label.name || '',
         color_code: label.color_code || '',
         size: label.size || '',
-        image_url: label.image_url || ''
+        image_url: label.image_url || '',
+        season_code: seasonInput,
+        season_year: seasonYear
       });
     }
   });
@@ -1174,6 +2554,78 @@ app.get('/api/orders/:id', requireAuth(), async (req, res) => {
     audit: timelineLogs,
     notifications: orderNotifications
   });
+});
+
+app.get('/api/orders/:id/tickets', requireAuth(), async (req, res) => {
+  try {
+    const order = await ensureOrderAccess(req.params.id, req.session.user);
+    const tickets = await loadTicketsData();
+    const orderTickets = tickets.filter((ticket) => ticket.order_id === order.id);
+    res.json(orderTickets);
+  } catch (err) {
+    respondError(res, err.statusCode || 500, err.message || 'Tickets konnten nicht geladen werden.');
+  }
+});
+
+app.get('/api/orders/:id/print-options', requireAuth(), async (req, res) => {
+  if (!isErpClientEnabled()) {
+    return respondError(res, 503, 'ERP Print-Service ist nicht konfiguriert.');
+  }
+  try {
+    const order = await ensureOrderAccess(req.params.id, req.session.user);
+    const docType = 'Purchase Order';
+    const [formats, letterheads] = await Promise.all([fetchPrintFormats(docType), fetchLetterheads()]);
+    const languages = SUPPORTED_LOCALES.map((code) => ({
+      code,
+      label: LOCALE_LABELS[code] || code.toUpperCase()
+    }));
+    const defaultFormat = order.print_format;
+    const defaultLetterhead = order.letter_head;
+    const defaultLanguage = languages.some((entry) => entry.code === order.language)
+      ? order.language
+      : DEFAULT_LOCALE;
+    res.json({
+      order_id: order.id,
+      doc_type: docType,
+      formats,
+      letterheads,
+      languages,
+      defaults: {
+        format:
+          (formats || []).find((entry) => entry.value === defaultFormat)?.value ||
+          formats[0]?.value ||
+          null,
+        letterhead:
+          (letterheads || []).find((entry) => entry.value === defaultLetterhead)?.value || null,
+        language: defaultLanguage
+      }
+    });
+  } catch (err) {
+    respondError(res, err.statusCode || 500, err.message || 'Druckoptionen konnten nicht geladen werden.');
+  }
+});
+
+app.post('/api/orders/:id/print/pdf', requireAuth(), async (req, res) => {
+  if (!isErpClientEnabled()) {
+    return respondError(res, 503, 'ERP Print-Service ist nicht konfiguriert.');
+  }
+  try {
+    const order = await ensureOrderAccess(req.params.id, req.session.user);
+    const { format, letterhead, language } = req.body || {};
+    if (!format) {
+      return respondError(res, 400, 'Druckformat erforderlich');
+    }
+    const buffer = await downloadPrintPdf('Purchase Order', order.id, {
+      format,
+      letterhead,
+      language
+    });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${order.id}.pdf"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    respondError(res, err.statusCode || 500, err.message || 'PDF konnte nicht erstellt werden');
+  }
 });
 
 app.get('/api/orders/:id/label', requireAuth(), async (req, res) => {
@@ -1311,47 +2763,357 @@ app.post('/api/orders/:id/label/batch/pdf', requireAuth(), async (req, res) => {
   }
 });
 
-app.post('/api/orders', requireBate(), async (req, res) => {
-  const { order_number, supplier_id, supplier_name, customer_id, customer_name, requested_delivery } = req.body;
-  if (!order_number || !supplier_id || !customer_id) {
-    return respondError(res, 400, 'order_number, supplier_id und customer_id sind Pflichtfelder');
-  }
-  const orders = await loadOrders();
-  if (orders.find((o) => o.order_number === order_number)) {
-    return respondError(res, 409, 'Order Nummer bereits vorhanden');
-  }
-  const now = new Date().toISOString();
-  const newOrder = normalizePortalOrder({
-    id: order_number,
-    order_number,
-    supplier_id,
-    supplier_name,
-    customer_id,
-    customer_name,
-    requested_delivery,
-    portal_status: 'ORDER_EINGEREICHT',
-    phase: 'SMS',
-    created_at: now,
-    timeline: [
-      {
-        id: `tl-${randomUUID()}`,
-        type: 'STATUS',
-        status: 'ORDER_EINGEREICHT',
-        message: 'Bestellung angelegt',
-        actor: req.session.user.email,
-        created_at: now
+app.post('/api/proforma/export', requireAuth(), async (req, res) => {
+  try {
+    let proforma = normalizeProformaPayload(req.body);
+    const entry = await persistProformaEntry(proforma, req.session.user, proforma.meta?.id || null);
+    proforma = entry.payload;
+    const { document, seller, buyer, shipping, items, totals } = proforma;
+    res.setHeader('X-Proforma-Id', entry.id);
+    res.setHeader('X-Proforma-Number', entry.number);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'BATE Supplier Portal';
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet('Muster Proforma', {
+      properties: { defaultColWidth: 18 }
+    });
+    sheet.columns = [
+      { key: 'colA', width: 6 },
+      { key: 'colB', width: 18 },
+      { key: 'colC', width: 32 },
+      { key: 'colD', width: 20 },
+      { key: 'colE', width: 12 },
+      { key: 'colF', width: 12 },
+      { key: 'colG', width: 14 },
+      { key: 'colH', width: 10 },
+      { key: 'colI', width: 15 },
+      { key: 'colJ', width: 15 },
+      { key: 'colK', width: 15 }
+    ];
+
+    const bold = { bold: true };
+    const wrap = { wrapText: true };
+    let currentRow = 1;
+    sheet.mergeCells(`A${currentRow}:J${currentRow}`);
+    sheet.getCell(`A${currentRow}`).value = 'Muster Proforma / Proforma Invoice';
+    sheet.getCell(`A${currentRow}`).font = { bold: true, size: 16 };
+    sheet.getCell(`A${currentRow}`).alignment = { horizontal: 'center' };
+    currentRow += 2;
+
+    const docRows = [
+      ['Referenz', document.reference || '-', 'Datum', document.date ? new Date(document.date) : null],
+      ['Rechnungsnummer', document.invoiceNumber || '-', 'Währung', document.currency || 'EUR'],
+      ['Zahlungsziel', document.paymentTerms || '-', 'Incoterm', shipping.incoterm || '-']
+    ];
+    docRows.forEach(([leftLabel, leftValue, rightLabel, rightValue]) => {
+      sheet.getCell(`A${currentRow}`).value = leftLabel;
+      sheet.getCell(`A${currentRow}`).font = bold;
+      sheet.mergeCells(`B${currentRow}:C${currentRow}`);
+      sheet.getCell(`B${currentRow}`).value = leftValue || '-';
+      sheet.getCell(`D${currentRow}`).value = '';
+      sheet.getCell(`E${currentRow}`).value = rightLabel;
+      sheet.getCell(`E${currentRow}`).font = bold;
+      sheet.mergeCells(`F${currentRow}:J${currentRow}`);
+      if (rightValue instanceof Date) {
+        sheet.getCell(`F${currentRow}`).value = rightValue;
+        sheet.getCell(`F${currentRow}`).numFmt = 'dd.mm.yyyy';
+      } else {
+        sheet.getCell(`F${currentRow}`).value = rightValue || '-';
       }
-    ],
-    positions: Array.isArray(req.body.positions) ? req.body.positions : []
-  });
-  orders.push(newOrder);
-  await writeJson('purchase_orders.json', orders);
-  res.status(201).json(newOrder);
+      currentRow += 1;
+    });
+    currentRow += 1;
+
+    const sellerLines = collectPartyLines(seller).map((line) => line.replace(/\r?\n/g, ' · '));
+    const buyerLines = collectPartyLines(buyer).map((line) => line.replace(/\r?\n/g, ' · '));
+    const infoRows = Math.max(sellerLines.length, buyerLines.length, 1);
+    sheet.mergeCells(`A${currentRow}:C${currentRow}`);
+    sheet.getCell(`A${currentRow}`).value = 'Verkäufer';
+    sheet.getCell(`A${currentRow}`).font = bold;
+    sheet.mergeCells(`E${currentRow}:J${currentRow}`);
+    sheet.getCell(`E${currentRow}`).value = 'Kunde';
+    sheet.getCell(`E${currentRow}`).font = bold;
+    currentRow += 1;
+    for (let rowIndex = 0; rowIndex < infoRows; rowIndex += 1) {
+      const sellerValue = sellerLines[rowIndex] || '';
+      const buyerValue = buyerLines[rowIndex] || '';
+      sheet.mergeCells(`A${currentRow + rowIndex}:C${currentRow + rowIndex}`);
+      sheet.getCell(`A${currentRow + rowIndex}`).value = sellerValue || '-';
+      sheet.getCell(`A${currentRow + rowIndex}`).alignment = wrap;
+      sheet.mergeCells(`E${currentRow + rowIndex}:J${currentRow + rowIndex}`);
+      sheet.getCell(`E${currentRow + rowIndex}`).value = buyerValue || '-';
+      sheet.getCell(`E${currentRow + rowIndex}`).alignment = wrap;
+    }
+    currentRow += infoRows + 1;
+
+    const shippingRows = [
+      ['Transportiert durch', shipping.transportedBy],
+      ['Versandart / Shipment', shipping.shipmentInfo],
+      ['Datum', document.date ? new Date(document.date) : null],
+      ['Ort / Place', shipping.place]
+    ];
+    sheet.mergeCells(`A${currentRow}:C${currentRow}`);
+    sheet.getCell(`A${currentRow}`).value = 'Versanddetails';
+    sheet.getCell(`A${currentRow}`).font = bold;
+    currentRow += 1;
+    shippingRows.forEach(([label, value]) => {
+      sheet.getCell(`A${currentRow}`).value = label;
+      sheet.getCell(`A${currentRow}`).font = bold;
+      sheet.mergeCells(`B${currentRow}:J${currentRow}`);
+      if (value instanceof Date) {
+        sheet.getCell(`B${currentRow}`).value = value;
+        sheet.getCell(`B${currentRow}`).numFmt = 'dd.mm.yyyy';
+      } else {
+        sheet.getCell(`B${currentRow}`).value = value || '-';
+      }
+      sheet.getCell(`B${currentRow}`).alignment = wrap;
+      currentRow += 1;
+    });
+    currentRow += 1;
+
+    const headerRow = currentRow;
+    const tableHeaders = [
+      null,
+      'Pos.',
+      'Artikel',
+      'Beschreibung',
+      'Menge',
+      'Einheit',
+      'Einzelpreis',
+      'MwSt',
+      'Netto',
+      'Steuer',
+      'Brutto'
+    ];
+    sheet.getRow(headerRow).values = tableHeaders;
+    sheet.getRow(headerRow).font = bold;
+    sheet.getRow(headerRow).alignment = { horizontal: 'center' };
+
+    const firstItemRow = headerRow + 1;
+    items.forEach((item, index) => {
+      const rowNumber = firstItemRow + index;
+      const lineNet = item.quantity * item.unitPrice;
+      const lineTax = lineNet * item.vatRate;
+      const articleLabel = [item.articleNumber, item.color ? `Color: ${item.color}` : null].filter(Boolean).join('\n');
+      const descriptionLabel = [item.description, item.size ? `Size: ${item.size}` : null, item.materials || null]
+        .filter(Boolean)
+        .join('\n');
+      sheet.getRow(rowNumber).values = [
+        null,
+        item.position,
+        articleLabel,
+        descriptionLabel,
+        item.quantity,
+        item.unit,
+        item.unitPrice,
+        item.vatRate,
+        { formula: `D${rowNumber}*F${rowNumber}`, result: lineNet },
+        { formula: `H${rowNumber}*G${rowNumber}`, result: lineTax },
+        { formula: `H${rowNumber}+I${rowNumber}`, result: lineNet + lineTax }
+      ];
+      sheet.getCell(`D${rowNumber}`).numFmt = '#,##0.00';
+      sheet.getCell(`F${rowNumber}`).numFmt = '#,##0.00';
+      sheet.getCell(`G${rowNumber}`).numFmt = '0%';
+      [`H${rowNumber}`, `I${rowNumber}`, `J${rowNumber}`].forEach((cellRef) => {
+        sheet.getCell(cellRef).numFmt = '#,##0.00';
+      });
+      sheet.getCell(`C${rowNumber}`).alignment = wrap;
+      sheet.getCell(`D${rowNumber}`).alignment = wrap;
+    });
+
+    const lastItemRow = firstItemRow + items.length - 1;
+    const summaryStart = lastItemRow + 2;
+    const summaryLabels = [
+      ['Zwischensumme', totals.net],
+      ['Steuerbetrag', totals.tax],
+      ['Gesamtbetrag', totals.gross],
+      ['Deklarierter Wert', totals.declared]
+    ];
+    summaryLabels.forEach(([label, value], idx) => {
+      const rowNumber = summaryStart + idx;
+      sheet.mergeCells(`G${rowNumber}:I${rowNumber}`);
+      sheet.getCell(`G${rowNumber}`).value = label;
+      sheet.getCell(`G${rowNumber}`).font = bold;
+      sheet.getCell(`G${rowNumber}`).alignment = { horizontal: 'right' };
+      sheet.getCell(`J${rowNumber}`).value = value;
+      sheet.getCell(`J${rowNumber}`).numFmt = '#,##0.00';
+    });
+
+    const safeReference = (document.reference || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '')
+      .slice(0, 32);
+    const filename = safeReference ? `musterrechnung-${safeReference}.xlsx` : `musterrechnung-${Date.now()}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    if (err?.statusCode) {
+      return respondError(res, err.statusCode, err.message);
+    }
+    respondError(res, 500, err.message);
+  }
+});
+
+app.post('/api/proforma/export/pdf', requireAuth(), async (req, res) => {
+  try {
+    let proforma = normalizeProformaPayload(req.body);
+    const entry = await persistProformaEntry(proforma, req.session.user, proforma.meta?.id || null);
+    proforma = entry.payload;
+    const reference = (proforma.document.reference || 'musterrechnung')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '')
+      .slice(0, 32);
+    const filename = reference ? `musterrechnung-${reference}.pdf` : `musterrechnung-${Date.now()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('X-Proforma-Id', entry.id);
+    res.setHeader('X-Proforma-Number', entry.number);
+    const doc = new PDFDocument({ size: 'A4', margin: 48, layout: 'landscape' });
+    doc.pipe(res);
+    buildProformaPdf(doc, proforma);
+    doc.end();
+  } catch (err) {
+    if (err?.statusCode) {
+      return respondError(res, err.statusCode, err.message);
+    }
+    respondError(res, 500, err.message);
+  }
+});
+
+app.post('/api/proforma', requireAuth(), async (req, res) => {
+  try {
+    let proforma = normalizeProformaPayload(req.body);
+    const entry = await persistProformaEntry(proforma, req.session.user, proforma.meta?.id || null);
+    res.json({
+      id: entry.id,
+      number: entry.number,
+      reference: entry.payload?.document?.reference || '-',
+      date: entry.payload?.document?.date || null,
+      customer: entry.payload?.buyer?.name || '-',
+      created_at: entry.created_at,
+      updated_at: entry.updated_at,
+      payload: entry.payload
+    });
+  } catch (err) {
+    if (err?.statusCode) {
+      return respondError(res, err.statusCode, err.message);
+    }
+    respondError(res, 500, err.message);
+  }
+});
+
+app.get('/api/proforma', requireAuth(), async (req, res) => {
+  try {
+    const entries = await loadProformaEntries();
+    const result = entries
+      .slice()
+      .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+      .map((entry) => ({
+        id: entry.id,
+        number: entry.number,
+        reference: entry.payload?.document?.reference || '-',
+        date: entry.payload?.document?.date || null,
+        total_quantity: (entry.payload?.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0),
+        customer: entry.payload?.buyer?.name || '-',
+        created_at: entry.created_at,
+        updated_at: entry.updated_at
+      }));
+    res.json(result);
+  } catch (err) {
+    respondError(res, 500, err.message);
+  }
+});
+
+app.get('/api/proforma/:id', requireAuth(), async (req, res) => {
+  try {
+    const entries = await loadProformaEntries();
+    const entry = entries.find((item) => item.id === req.params.id);
+    if (!entry) {
+      return respondError(res, 404, 'Muster Proforma nicht gefunden');
+    }
+    res.json({
+      id: entry.id,
+      number: entry.number,
+      created_at: entry.created_at,
+      updated_at: entry.updated_at,
+      payload: entry.payload
+    });
+  } catch (err) {
+    respondError(res, 500, err.message);
+  }
+});
+
+app.delete('/api/proforma/:id', requireAuth(), async (req, res) => {
+  try {
+    const entries = await loadProformaEntries();
+    const index = entries.findIndex((entry) => entry.id === req.params.id);
+    if (index === -1) {
+      return respondError(res, 404, 'Muster Proforma nicht gefunden');
+    }
+    const [removed] = entries.splice(index, 1);
+    await writeProformaEntries(entries);
+    res.json({ id: removed.id, number: removed.number });
+  } catch (err) {
+    respondError(res, 500, err.message);
+  }
+});
+
+app.post('/api/orders', requireBate(), async (req, res) => {
+  try {
+    const sanitizedPayload = sanitizeOrderCreatePayload(req.body || {});
+    const existingOrders = await loadOrders();
+    if (
+      sanitizedPayload.order_number &&
+      existingOrders.some((order) => order.id === sanitizedPayload.order_number)
+    ) {
+      return respondError(res, 409, 'Bestellnummer ist bereits vergeben');
+    }
+    const erpDoc = await buildErpPurchaseOrderDoc(
+      {
+        ...sanitizedPayload,
+        existingOrders
+      },
+      { docstatus: 0 }
+    );
+    const erpResult = await createPurchaseOrder(erpDoc);
+    const orderId = erpResult?.name || sanitizedPayload.order_number || null;
+    let createdOrder = null;
+    try {
+      await syncERPData();
+      const refreshedOrders = await loadOrders();
+      if (orderId) {
+        createdOrder = refreshedOrders.find((order) => order.id === orderId) || null;
+      }
+    } catch (syncErr) {
+      console.warn('Sync nach Bestellung fehlgeschlagen', syncErr.message);
+    }
+    if (createdOrder) {
+      const timelineEntry = buildPortalTimelineEntry(
+        'ORDER_CREATED',
+        'Bestellung im Portal angelegt',
+        req.session.user?.email
+      );
+      const updatedOrder = await appendOrderTimelineEntry(orderId, timelineEntry, 'ORDER_CREATED', req.session.user?.id);
+      return res.status(201).json(updatedOrder || createdOrder);
+    }
+    return res.status(201).json({
+      id: orderId,
+      order_number: orderId,
+      portal_status: sanitizedPayload.portal_status,
+      message: 'Bestellung wurde angelegt. Daten werden nach dem nächsten Sync aktualisiert.'
+    });
+  } catch (err) {
+    const status = err.statusCode || err.response?.status || 400;
+    const message = extractErpErrorMessage(err) || err.message || 'Bestellung konnte nicht angelegt werden';
+    return respondError(res, status, message);
+  }
 });
 
 app.patch('/api/orders/:id', requireAuth(), async (req, res, next) => {
-  const { nextStatus, order_type } = req.body;
-  if (!nextStatus && !order_type) {
+  const { nextStatus, order_type, full_update } = req.body;
+  if (!nextStatus && !order_type && !full_update) {
     return respondError(res, 400, 'Keine Änderungen angegeben');
   }
   try {
@@ -1365,6 +3127,47 @@ app.patch('/api/orders/:id', requireAuth(), async (req, res, next) => {
     }
     if (req.session.user.role !== 'BATE' && order.supplier_id !== req.session.user.supplier_id) {
       return respondError(res, 403, req.t('forbidden'));
+    }
+    if (full_update) {
+      if (req.session.user.role !== 'BATE') {
+        return respondError(res, 403, req.t('forbidden'));
+      }
+      try {
+        const sanitizedPayload = sanitizeOrderCreatePayload({
+          ...full_update,
+          order_number: order.id,
+          naming_series: full_update.naming_series || order.naming_series || null
+        });
+        sanitizedPayload.order_number = order.id;
+        sanitizedPayload.naming_series = order.naming_series || sanitizedPayload.naming_series;
+        const erpDoc = await buildErpPurchaseOrderDoc(
+          {
+            ...sanitizedPayload,
+            existingOrders: orders
+          },
+          { docstatus: order.docstatus ?? 0 }
+        );
+        await updatePurchaseOrder(order.id, erpDoc);
+        await syncERPData();
+        const refreshed = await loadOrders();
+        const updatedOrder = refreshed.find((entry) => entry.id === order.id);
+        const timelineEntry = buildPortalTimelineEntry(
+          'ORDER_UPDATED',
+          'Bestellung im Portal bearbeitet',
+          req.session.user?.email
+        );
+        const orderWithTimeline = await appendOrderTimelineEntry(
+          order.id,
+          timelineEntry,
+          'ORDER_UPDATED',
+          req.session.user?.id
+        );
+        return res.json(orderWithTimeline || updatedOrder || normalizePortalOrder(order));
+      } catch (err) {
+        const status = err.statusCode || err.response?.status || 400;
+        const message = extractErpErrorMessage(err) || err.message || 'Bestellung konnte nicht aktualisiert werden';
+        return respondError(res, status, message);
+      }
     }
     if (nextStatus) {
       const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
@@ -1604,14 +3407,17 @@ app.post('/api/specs/:orderId/:positionId/upload', requireAuth(), upload.single(
   const viewKey = resolveTechpackViewKey(req.body?.view_key, spec.flags.medien);
   const viewMeta = TECHPACK_VIEWS.find((view) => view.key === viewKey);
   const mediaLabel = req.body?.view_label || viewMeta?.label || req.file.originalname;
-  spec.flags.medien.push({
+  removePlaceholderMediaEntry(spec, viewKey);
+  const mediaEntry = {
     id: fileEntry.id,
     label: mediaLabel,
     filename: req.file.originalname,
     view_key: viewKey,
     status: 'OPEN',
     url: `/uploads/orders/${orderId}/positions/${positionId}/${req.file.filename}`
-  });
+  };
+  spec.flags.medien.push(mediaEntry);
+  reassignPlaceholderAnnotations(spec, viewKey, mediaEntry.id);
   spec.last_actor = req.session.user.email;
   spec.updated_at = fileEntry.ts;
   await saveSpecs(specs);
@@ -1895,7 +3701,16 @@ app.patch('/api/specs/:orderId/:positionId/media/:mediaId/status', requireAuth()
     return respondError(res, err.statusCode || 500, err.message);
   }
   const { spec, specs } = await findOrCreateSpec(orderId, positionId);
-  const mediaEntry = spec.flags.medien?.find((media) => media.id === mediaId);
+  spec.flags.medien = spec.flags.medien || [];
+  let mediaEntry = spec.flags.medien.find((media) => media.id === mediaId);
+  if (!mediaEntry && isPlaceholderMediaId(mediaId)) {
+    const viewKey = mediaId.slice(PLACEHOLDER_MEDIA_PREFIX.length);
+    const placeholderEntry = buildPlaceholderMediaEntry(viewKey);
+    if (placeholderEntry) {
+      spec.flags.medien.push(placeholderEntry);
+      mediaEntry = placeholderEntry;
+    }
+  }
   if (!mediaEntry) {
     return respondError(res, 404, 'Media nicht gefunden');
   }
@@ -1948,6 +3763,24 @@ function userCanAccessTicket(ticket, user) {
   return ticket.owner === user.id || ticket.watchers?.includes(user.id);
 }
 
+async function ensureTicketAccess(ticket, user) {
+  if (userCanAccessTicket(ticket, user)) {
+    return true;
+  }
+  if (!ticket.order_id) return false;
+  const orders = await loadOrders();
+  const orderMap = new Map(orders.map((order) => [order.id, order]));
+  const amendedLookup = new Map();
+  orders.forEach((order) => {
+    if (order.amended_from) {
+      amendedLookup.set(order.amended_from, order);
+    }
+  });
+  const matchedOrder = orderMap.get(ticket.order_id) || amendedLookup.get(ticket.order_id);
+  if (!matchedOrder) return false;
+  return orderMatchesSupplier(matchedOrder, user);
+}
+
 const TICKET_START_SEEDS = {
   order: 21345,
   techpack: 76412
@@ -1966,6 +3799,65 @@ function generateTicketId(existingTickets = [], type = 'order') {
   const nextNumber = yearNumbers.length ? Math.max(...yearNumbers) + 1 : seed;
   const suffix = String(nextNumber).padStart(5, '0').slice(-5);
   return `${prefix}${suffix}`;
+}
+
+function normalizeContextValue(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const str = value.toString().trim();
+  return str.length ? str : null;
+}
+
+function extractTicketContext(source = {}) {
+  const context = {};
+  if (Object.prototype.hasOwnProperty.call(source, 'order_id') || Object.prototype.hasOwnProperty.call(source, 'orderId')) {
+    const raw = source.order_id ?? source.orderId;
+    const normalized = normalizeContextValue(raw);
+    if (normalized) {
+      context.orderId = normalized;
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'position_id') || Object.prototype.hasOwnProperty.call(source, 'positionId')) {
+    const raw = source.position_id ?? source.positionId;
+    context.positionId = raw === undefined ? undefined : normalizeContextValue(raw);
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'created_at') || Object.prototype.hasOwnProperty.call(source, 'createdAt')) {
+    const raw = source.created_at ?? source.createdAt;
+    const normalized = normalizeContextValue(raw);
+    if (normalized) context.createdAt = normalized;
+  }
+  if (Object.prototype.hasOwnProperty.call(source, 'ticket_key') || Object.prototype.hasOwnProperty.call(source, 'ticketKey')) {
+    const raw = source.ticket_key ?? source.ticketKey;
+    const normalized = normalizeContextValue(raw);
+    if (normalized) context.ticketKey = normalized;
+  }
+  return context;
+}
+
+function findTicketEntry(tickets, ticketId, context = {}) {
+  if (!ticketId) return null;
+  const hasOrderFilter = Object.prototype.hasOwnProperty.call(context, 'orderId');
+  const hasPositionFilter = Object.prototype.hasOwnProperty.call(context, 'positionId');
+  const hasCreatedFilter = Object.prototype.hasOwnProperty.call(context, 'createdAt');
+  const contextKey = context.ticketKey || null;
+  const match =
+    tickets.find((ticket) => {
+      if (ticket.id !== ticketId) return false;
+      if (contextKey && buildTicketKey(ticket) !== contextKey) return false;
+      if (hasOrderFilter && (ticket.order_id || null) !== (context.orderId || null)) return false;
+      if (hasPositionFilter && (ticket.position_id ?? null) !== (context.positionId ?? null)) return false;
+      if (hasCreatedFilter) {
+        const ticketDate = ticket.created_at ? new Date(ticket.created_at) : null;
+        const ticketIso =
+          ticketDate && !Number.isNaN(ticketDate.getTime()) ? ticketDate.toISOString() : (ticket.created_at || null);
+        const targetDate = context.createdAt ? new Date(context.createdAt) : null;
+        const targetIso =
+          targetDate && !Number.isNaN(targetDate.getTime()) ? targetDate.toISOString() : (context.createdAt || null);
+        if ((ticketIso || null) !== (targetIso || null)) return false;
+      }
+      return true;
+    }) || tickets.find((ticket) => ticket.id === ticketId);
+  return match || null;
 }
 
 function normalizeCommentInput(body = {}, user = {}) {
@@ -1995,7 +3887,21 @@ function normalizeCommentInput(body = {}, user = {}) {
 
 app.get('/api/tickets', requireAuth(), async (req, res) => {
   const tickets = await loadTicketsData();
-  const filtered = tickets.filter((ticket) => userCanAccessTicket(ticket, req.session.user));
+  const orders = await loadOrders();
+  const orderMap = new Map(orders.map((order) => [order.id, order]));
+  const amendedLookup = new Map();
+  orders.forEach((order) => {
+    if (order.amended_from) {
+      amendedLookup.set(order.amended_from, order);
+    }
+  });
+  const filtered = tickets.filter((ticket) => {
+    if (userCanAccessTicket(ticket, req.session.user)) {
+      return true;
+    }
+    const order = orderMap.get(ticket.order_id) || amendedLookup.get(ticket.order_id);
+    return order ? orderMatchesSupplier(order, req.session.user) : false;
+  });
   res.json(filtered);
 });
 
@@ -2036,10 +3942,10 @@ app.post('/api/tickets', requireAuth(), async (req, res) => {
 
 app.patch('/api/tickets/:id', requireAuth(), async (req, res) => {
   const tickets = await loadTicketsData();
-  const idx = tickets.findIndex((t) => t.id === req.params.id);
-  if (idx === -1) return respondError(res, 404, 'Ticket nicht gefunden');
-  const ticket = tickets[idx];
-  if (!userCanAccessTicket(ticket, req.session.user)) return respondError(res, 403, req.t('forbidden'));
+  const context = extractTicketContext(req.body || {});
+  const ticket = findTicketEntry(tickets, req.params.id, context);
+  if (!ticket) return respondError(res, 404, 'Ticket nicht gefunden');
+  if (!(await ensureTicketAccess(ticket, req.session.user))) return respondError(res, 403, req.t('forbidden'));
   ticket.status = req.body.status || ticket.status;
   const commentPayload = normalizeCommentInput(req.body, req.session.user);
   if (commentPayload.hasContent) {
@@ -2056,6 +3962,7 @@ app.patch('/api/tickets/:id', requireAuth(), async (req, res) => {
   if (req.body.watchers) {
     ticket.watchers = Array.isArray(req.body.watchers) ? req.body.watchers : [req.body.watchers];
   }
+  const idx = tickets.findIndex((entry) => entry === ticket);
   tickets[idx] = ticket;
   await writeJson('tickets.json', tickets);
   await createNotification({
@@ -2069,12 +3976,13 @@ app.patch('/api/tickets/:id', requireAuth(), async (req, res) => {
 
 app.delete('/api/tickets/:id', requireAuth(), async (req, res) => {
   const tickets = await loadTicketsData();
-  const idx = tickets.findIndex((t) => t.id === req.params.id);
-  if (idx === -1) return respondError(res, 404, 'Ticket nicht gefunden');
-  const ticket = tickets[idx];
-  if (!userCanAccessTicket(ticket, req.session.user)) {
+  const context = extractTicketContext(req.query || {});
+  const ticket = findTicketEntry(tickets, req.params.id, context);
+  if (!ticket) return respondError(res, 404, 'Ticket nicht gefunden');
+  if (!(await ensureTicketAccess(ticket, req.session.user))) {
     return respondError(res, 403, req.t('forbidden'));
   }
+  const idx = tickets.findIndex((entry) => entry === ticket);
   tickets.splice(idx, 1);
   await writeJson('tickets.json', tickets);
   res.json({ ok: true });
@@ -2082,10 +3990,10 @@ app.delete('/api/tickets/:id', requireAuth(), async (req, res) => {
 
 app.post('/api/tickets/:id/comment', requireAuth(), ticketUpload.single('file'), async (req, res) => {
   const tickets = await loadTicketsData();
-  const idx = tickets.findIndex((t) => t.id === req.params.id);
-  if (idx === -1) return respondError(res, 404, 'Ticket nicht gefunden');
-  const ticket = tickets[idx];
-  if (!userCanAccessTicket(ticket, req.session.user)) return respondError(res, 403, req.t('forbidden'));
+  const context = extractTicketContext(req.body || {});
+  const ticket = findTicketEntry(tickets, req.params.id, context);
+  if (!ticket) return respondError(res, 404, 'Ticket nicht gefunden');
+  if (!(await ensureTicketAccess(ticket, req.session.user))) return respondError(res, 403, req.t('forbidden'));
   const commentPayload = normalizeCommentInput(req.body, req.session.user);
   if (!commentPayload.hasContent && !req.file) return respondError(res, 400, 'Kommentar oder Datei erforderlich');
   ticket.comments = ticket.comments || [];
@@ -2104,6 +4012,7 @@ app.post('/api/tickets/:id/comment', requireAuth(), ticketUpload.single('file'),
     };
   }
   ticket.comments.push(comment);
+  const idx = tickets.findIndex((entry) => entry === ticket);
   tickets[idx] = ticket;
   await writeJson('tickets.json', tickets);
   res.status(201).json(comment);
@@ -2111,14 +4020,15 @@ app.post('/api/tickets/:id/comment', requireAuth(), ticketUpload.single('file'),
 
 app.delete('/api/tickets/:id/comment/:commentId', requireAuth(), async (req, res) => {
   const tickets = await loadTicketsData();
-  const idx = tickets.findIndex((t) => t.id === req.params.id);
-  if (idx === -1) return respondError(res, 404, 'Ticket nicht gefunden');
-  const ticket = tickets[idx];
-  if (!userCanAccessTicket(ticket, req.session.user)) return respondError(res, 403, req.t('forbidden'));
+  const context = extractTicketContext(req.query || {});
+  const ticket = findTicketEntry(tickets, req.params.id, context);
+  if (!ticket) return respondError(res, 404, 'Ticket nicht gefunden');
+  if (!(await ensureTicketAccess(ticket, req.session.user))) return respondError(res, 403, req.t('forbidden'));
   ticket.comments = ticket.comments || [];
   const commentIdx = ticket.comments.findIndex((comment) => comment.id === req.params.commentId);
   if (commentIdx === -1) return respondError(res, 404, 'Kommentar nicht gefunden');
   const [removed] = ticket.comments.splice(commentIdx, 1);
+  const idx = tickets.findIndex((entry) => entry === ticket);
   tickets[idx] = ticket;
   await writeJson('tickets.json', tickets);
   if (removed?.attachment?.url?.startsWith('/uploads')) {
@@ -2304,6 +4214,116 @@ app.get('/api/diagnostics', requireBate(), async (req, res) => {
   }
 });
 
+// AutoSync Service Bridge
+app.get('/api/autosync/status', requireBate(), async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 10, 200);
+  try {
+    const snapshot = await getAutoSyncSnapshot({ limit });
+    res.json(snapshot);
+  } catch (err) {
+    respondError(res, 500, err.message);
+  }
+});
+
+app.get('/api/autosync/dashboard', requireBate(), async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const sku = req.query.sku?.toString().trim() || null;
+  try {
+    const snapshot = await getAutoSyncSnapshot({ limit, sku });
+    res.json(snapshot);
+  } catch (err) {
+    respondError(res, 500, err.message);
+  }
+});
+
+app.post('/api/autosync/run', requireBate(), async (req, res) => {
+  if (!ensureAutoSyncConfigured(res)) return;
+  const sku = req.body?.sku?.toString().trim();
+  if (!sku) {
+    return respondError(res, 400, 'SKU fehlt');
+  }
+  const bereich = req.body?.bereich?.toString().trim();
+  const overridePrices = {};
+  const buy = req.body?.einkauf;
+  const sell = req.body?.verkauf;
+  if (buy !== undefined && buy !== null && buy !== '') {
+    overridePrices.einkauf = Number(buy);
+  }
+  if (sell !== undefined && sell !== null && sell !== '') {
+    overridePrices.verkauf = Number(sell);
+  }
+  try {
+    const result = await autosyncClient.runSkuSync({
+      sku,
+      bereich,
+      overridePrices: Object.keys(overridePrices).length ? overridePrices : undefined
+    });
+    res.json(result);
+  } catch (err) {
+    respondError(res, 400, err.message);
+  }
+});
+
+app.post('/api/autosync/manual', requireBate(), async (req, res) => {
+  if (!ensureAutoSyncConfigured(res)) return;
+  const payload = req.body || {};
+  const required = ['sku', 'name', 'gruppe', 'viewer', 'sizes', 'einkauf', 'verkauf'];
+  const missing = required.filter((field) => !String(payload[field] ?? '').trim());
+  if (missing.length) {
+    return respondError(res, 400, `Felder fehlen: ${missing.join(', ')}`);
+  }
+  payload.sku = payload.sku.toString().trim();
+  payload.name = payload.name.toString().trim();
+  payload.gruppe = payload.gruppe.toString().trim();
+  payload.viewer = payload.viewer.toString().trim();
+  payload.sizes = payload.sizes.toString().trim();
+  payload.bereich = payload.bereich?.toString().trim() || 'BATE';
+  payload.einkauf = Number(payload.einkauf);
+  payload.verkauf = Number(payload.verkauf);
+  ['kollektion', 'aussenmaterial', 'innenmaterial', 'sohle', 'farbcode'].forEach((field) => {
+    if (payload[field] === undefined || payload[field] === null) return;
+    payload[field] = payload[field].toString().trim();
+  });
+  try {
+    const result = await autosyncClient.runManualSync(payload);
+    res.json(result);
+  } catch (err) {
+    respondError(res, 400, err.message);
+  }
+});
+
+app.post('/api/autosync/delete', requireBate(), async (req, res) => {
+  if (!ensureAutoSyncConfigured(res)) return;
+  const sku = req.body?.sku?.toString().trim();
+  if (!sku) {
+    return respondError(res, 400, 'SKU fehlt');
+  }
+  try {
+    const result = await autosyncClient.deleteWooProduct(sku);
+    res.json(result);
+  } catch (err) {
+    respondError(res, 400, err.message);
+  }
+});
+
+app.get('/api/autosync/logs', requireBate(), async (req, res) => {
+  if (!autosyncClient.isEnabled()) {
+    return res.json({ enabled: false, entries: [] });
+  }
+  const limit = Math.min(Number(req.query.limit) || 25, 200);
+  const sku = req.query.sku?.toString().trim();
+  try {
+    if (sku) {
+      const data = await autosyncClient.fetchSkuLogs(sku, { limit });
+      return res.json(data);
+    }
+    const data = await autosyncClient.fetchLatestLogs(limit);
+    return res.json(data);
+  } catch (err) {
+    respondError(res, 400, err.message);
+  }
+});
+
 // Sync + health
 app.post('/api/sync', requireBate(), async (req, res, next) => {
   try {
@@ -2338,7 +4358,8 @@ app.use((req, res, next) => {
   return next();
 });
 
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
+  void _next;
   console.error(err);
   res.status(500).json({ error: err.message || 'Unbekannter Fehler' });
 });

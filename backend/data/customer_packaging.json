@@ -306,5 +306,38 @@
     "defaults": null,
     "updated_at": "2025-11-09T01:09:02.153Z",
     "updated_by": "anna.bate@example.com"
+  },
+  {
+    "customer_id": "BA-12476",
+    "type": "carton",
+    "cartons": [
+      {
+        "number": 1,
+        "meta": {
+          "variation": "579230-9558",
+          "article": "579230-9558",
+          "leather": "B20",
+          "sole": ""
+        },
+        "values": {
+          "37": 2,
+          "40": 28,
+          "41": 8
+        }
+      }
+    ],
+    "sizes": [
+      "37",
+      "40",
+      "41"
+    ],
+    "defaults": {
+      "variation": "579230-9558",
+      "article": "579230-9558",
+      "leather": "B20",
+      "sole": ""
+    },
+    "updated_at": "2025-11-09T20:58:53.568Z",
+    "updated_by": "anna.bate@example.com"
   }
 ]

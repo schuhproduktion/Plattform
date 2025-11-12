@@ -36,6 +36,12 @@
     ],
     "prices": [
       {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 43
+      },
+      {
         "label": "Private Label Premium - Einkauf",
         "type": "Einkauf",
         "currency": "EUR",
@@ -3318,7 +3324,7 @@
     },
     "metadata": {
       "created": "2024-09-02 13:50:06.022576",
-      "modified": "2025-06-25 12:10:15.516275"
+      "modified": "2025-11-12 10:11:54.436718"
     }
   },
   {
@@ -3442,24 +3448,24 @@
     "__normalized": true,
     "id": "15953",
     "item_code": "15953",
-    "item_name": "Ballerinas",
-    "description": "Ballerinas",
+    "item_name": "RIANI BALLERINA",
+    "description": "RIANI BALLERINA",
     "status": "active",
-    "stock_uom": "Stk",
+    "stock_uom": "Paar",
     "item_group": "Damen - Loafers und Ballerinas",
     "brand": "FIEN",
-    "collection": null,
+    "collection": "SS26",
     "customer_item_code": null,
-    "customer_link": null,
+    "customer_link": "BA-12476",
     "materials": {
-      "outer": null,
-      "inner": null,
-      "sole": null
+      "outer": "Rindsverlourleder / Textil",
+      "inner": "Rindsleder",
+      "sole": "TPU"
     },
     "color_code": "881/882",
     "links": {
-      "b2b": null,
-      "viewer3d": null
+      "b2b": "https://b2b.schuhproduktion.com/produkt/riani-ballerina-2/",
+      "viewer3d": "https://360.schuhproduktion.com/360viewer/15953/webp"
     },
     "sizes": [
       36,
@@ -3468,40 +3474,61 @@
       39,
       40,
       41,
-      42,
-      43
+      42
     ],
     "assemblies": [
-      "881/882",
-      "883/884"
+      "881/882"
     ],
     "prices": [
-      {
-        "label": "Standard-Vertrieb",
-        "type": "Verkauf",
-        "currency": "EUR",
-        "amount": 38
-      },
       {
         "label": "Standard-Einkauf",
         "type": "Einkauf",
         "currency": "EUR",
-        "amount": 50
+        "amount": 37
+      },
+      {
+        "label": "Private Label Premium - Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 35
+      },
+      {
+        "label": "Private Label Premium - Verkauf",
+        "type": "Verkauf",
+        "currency": "EUR",
+        "amount": 43
       }
     ],
     "uoms": [
       {
-        "uom": "Stk",
+        "uom": "Paar",
         "conversion_factor": 1
       }
     ],
     "media": {
-      "hero": null,
-      "gallery": []
+      "hero": "https://360.schuhproduktion.com/360viewer/15953/webp/images/0005.webp",
+      "gallery": [
+        {
+          "id": "15953-viewer-0005-0",
+          "url": "https://360.schuhproduktion.com/360viewer/15953/webp/images/0005.webp"
+        },
+        {
+          "id": "15953-viewer-0010-1",
+          "url": "https://360.schuhproduktion.com/360viewer/15953/webp/images/0010.webp"
+        },
+        {
+          "id": "15953-viewer-0019-2",
+          "url": "https://360.schuhproduktion.com/360viewer/15953/webp/images/0019.webp"
+        },
+        {
+          "id": "15953-viewer-0028-3",
+          "url": "https://360.schuhproduktion.com/360viewer/15953/webp/images/0028.webp"
+        }
+      ]
     },
     "metadata": {
       "created": "2024-09-02 13:50:06.070854",
-      "modified": "2025-08-29 16:08:00.423986"
+      "modified": "2025-11-12 10:10:17.241616"
     }
   },
   {
@@ -3683,7 +3710,7 @@
     },
     "metadata": {
       "created": "2024-09-02 13:50:06.036795",
-      "modified": "2025-06-25 12:10:15.513017"
+      "modified": "2025-11-12 10:11:54.435130"
     }
   },
   {
@@ -5238,7 +5265,7 @@
     },
     "metadata": {
       "created": "2025-05-19 13:28:37.751523",
-      "modified": "2025-06-25 12:10:15.518461"
+      "modified": "2025-11-12 10:11:54.438357"
     }
   },
   {
@@ -5883,7 +5910,7 @@
     },
     "metadata": {
       "created": "2024-12-26 14:26:04.785834",
-      "modified": "2025-06-24 14:46:40.820354"
+      "modified": "2025-11-12 10:10:44.022034"
     }
   },
   {
@@ -8287,6 +8314,12 @@
     "assemblies": [],
     "prices": [
       {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 46
+      },
+      {
         "label": "Private Label Premium - Verkauf",
         "type": "Verkauf",
         "currency": "EUR",
@@ -8328,7 +8361,7 @@
     },
     "metadata": {
       "created": "2024-11-08 15:24:15.294075",
-      "modified": "2025-10-23 11:55:20.893056"
+      "modified": "2025-11-12 10:10:44.021035"
     }
   },
   {
@@ -10318,6 +10351,84 @@
   },
   {
     "__normalized": true,
+    "id": "7006940",
+    "item_code": "7006940",
+    "item_name": "LOAFER",
+    "description": "LOAFER",
+    "status": "active",
+    "stock_uom": "Paar",
+    "item_group": "Herren - Loafers",
+    "brand": null,
+    "collection": "SS26",
+    "customer_item_code": null,
+    "customer_link": null,
+    "materials": {
+      "outer": "Lackrindsleder",
+      "inner": "Rindsleder",
+      "sole": "Ledersohle"
+    },
+    "color_code": null,
+    "links": {
+      "b2b": "https://b2b.schuhproduktion.com/produkt/loafer-34/",
+      "viewer3d": "https://360.schuhproduktion.com/360viewer/7006940/webp"
+    },
+    "sizes": [
+      40,
+      41,
+      42,
+      43,
+      44,
+      45
+    ],
+    "assemblies": [],
+    "prices": [
+      {
+        "label": "Private Label Budget - Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 24
+      },
+      {
+        "label": "Private Label Budget - Verkauf",
+        "type": "Verkauf",
+        "currency": "EUR",
+        "amount": 30
+      }
+    ],
+    "uoms": [
+      {
+        "uom": "Paar",
+        "conversion_factor": 1
+      }
+    ],
+    "media": {
+      "hero": "https://360.schuhproduktion.com/360viewer/7006940/webp/images/0005.webp",
+      "gallery": [
+        {
+          "id": "7006940-viewer-0005-0",
+          "url": "https://360.schuhproduktion.com/360viewer/7006940/webp/images/0005.webp"
+        },
+        {
+          "id": "7006940-viewer-0010-1",
+          "url": "https://360.schuhproduktion.com/360viewer/7006940/webp/images/0010.webp"
+        },
+        {
+          "id": "7006940-viewer-0019-2",
+          "url": "https://360.schuhproduktion.com/360viewer/7006940/webp/images/0019.webp"
+        },
+        {
+          "id": "7006940-viewer-0028-3",
+          "url": "https://360.schuhproduktion.com/360viewer/7006940/webp/images/0028.webp"
+        }
+      ]
+    },
+    "metadata": {
+      "created": "2025-11-11 12:50:05.835441",
+      "modified": "2025-11-11 12:50:50.596156"
+    }
+  },
+  {
+    "__normalized": true,
     "id": "BA-12475-1",
     "item_code": "BA-12475-1",
     "item_name": "Sandalette mit Absatz und Kordelbezug",
@@ -10489,7 +10600,7 @@
     },
     "metadata": {
       "created": "2025-05-17 11:27:13.333801",
-      "modified": "2025-06-24 12:23:34.512148"
+      "modified": "2025-11-12 10:09:04.025038"
     }
   },
   {
@@ -10550,7 +10661,7 @@
     },
     "metadata": {
       "created": "2025-05-17 11:26:59.840228",
-      "modified": "2025-06-24 12:23:34.511493"
+      "modified": "2025-11-12 10:09:04.024278"
     }
   },
   {
@@ -10611,7 +10722,7 @@
     },
     "metadata": {
       "created": "2025-05-17 11:26:45.325975",
-      "modified": "2025-06-24 12:23:34.510758"
+      "modified": "2025-11-12 10:09:04.022764"
     }
   },
   {
@@ -10672,7 +10783,7 @@
     },
     "metadata": {
       "created": "2025-05-17 11:26:29.643494",
-      "modified": "2025-06-24 12:23:34.510099"
+      "modified": "2025-11-12 10:09:04.021070"
     }
   },
   {
@@ -10733,7 +10844,7 @@
     },
     "metadata": {
       "created": "2025-05-17 11:26:11.557174",
-      "modified": "2025-06-24 12:23:34.509383"
+      "modified": "2025-11-12 10:09:04.019480"
     }
   },
   {

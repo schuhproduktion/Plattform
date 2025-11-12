@@ -10,6 +10,18 @@
     <main class="layout">
       <aside class="sidebar" data-component="sidebar"></aside>
       <section class="content" id="prozessstatus">
+        <article class="card process-filter-card">
+          <form class="filters">
+            <label for="processStatusFilter">
+              Status
+              <select id="processStatusFilter">
+                <option value="active" selected>Aktive Prozesse</option>
+                <option value="all">Alle Status</option>
+                <option value="completed">Nur abgeschlossene</option>
+              </select>
+            </label>
+          </form>
+        </article>
         <div id="processGrid" class="process-grid">
           <p class="muted">Lade Prozessdaten ...</p>
         </div>

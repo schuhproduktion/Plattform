@@ -55,21 +55,5 @@
       }
     ],
     "updated_at": "2025-11-09T01:04:28.658Z"
-  },
-  {
-    "customer_id": "BA-12476",
-    "accessories": [
-      {
-        "id": "acc-68af6ef8-31f2-4468-bf10-cc3a78634a6c",
-        "slot": "shoe_box",
-        "title": "Schuhbox",
-        "description": "Primäre Schuhbox mit Branding.",
-        "image_url": "/uploads/customers/BA-12476/accessories/H17ed06c9195f4f98bca8079475f45713I.jpg_960x960q80-1762697177654-7c3dc059-7318-44d6-bd3f-14225873c45b.avif",
-        "files": [],
-        "updated_at": "2025-11-09T14:06:17.658Z",
-        "updated_by": "anna.bate@example.com"
-      }
-    ],
-    "updated_at": "2025-11-09T14:06:17.658Z"
   }
 ]

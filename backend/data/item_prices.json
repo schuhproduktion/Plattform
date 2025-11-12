@@ -63,6 +63,15 @@
     "buying": 0
   },
   {
+    "name": "05ks3mn1te",
+    "item_code": "579240-9558",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 46,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "08fephhsks",
     "item_code": "251004",
     "price_list": "Private Label Premium - Einkauf",
@@ -612,6 +621,15 @@
     "buying": 1
   },
   {
+    "name": "51qpn0suva",
+    "item_code": "050-25",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 43,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "570tnh7r4h",
     "item_code": "4130",
     "price_list": "BATE-Einkauf",
@@ -927,6 +945,15 @@
     "buying": 0
   },
   {
+    "name": "7nav56vdc5",
+    "item_code": "7006940",
+    "price_list": "Private Label Budget - Einkauf",
+    "price_list_rate": 24,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "7nbtdllee6",
     "item_code": "159197",
     "price_list": "Private Label Premium - Verkauf",
@@ -952,6 +979,15 @@
     "currency": "EUR",
     "selling": 1,
     "buying": 0
+  },
+  {
+    "name": "859b5chetg",
+    "item_code": "15953",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 37,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
   },
   {
     "name": "877f7a27ff",
@@ -1111,15 +1147,6 @@
     "item_code": "32514",
     "price_list": "Private Label Premium - Verkauf",
     "price_list_rate": 62,
-    "currency": "EUR",
-    "selling": 1,
-    "buying": 0
-  },
-  {
-    "name": "9d4cfd1309",
-    "item_code": "15953",
-    "price_list": "Standard-Vertrieb",
-    "price_list_rate": 38,
     "currency": "EUR",
     "selling": 1,
     "buying": 0
@@ -1449,6 +1476,15 @@
     "buying": 0
   },
   {
+    "name": "buqha6nvfh",
+    "item_code": "15953",
+    "price_list": "Private Label Premium - Einkauf",
+    "price_list_rate": 35,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "bvrl9aavcc",
     "item_code": "5987",
     "price_list": "Private Label Premium - Einkauf",
@@ -1633,6 +1669,15 @@
     "item_code": "050-25",
     "price_list": "Private Label Premium - Verkauf",
     "price_list_rate": 53,
+    "currency": "EUR",
+    "selling": 1,
+    "buying": 0
+  },
+  {
+    "name": "cuqkpm4pcd",
+    "item_code": "15953",
+    "price_list": "Private Label Premium - Verkauf",
+    "price_list_rate": 43,
     "currency": "EUR",
     "selling": 1,
     "buying": 0
@@ -2079,6 +2124,15 @@
     "buying": 0
   },
   {
+    "name": "fnb3351k5h",
+    "item_code": "7006940",
+    "price_list": "Private Label Budget - Verkauf",
+    "price_list_rate": 30,
+    "currency": "EUR",
+    "selling": 1,
+    "buying": 0
+  },
+  {
     "name": "fqg4q8ljgv",
     "item_code": "6306",
     "price_list": "Private Label Premium - Verkauf",
@@ -2380,15 +2434,6 @@
     "item_code": "TURDAN-9",
     "price_list": "Standard-Einkauf",
     "price_list_rate": 15,
-    "currency": "EUR",
-    "selling": 0,
-    "buying": 1
-  },
-  {
-    "name": "uj8op8r8gs",
-    "item_code": "15953",
-    "price_list": "Standard-Einkauf",
-    "price_list_rate": 50,
     "currency": "EUR",
     "selling": 0,
     "buying": 1

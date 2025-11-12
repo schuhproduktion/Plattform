@@ -36,6 +36,8 @@ const client = axios.create({
   timeout: 5000
 });
 
+const ERP_CLIENT_ENABLED = Boolean((process.env.ERP_URL || process.env.ERP_BASE_URL) && (ERP_KEY || ERP_SECRET || ERP_TOKEN));
+
 // Hinweis: Das Feld "portal_status" muss in ERPNext als Select (Werte siehe workflows.js) am Purchase Order angelegt werden,
 // damit Statusupdates später bidirektional möglich sind.
 
@@ -144,9 +146,100 @@ async function updatePortalStatus(orderId, portalStatus) {
   }
 }
 
+async function createPurchaseOrder(doc) {
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Purchase Order Payload fehlt');
+  }
+  const { data } = await client.post('/resource/Purchase Order', doc);
+  return data.data || data;
+}
+
+async function updatePurchaseOrder(name, doc) {
+  if (!name) throw new Error('Purchase Order ID fehlt');
+  if (!doc || typeof doc !== 'object') throw new Error('Purchase Order Payload fehlt');
+  const { data } = await client.put(`/resource/Purchase Order/${encodeURIComponent(name)}`, doc);
+  return data.data || data;
+}
+
+async function fetchPrintFormats(docType = 'Purchase Order') {
+  if (!ERP_CLIENT_ENABLED) {
+    throw new Error('ERP Print-Service ist nicht konfiguriert.');
+  }
+  const params = {
+    limit_page_length: 0,
+    fields: JSON.stringify(['name', 'doc_type', 'disabled', 'print_format_type']),
+    filters: JSON.stringify([
+      ['doc_type', '=', docType],
+      ['disabled', '=', 0]
+    ])
+  };
+  const { data } = await client.get('/resource/Print Format', { params });
+  return (data.data || data || [])
+    .filter((entry) => entry.doc_type === docType && entry.disabled !== 1)
+    .map((entry) => ({
+      value: entry.name,
+      label: entry.name,
+      print_format_type: entry.print_format_type || null
+    }));
+}
+
+async function fetchLetterheads() {
+  if (!ERP_CLIENT_ENABLED) {
+    throw new Error('ERP Print-Service ist nicht konfiguriert.');
+  }
+  const params = {
+    limit_page_length: 0,
+    fields: JSON.stringify(['name', 'disabled']),
+    filters: JSON.stringify([['disabled', '=', 0]])
+  };
+  const { data } = await client.get('/resource/Letter Head', { params });
+  return (data.data || data || [])
+    .filter((entry) => entry.disabled !== 1)
+    .map((entry) => ({
+      value: entry.name,
+      label: entry.name
+    }));
+}
+
+async function downloadPrintPdf(docType, docName, { format, letterhead, language } = {}) {
+  if (!ERP_CLIENT_ENABLED) {
+    throw new Error('ERP Print-Service ist nicht konfiguriert.');
+  }
+  const params = new URLSearchParams();
+  params.set('doctype', docType);
+  params.set('name', docName);
+  if (format) {
+    params.set('format', format);
+  }
+  if (language) {
+    params.set('_lang', language);
+  }
+  if (letterhead) {
+    params.set('letterhead', letterhead);
+  } else {
+    params.set('no_letterhead', '1');
+  }
+  params.set('settings', JSON.stringify({}));
+  const response = await client.get('/method/frappe.utils.print_format.download_pdf', {
+    params,
+    responseType: 'arraybuffer'
+  });
+  return response.data;
+}
+
+function isErpClientEnabled() {
+  return ERP_CLIENT_ENABLED;
+}
+
 module.exports = {
   client,
   fetchResource,
   fetchPurchaseOrders,
-  updatePortalStatus
+  updatePortalStatus,
+  createPurchaseOrder,
+  updatePurchaseOrder,
+  fetchPrintFormats,
+  fetchLetterheads,
+  downloadPrintPdf,
+  isErpClientEnabled
 };

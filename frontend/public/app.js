@@ -15,8 +15,221 @@ import {
   VAT_RATE
 } from './js/state.js';
 import { request, ensureFreshSnapshot } from './js/api.js';
-import { escapeHtml } from './js/utils.js';
 import { showToast, renderSharedLayout, applyRoleVisibility, setBreadcrumbLabel } from './js/ui.js';
+
+const TECHPACK_PLACEHOLDER_IMAGES = {
+  side: '/images/techpack-placeholders/side.png',
+  front: '/images/techpack-placeholders/front.png',
+  inner: '/images/techpack-placeholders/inner.png',
+  rear: '/images/techpack-placeholders/rear.png',
+  top: '/images/techpack-placeholders/top.png',
+  bottom: '/images/techpack-placeholders/bottom.png',
+  sole: '/images/techpack-placeholders/sole.png',
+  tongue: '/images/techpack-placeholders/Zunge.png'
+};
+const PLACEHOLDER_MEDIA_PREFIX = 'placeholder-';
+const ORDER_TICKET_KEY_SEPARATOR = '::';
+
+const ORDER_SERIES_OPTIONS = ['BT-B.YY.#####', 'PZ-B.YY.#####'];
+const COMPANY_CONFIG = [
+  {
+    value: 'BATE GmbH',
+    label: 'BATE GmbH',
+    supplierId: 'BATE AYAKKABI İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
+    supplierName: 'BATE AYAKKABI İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
+    dispatchAddressId: 'BATE GmbH'
+  }
+];
+const COMPANY_OPTIONS = COMPANY_CONFIG.map((entry) => entry.value);
+
+const ORDER_DRAFT_STORAGE_KEY = 'portal_order_draft_v1';
+
+const PROFORMA_UNIT_CHOICES = [
+  { value: 'PAIR', label: 'Paar' },
+  { value: 'LEFT_SHOE', label: 'Linker Schuh' },
+  { value: 'RIGHT_SHOE', label: 'Rechter Schuh' }
+];
+
+const SHOEBOX_SEASON_CHOICES = ['FS', 'HW'];
+
+const PROFORMA_DESCRIPTION_CHOICES = [
+  'Sneaker',
+  'Stiefel',
+  'Pumps',
+  'Loafers',
+  'Pantoletten',
+  'Sandalen',
+  'Ankle Boots',
+  'Ballerinas',
+  'Espadrilles'
+];
+
+const PROFORMA_MATERIAL_CHOICES = ['Rindsleder', 'Schafleder', 'Ziegenleder', 'Büffelleder', 'Pferdeleder', 'Kamelleder', 'Exotenleder'];
+
+const PROFORMA_SOLE_CHOICES = [
+  'Ledersohle',
+  'Gummisohle',
+  'Kautschuksohle',
+  'EVA-Sohle',
+  'PU-Sohle',
+  'TPU-Sohle',
+  'Microlight-Sohle',
+  'Thermolight-Sohle',
+  'TR-Sohle',
+  'PVC-Sohle',
+  'Crepe-Sohle',
+  'Vibram-Sohle',
+  'Keilsohle',
+  'Plateausohle',
+  'Holzsohle'
+];
+
+function buildPartyTemplate(overrides = {}) {
+  return {
+    name: '',
+    street: '',
+    postalCode: '',
+    city: '',
+    country: '',
+    email: '',
+    website: '',
+    taxId: '',
+    court: '',
+    ceo: '',
+    address: '',
+    contact: '',
+    ...overrides
+  };
+}
+
+function composePartyAddress(party = {}) {
+  const lines = [];
+  const street = (party.street || '').trim();
+  const postal = (party.postalCode || '').trim();
+  const city = (party.city || '').trim();
+  const country = (party.country || '').trim();
+  if (street) lines.push(street);
+  const cityLine = [postal, city].filter(Boolean).join(' ').trim();
+  if (cityLine) lines.push(cityLine);
+  if (country) lines.push(country);
+  return lines.join('\n').trim();
+}
+
+function composePartyContact(party = {}) {
+  const email = (party.email || '').trim();
+  const website = (party.website || '').trim();
+  return [email, website].filter(Boolean).join(' – ').trim();
+}
+
+function hydratePartyDraft(party = {}, fallback = {}) {
+  const hydrated = buildPartyTemplate();
+  Object.assign(hydrated, fallback || {});
+  Object.assign(hydrated, party || {});
+  if (!hydrated.street && hydrated.address) {
+    const lines = hydrated.address
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length) {
+      hydrated.street = hydrated.street || lines[0];
+      if (lines[1]) {
+        const postalMatch = lines[1].match(/^(\S+)\s+(.+)$/);
+        if (postalMatch) {
+          if (!hydrated.postalCode) hydrated.postalCode = postalMatch[1];
+          if (!hydrated.city) hydrated.city = postalMatch[2];
+        } else if (!hydrated.city) {
+          hydrated.city = lines[1];
+        }
+      }
+      if (lines[2] && !hydrated.country) {
+        hydrated.country = lines[2];
+      }
+    }
+  }
+  if ((!hydrated.email || !hydrated.website) && hydrated.contact) {
+    hydrated.contact
+      .split(/(?:\r?\n| — | – | - )/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .forEach((entry) => {
+        if (!hydrated.email && entry.includes('@')) {
+          hydrated.email = entry;
+        } else if (!hydrated.website) {
+          hydrated.website = entry;
+        }
+      });
+  }
+  if (hydrated.taxId && hydrated.taxId.includes('\n')) {
+    const segments = hydrated.taxId
+      .split(/\r?\n/)
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    let extractedTaxId = '';
+    segments.forEach((segment) => {
+      const lower = segment.toLowerCase();
+      if (lower.includes('steuernummer') && !extractedTaxId) {
+        const match = segment.match(/steuernummer[:\s-]*(.+)/i);
+        extractedTaxId = match ? match[1].trim() : segment.replace(/steuernummer/i, '').trim();
+      } else if (lower.includes('amtsgericht') && !hydrated.court) {
+        const match = segment.match(/amtsgericht[:\s-]*(.+)/i);
+        hydrated.court = match ? match[1].trim() : segment;
+      } else if (lower.includes('geschäftsführer') && !hydrated.ceo) {
+        const match = segment.match(/geschäftsführer[:\s-]*(.+)/i);
+        hydrated.ceo = match ? match[1].trim() : segment;
+      }
+    });
+    if (extractedTaxId) {
+      hydrated.taxId = extractedTaxId;
+    }
+  }
+  return hydrated;
+}
+
+const DEFAULT_SELLER_DETAILS = buildPartyTemplate({
+  name: 'BATE AYAKKABI İMALAT İTHALAT İHRACAT SAN. VE TİC. LTD. ŞTİ.',
+  street: 'Sanayi Mah. Sancak Sokak No:40',
+  postalCode: '34165',
+  city: 'ISTANBUL GÜNGÖREN',
+  country: 'TURKEY'
+});
+
+const DEFAULT_BUYER_DETAILS = buildPartyTemplate({
+  name: 'BATE GmbH',
+  street: 'Karlsruher Str. 71',
+  postalCode: '75179',
+  city: 'Pforzheim',
+  country: 'GERMANY',
+  email: 'info@schuhproduktion.com',
+  website: 'www.schuhproduktion.com',
+  taxId: 'DE365947317',
+  court: 'Amtsgericht Mannheim',
+  ceo: 'Nihat Yildiz'
+});
+
+const PROFORMA_ADDRESS_PRESETS = {
+  seller: [
+    {
+      id: 'bate-tr',
+      label: 'BATE Ayakkabı',
+      data: {
+        ...DEFAULT_SELLER_DETAILS,
+        address: composePartyAddress(DEFAULT_SELLER_DETAILS),
+        contact: composePartyContact(DEFAULT_SELLER_DETAILS)
+      }
+    }
+  ],
+  buyer: [
+    {
+      id: 'bate-de',
+      label: 'BATE GmbH',
+      data: {
+        ...DEFAULT_BUYER_DETAILS,
+        address: composePartyAddress(DEFAULT_BUYER_DETAILS),
+        contact: composePartyContact(DEFAULT_BUYER_DETAILS)
+      }
+    }
+  ]
+};
 
 const App = (() => {
   function resolveOrderTypeMeta(orderType) {
@@ -35,31 +248,152 @@ const App = (() => {
     return TECHPACK_VIEWS.find((view) => view.key === viewKey)?.label || 'Ansicht';
   }
 
+  function getTechpackViewMeta(viewKey) {
+    if (!viewKey) return null;
+    return TECHPACK_VIEWS.find((view) => view.key === viewKey) || null;
+  }
+
+  function buildOrderTicketKey(ticket) {
+    const segments = [
+      ticket.id || '',
+      ticket.order_id || '',
+      ticket.position_id || '',
+      ticket.created_at || '',
+      ticket.title || ''
+    ];
+    return segments.join(ORDER_TICKET_KEY_SEPARATOR);
+  }
+
+  function ticketMatchesContext(ticket, ticketId, context = {}) {
+    if (!ticket || ticket.id !== ticketId) return false;
+    if (context.ticketKey) {
+      const key = buildOrderTicketKey(ticket);
+      if (key !== context.ticketKey) return false;
+    }
+    if (context.orderId && ticket.order_id !== context.orderId) return false;
+    if (Object.prototype.hasOwnProperty.call(context, 'positionId')) {
+      const desired = context.positionId ?? null;
+      const current = ticket.position_id ?? null;
+      if (desired !== current) return false;
+    }
+    return true;
+  }
+
+  function buildSvgDataUri(svgMarkup) {
+    if (!svgMarkup) return '';
+    return `data:image/svg+xml,${encodeURIComponent(svgMarkup)
+      .replace(/%0A/g, '')
+      .replace(/%20/g, ' ')}`;
+  }
+
+  function getAutoTechpackPlaceholderDataUri(view) {
+    if (!view) return '';
+    const position = view.position || '?';
+    const label = (view.label || 'Ansicht').toUpperCase();
+    const shortLabel = label.length > 18 ? `${label.slice(0, 17)}…` : label;
+    const hue = ((position || 1) * 57) % 360;
+    const background = `hsl(${hue}, 65%, 93%)`;
+    const stroke = `hsl(${hue}, 55%, 70%)`;
+    const accent = `hsl(${hue}, 60%, 55%)`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="72" viewBox="0 0 96 72">
+  <rect x="1.5" y="1.5" width="93" height="69" rx="10" fill="${background}" stroke="${stroke}" stroke-width="3" />
+  <path d="M12 48 Q 30 30 48 36 T 84 30" fill="none" stroke="${accent}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.45" />
+  <circle cx="28" cy="26" r="8" fill="${accent}" opacity="0.18" />
+  <circle cx="70" cy="20" r="10" fill="${accent}" opacity="0.12" />
+  <text x="48" y="40" text-anchor="middle" font-size="16" font-weight="700" font-family="Inter,Arial,sans-serif" fill="#1f2937">POS ${position}</text>
+  <text x="48" y="56" text-anchor="middle" font-size="9" font-weight="500" font-family="Inter,Arial,sans-serif" fill="#374151">${shortLabel}</text>
+</svg>`;
+    return buildSvgDataUri(svg);
+  }
+
+  function getTechpackPlaceholderSources(view) {
+    const meta = view || TECHPACK_VIEWS[0];
+    if (!meta) {
+      return { baseSrc: '', customSrc: '' };
+    }
+    const baseSrc = getAutoTechpackPlaceholderDataUri(meta);
+    const customSrc = meta.key ? TECHPACK_PLACEHOLDER_IMAGES[meta.key] || '' : '';
+    return { baseSrc, customSrc };
+  }
+
+  function buildPlaceholderMedia(viewKey) {
+    if (!viewKey) return null;
+    const meta = getTechpackViewMeta(viewKey);
+    if (!meta) return null;
+    const { baseSrc, customSrc } = getTechpackPlaceholderSources(meta);
+    const src = customSrc || baseSrc;
+    if (!src) return null;
+    return {
+      id: `${PLACEHOLDER_MEDIA_PREFIX}${meta.key}`,
+      label: `${meta.label} · Platzhalter`,
+      view_key: meta.key,
+      status: 'OPEN',
+      url: src,
+      isPlaceholder: true,
+      is_placeholder: true,
+      placeholderSrc: baseSrc,
+      placeholderSrcset: customSrc ? `${customSrc} 1x` : ''
+    };
+  }
+
+  function isPlaceholderMediaId(mediaId) {
+    return typeof mediaId === 'string' && mediaId.startsWith(PLACEHOLDER_MEDIA_PREFIX);
+  }
+
+  function extractViewKeyFromMediaId(mediaId) {
+    if (!mediaId) return null;
+    if (isPlaceholderMediaId(mediaId)) {
+      return mediaId.slice(PLACEHOLDER_MEDIA_PREFIX.length);
+    }
+    const media = state.techpackSpec?.flags?.medien?.find((entry) => entry.id === mediaId);
+    return media?.view_key || null;
+  }
+
+  function getTechpackPreviewPlaceholder(view) {
+    const meta = view || TECHPACK_VIEWS[0];
+    if (!meta) return '<span class="techpack-preview placeholder">–</span>';
+    const { baseSrc, customSrc } = getTechpackPlaceholderSources(meta);
+    const label = meta?.label ? `Platzhalter für ${meta.label}` : 'Platzhalter';
+    if (!baseSrc) return '<span class="techpack-preview placeholder">–</span>';
+    const srcsetAttr = customSrc ? ` srcset="${customSrc} 1x"` : '';
+    return baseSrc
+      ? `<img src="${baseSrc}"${srcsetAttr} alt="${escapeHtml(label)}" class="techpack-preview techpack-preview-placeholder" loading="lazy" />`
+      : '<span class="techpack-preview placeholder">–</span>';
+  }
+
   function ensureTechpackActiveMedia(spec) {
     const media = spec?.flags?.medien || [];
-    if (!media.length) {
-      state.techpackActiveMedia = null;
-      return;
-    }
     const requested = state.techpackRequestedView?.toLowerCase();
-    if (requested) {
-      const match = media.find((entry) => entry.view_key === requested);
-      if (match) {
-        state.techpackActiveMedia = match.id;
-        state.techpackRequestedView = null;
-        return;
-      }
+    const previousView = extractViewKeyFromMediaId(state.techpackActiveMedia);
+    const defaultView = media[0]?.view_key || TECHPACK_VIEWS[0]?.key || null;
+    const nextView = requested || previousView || defaultView;
+    if (!nextView) {
       state.techpackActiveMedia = null;
+      state.techpackRequestedView = null;
       return;
     }
-    if (state.techpackActiveMedia && media.some((entry) => entry.id === state.techpackActiveMedia)) {
-      return;
+    const match = media.find((entry) => entry.view_key === nextView);
+    if (match) {
+      state.techpackActiveMedia = match.id;
+    } else {
+      state.techpackActiveMedia = `${PLACEHOLDER_MEDIA_PREFIX}${nextView}`;
     }
-    state.techpackActiveMedia = media[0].id;
+    state.techpackRequestedView = null;
   }
 
   function getTechpackMediaById(mediaId) {
-    return state.techpackSpec?.flags?.medien?.find((entry) => entry.id === mediaId);
+    if (!mediaId) return null;
+    const media = state.techpackSpec?.flags?.medien?.find((entry) => entry.id === mediaId);
+    if (media) {
+      if (media.is_placeholder && !media.isPlaceholder) {
+        return { ...media, isPlaceholder: true };
+      }
+      return media;
+    }
+    if (isPlaceholderMediaId(mediaId)) {
+      return buildPlaceholderMedia(mediaId.slice(PLACEHOLDER_MEDIA_PREFIX.length));
+    }
+    return null;
   }
 
   function getActiveTechpackMedia() {
@@ -92,11 +426,13 @@ const App = (() => {
     const badge = document.getElementById('techpackStatusBadge');
     const button = document.getElementById('techpackStatusToggle');
     if (!badge || !button) return;
+    const isPlaceholder = Boolean(media?.isPlaceholder || media?.is_placeholder);
     if (!media) {
       badge.textContent = 'Keine Ansicht';
       badge.className = 'badge ghost';
       button.disabled = true;
       button.textContent = 'Status ändern';
+      button.title = '';
       updateTechpackActionDisplay(null);
       return;
     }
@@ -112,7 +448,10 @@ const App = (() => {
       const openTickets = hasOpenTickets(state.techpackContext.orderId, state.techpackContext.positionId, viewKey);
       const attemptsSetOk = media.status !== 'OK';
       statusButton.disabled = openTickets && attemptsSetOk;
-      statusButton.title = statusButton.disabled ? 'Offene Rückfragen müssen zuerst geschlossen werden.' : '';
+      statusButton.title =
+        statusButton.disabled && attemptsSetOk
+          ? translateTemplate('Offene Rückfragen müssen zuerst geschlossen werden.')
+          : '';
     }
   }
 
@@ -120,7 +459,7 @@ const App = (() => {
     const uploadBtn = document.getElementById('uploadTechpackBtn');
     const replaceBtn = document.getElementById('replaceTechpackBtn');
     const deleteBtn = document.getElementById('deleteTechpackBtn');
-    const hasMedia = Boolean(media);
+    const hasMedia = Boolean(media && !(media.isPlaceholder || media.is_placeholder));
     if (uploadBtn) uploadBtn.classList.toggle('hidden', hasMedia);
     if (replaceBtn) replaceBtn.classList.toggle('hidden', !hasMedia);
     if (deleteBtn) deleteBtn.classList.toggle('hidden', !hasMedia);
@@ -134,7 +473,7 @@ const App = (() => {
     if (!value) return '-';
     try {
       return new Date(value).toLocaleDateString('de-DE');
-    } catch (err) {
+    } catch {
       return value;
     }
   }
@@ -146,7 +485,7 @@ const App = (() => {
         style: 'currency',
         currency
       }).format(amount);
-    } catch (err) {
+    } catch {
       return `${amount} ${currency}`;
     }
   }
@@ -199,6 +538,12 @@ const App = (() => {
   function formatBytes(bytes) {
     if (!Number.isFinite(bytes)) return '–';
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function parseNumberInput(value) {
+    if (value === undefined || value === null || value === '') return null;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
   }
 
   function resolveStoredLocale() {
@@ -264,6 +609,26 @@ const App = (() => {
     });
   }
 
+  function applyKeyedTranslations(root = document.body) {
+    const base = root instanceof Element ? root : document.body;
+    const elements = base.querySelectorAll('[data-i18n-key]');
+    elements.forEach((element) => {
+      const key = element.dataset.i18nKey;
+      if (!key) return;
+      const attr = element.dataset.i18nAttr;
+      const target = element.dataset.i18nTarget || 'text';
+      const translation = translateTemplate(key);
+      if (attr) {
+        element.setAttribute(attr, translation);
+      } else if (target === 'html') {
+        element.innerHTML = translation;
+      } else {
+        element.textContent = translation;
+      }
+      element.dataset.i18nApplied = state.locale || 'default';
+    });
+  }
+
   function translateTextNode(node) {
     if (isDefaultLocale() || node.__i18nApplied === state.locale) return;
     const content = node.textContent;
@@ -288,6 +653,7 @@ const App = (() => {
     const elements = root instanceof Element ? [root, ...root.querySelectorAll('*')] : document.querySelectorAll('*');
     TRANSLATABLE_ATTRIBUTES.forEach((attr) => {
       elements.forEach((element) => {
+        if (element.dataset?.i18nAttr === attr) return;
         const value = element.getAttribute(attr);
         if (!value) return;
         const translated = translateLiteral(value);
@@ -299,15 +665,18 @@ const App = (() => {
   }
 
   function applyTranslations(root = document.body) {
-    if (isDefaultLocale()) return;
-    translateAttributes(root instanceof Element ? root : document.body);
     const base = root instanceof Element ? root : document.body;
+    applyKeyedTranslations(base);
+    if (isDefaultLocale()) return;
+    translateAttributes(base);
     const walker = document.createTreeWalker(base, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         if (!node?.textContent?.trim()) return NodeFilter.FILTER_REJECT;
         if (!node.parentElement) return NodeFilter.FILTER_REJECT;
         const tag = node.parentElement.tagName;
         if (['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(tag)) return NodeFilter.FILTER_REJECT;
+        if (node.parentElement.dataset?.i18nKey && !node.parentElement.dataset.i18nAttr)
+          return NodeFilter.FILTER_REJECT;
         if (node.parentElement.dataset?.i18nIgnore === 'true') return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
@@ -580,6 +949,199 @@ const App = (() => {
       .join('');
   }
 
+  function renderAutoSyncPanel(status = null) {
+    const panel = document.getElementById('autosyncPanel');
+    if (!panel) return;
+    const snapshot = status || state.autosync?.status || { enabled: false };
+    const statusEl = document.getElementById('autosyncStatus');
+    if (statusEl) {
+      let badgeClass = 'warn';
+      let label = 'Deaktiviert';
+      let detail = 'AutoSync ist nicht konfiguriert.';
+      if (snapshot.enabled === false) {
+        badgeClass = 'warn';
+      } else if (snapshot.online) {
+        badgeClass = 'ok';
+        label = 'Online';
+        detail = snapshot.data?.message || 'Service bereit.';
+      } else if (snapshot.enabled) {
+        badgeClass = 'danger';
+        label = 'Offline';
+        detail = snapshot.error || snapshot.logs_error || 'Keine Verbindung.';
+      }
+      statusEl.innerHTML = `<span class="status-pill ${badgeClass}">${label}</span> ${escapeHtml(detail || '')}`;
+    }
+    const disableForms = snapshot.enabled === false || (snapshot.enabled && !snapshot.online);
+    panel.querySelectorAll('form').forEach((form) => {
+      const allowOffline = form.dataset.allowOffline === 'true';
+      form.querySelectorAll('input, select, textarea, button').forEach((el) => {
+        if (allowOffline) return;
+        el.disabled = disableForms;
+      });
+    });
+    const logs = state.autosync?.logs?.length ? state.autosync.logs : snapshot.logs || [];
+    renderAutoSyncLogs(logs);
+    renderAutoSyncActionResult();
+  }
+
+  function renderAutoSyncLogs(entries = []) {
+    const container = document.getElementById('autosyncLogs');
+    if (!container) return;
+    if (!entries.length) {
+      container.innerHTML = '<p class="muted small">Noch keine Läufe vorhanden.</p>';
+      return;
+    }
+    container.innerHTML = entries
+      .map((entry) => {
+        const relSource = entry.timestamp ? entry.timestamp.replace(' ', 'T') : null;
+        const rel = relSource ? formatRelativeTime(relSource) : 'Zeit unbekannt';
+        const woo = entry.woo_ok ? '✔️' : '❌';
+        const erp = entry.erp_ok ? '✔️' : '❌';
+        const tel = entry.telegram_ok ? '✔️' : '–';
+        const link =
+          entry.url_woo && entry.url_woo.startsWith('http')
+            ? `<div><a href="${entry.url_woo}" target="_blank" rel="noopener">${escapeHtml(entry.url_woo)}</a></div>`
+            : '';
+        const errorMessage = entry.error_erp || entry.error_woo || '';
+        return `
+          <div class="autosync-log-entry">
+            <strong>${escapeHtml(entry.sku || 'Unbekannt')}</strong>
+            <div class="autosync-log-meta">${escapeHtml(rel)} · ERP ${erp} · Woo ${woo} · Telegram ${tel}</div>
+            ${link}
+            ${errorMessage ? `<div class="autosync-log-meta danger">${escapeHtml(errorMessage)}</div>` : ''}
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  function renderAutoSyncActionResult() {
+    const pre = document.getElementById('autosyncActionResult');
+    if (!pre) return;
+    if (state.autosync?.lastResult) {
+      pre.textContent = JSON.stringify(state.autosync.lastResult, null, 2);
+    } else {
+      pre.textContent = 'Noch kein Lauf.';
+    }
+  }
+
+  function renderAutoSyncSummarySection() {
+    const container = document.getElementById('autosyncSummary');
+    if (!container) return;
+    const stats = state.autosync?.metrics || state.autosync?.status?.stats || null;
+    const status = state.autosync?.status || {};
+    const cards = [];
+    cards.push({
+      title: 'Service',
+      value: status.online ? 'ONLINE' : status.enabled ? 'OFFLINE' : 'DEAKTIVIERT',
+      detail: status.logs_error ? `⚠️ ${status.logs_error}` : status.message || ''
+    });
+    cards.push({
+      title: 'Letzter Lauf',
+      value: stats?.last_run ? formatRelativeTime(stats.last_run.replace(' ', 'T')) : 'nie',
+      detail: stats?.last_success ? `Letzter Erfolg ${formatRelativeTime(stats.last_success.replace(' ', 'T'))}` : 'Keine Erfolgsdaten'
+    });
+    cards.push({
+      title: 'Erfolgsrate',
+      value: stats?.success_rate !== null && stats?.success_rate !== undefined ? `${stats.success_rate}%` : '–',
+      detail: `${stats?.success || 0}/${stats?.total || 0} OK`
+    });
+    cards.push({
+      title: 'Telegram OK',
+      value: stats?.telegram_success || 0,
+      detail: `${stats?.failures || 0} Fehler`
+    });
+    container.innerHTML = cards
+      .map(
+        (card) => `
+          <article class="card">
+            <h3>${escapeHtml(card.title)}</h3>
+            <p class="value">${escapeHtml(card.value?.toString() || '-')}</p>
+            ${card.detail ? `<p class="muted">${escapeHtml(card.detail)}</p>` : ''}
+          </article>
+        `
+      )
+      .join('');
+  }
+
+  function renderAutoSyncServiceMeta(snapshot = null) {
+    const container = document.getElementById('autosyncServiceMeta');
+    if (!container) return;
+    const status = snapshot || state.autosync?.status || {};
+    const stats = state.autosync?.metrics || status.stats || {};
+    container.innerHTML = `
+      <div class="service-row">
+        <div><strong>Status</strong><br /><span class="muted">${escapeHtml(status.online ? 'Aktiv' : status.enabled ? 'Offline' : 'Nicht konfiguriert')}</span></div>
+        <div><span class="status-pill ${status.online ? 'ok' : status.enabled ? 'danger' : 'warn'}">${status.online ? 'Online' : 'Check'}</span></div>
+      </div>
+      <div class="service-row">
+        <div><strong>Letzte Ausführung</strong><br />${escapeHtml(stats?.last_run ? formatRelativeTime(stats.last_run.replace(' ', 'T')) : 'nie')}</div>
+        <div><strong>Erfolgsrate</strong><br />${escapeHtml(
+          stats?.success_rate !== null && stats?.success_rate !== undefined ? `${stats.success_rate}%` : '–'
+        )}</div>
+      </div>
+      <div class="service-row">
+        <div><strong>ERP Fehler</strong><br />${escapeHtml(String(stats?.erp_failures || 0))}</div>
+        <div><strong>Woo Fehler</strong><br />${escapeHtml(String(stats?.woo_failures || 0))}</div>
+      </div>
+    `;
+  }
+
+  function renderAutoSyncRecentErrors(errors = []) {
+    const list = document.getElementById('autosyncRecentErrors');
+    if (!list) return;
+    if (!errors.length) {
+      list.innerHTML = '<li class="muted">Keine Fehler protokolliert.</li>';
+      return;
+    }
+    list.innerHTML = errors
+      .map((entry) => {
+        const rel = entry.timestamp ? formatRelativeTime(entry.timestamp.replace(' ', 'T')) : 'Zeit unbekannt';
+        const msg = entry.error_erp || entry.error_woo || 'Allgemeiner Fehler';
+        return `
+          <li>
+            <strong>${escapeHtml(entry.sku || 'Unbekannt')}</strong>
+            <div class="muted">${escapeHtml(rel)}</div>
+            <div>${escapeHtml(msg)}</div>
+          </li>
+        `;
+      })
+      .join('');
+  }
+
+  function renderAutoSyncTable(entries = []) {
+    const tableBody = document.getElementById('autosyncLogsTable');
+    if (!tableBody) return;
+    if (!entries.length) {
+      tableBody.innerHTML = '<tr><td colspan="6" class="muted">Keine AutoSync-Läufe gefunden.</td></tr>';
+      return;
+    }
+    tableBody.innerHTML = entries
+      .map((entry) => {
+        const ts = entry.timestamp ? new Date(entry.timestamp.replace(' ', 'T')).toLocaleString('de-DE') : '-';
+        const statusErp = entry.erp_ok ? '✔️' : '❌';
+        const statusWoo = entry.woo_ok ? '✔️' : '❌';
+        const statusTel = entry.telegram_ok === null ? '–' : entry.telegram_ok ? '✔️' : '❌';
+        const errorMsg = entry.error_erp || entry.error_woo || null;
+        const info = errorMsg
+          ? escapeHtml(errorMsg)
+          : entry.url_woo && entry.url_woo.startsWith('http')
+          ? `<a href="${entry.url_woo}" target="_blank" rel="noopener">Shop-Link</a>`
+          : 'OK';
+        return `
+          <tr>
+            <td>${escapeHtml(ts)}</td>
+            <td>${escapeHtml(entry.sku || '-')}</td>
+            <td>${statusErp}</td>
+            <td>${statusWoo}</td>
+            <td>${statusTel}</td>
+            <td>${info}</td>
+          </tr>
+        `;
+      })
+      .join('');
+  }
+
   function renderDiagnosticsEscalated(list = []) {
     const container = document.getElementById('diagnosticsEscalated');
     if (!container) return;
@@ -619,7 +1181,9 @@ const App = (() => {
             (spec) => `
               <li>
                 <strong>${escapeHtml(spec.order_id)} · ${escapeHtml(spec.position_id)}</strong>
-                <div class="muted">Rückfragen: ${spec.rueckfragen || 0} · ${escapeHtml(formatRelativeTime(spec.updated_at))}</div>
+                <div class="muted">${escapeHtml(translateTemplate('Rückfragen'))}: ${spec.rueckfragen || 0} · ${escapeHtml(
+                  formatRelativeTime(spec.updated_at)
+                )}</div>
               </li>
             `
           )
@@ -632,6 +1196,7 @@ const App = (() => {
     renderDiagnosticsSummary(data);
     renderDiagnosticsAlerts(data.alerts || []);
     renderDiagnosticsJobs(data);
+    renderAutoSyncPanel(data.autosync || null);
     renderMetricTable('diagnosticsOrdersStatus', data.orders?.by_status || [], 'Keine Bestellungen.');
     renderMetricTable('diagnosticsOrdersPhase', data.orders?.by_phase || [], 'Keine Phasen.');
     renderMetricTable('diagnosticsTicketsStatus', data.tickets?.by_status || [], 'Keine Tickets.');
@@ -647,13 +1212,212 @@ const App = (() => {
     try {
       const data = await request('/api/diagnostics');
       state.diagnostics = data;
+      state.autosync = state.autosync || { status: null, logs: [], lastResult: null, metrics: null, errors: [] };
+      if (data.autosync) {
+        state.autosync.status = data.autosync;
+        state.autosync.logs = data.autosync.logs || state.autosync.logs || [];
+        state.autosync.metrics = data.autosync.stats || state.autosync.metrics || null;
+        state.autosync.errors = data.autosync.stats?.recent_errors || state.autosync.errors || [];
+      }
       renderDiagnostics(data);
+      renderAutoSyncSummarySection();
+      renderAutoSyncServiceMeta(data.autosync);
+      renderAutoSyncRecentErrors(state.autosync.errors);
+      renderAutoSyncTable(state.autosync.logs);
     } catch (err) {
       showToast(err.message);
       const list = document.getElementById('diagnosticsAlerts');
       if (list) {
         list.innerHTML = `<li class="danger">${escapeHtml(err.message)}</li>`;
       }
+    }
+  }
+
+  async function refreshAutoSyncStatus(showToastOnError = true, showSuccessToast = false) {
+    try {
+      const data = await request('/api/autosync/status');
+      state.autosync.status = data;
+      state.autosync.logs = data.logs || [];
+      state.autosync.metrics = data.stats || state.autosync.metrics || null;
+      state.autosync.errors = data.stats?.recent_errors || state.autosync.errors || [];
+      renderAutoSyncPanel(data);
+      renderAutoSyncSummarySection();
+      renderAutoSyncServiceMeta(data);
+      renderAutoSyncRecentErrors(state.autosync.errors);
+      renderAutoSyncTable(state.autosync.logs);
+      if (showSuccessToast) {
+        showToast('AutoSync-Status aktualisiert');
+      }
+    } catch (err) {
+      if (showToastOnError) {
+        showToast(err.message);
+      }
+    }
+  }
+
+  async function handleAutoSyncRun(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const sku = form.sku.value.trim();
+    if (!sku) {
+      showToast('Bitte eine SKU angeben.');
+      return;
+    }
+    const payload = { sku };
+    const bereich = form.bereich.value.trim();
+    if (bereich) payload.bereich = bereich;
+    const einkauf = parseNumberInput(form.einkauf.value);
+    const verkauf = parseNumberInput(form.verkauf.value);
+    if (einkauf !== null) payload.einkauf = einkauf;
+    if (verkauf !== null) payload.verkauf = verkauf;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const result = await request('/api/autosync/run', { method: 'POST', body: payload });
+      state.autosync.lastResult = result;
+      renderAutoSyncActionResult();
+      showToast('AutoSync ausgelöst');
+      await refreshAutoSyncStatus(false);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  async function handleAutoSyncManual(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const payload = {};
+    for (const [key, value] of formData.entries()) {
+      payload[key] = value.toString().trim();
+    }
+    payload.einkauf = parseNumberInput(payload.einkauf);
+    payload.verkauf = parseNumberInput(payload.verkauf);
+    if (payload.einkauf === null || payload.verkauf === null) {
+      showToast('Bitte gültige Preise angeben.');
+      return;
+    }
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const result = await request('/api/autosync/manual', { method: 'POST', body: payload });
+      state.autosync.lastResult = result;
+      renderAutoSyncActionResult();
+      showToast('Manueller Sync abgeschlossen');
+      await refreshAutoSyncStatus(false);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  async function handleAutoSyncDelete(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const sku = form.sku.value.trim();
+    if (!sku) {
+      showToast('SKU fehlt.');
+      return;
+    }
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const result = await request('/api/autosync/delete', { method: 'POST', body: { sku } });
+      state.autosync.lastResult = result;
+      renderAutoSyncActionResult();
+      if (result.success) {
+        showToast('Produkt wurde aus WooCommerce gelöscht.');
+      } else {
+        showToast(result.error || 'Löschen fehlgeschlagen.');
+      }
+      await refreshAutoSyncStatus(false);
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  async function handleAutoSyncLogs(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const sku = form.sku.value.trim();
+    const limit = Math.max(1, Math.min(parseInt(form.limit.value, 10) || 20, 200));
+    const params = new URLSearchParams({ limit });
+    if (sku) params.set('sku', sku);
+    try {
+      const data = await request(`/api/autosync/logs?${params.toString()}`);
+      const entries = data.entries || data.logs || [];
+      state.autosync.logs = entries;
+      renderAutoSyncLogs(entries);
+      renderAutoSyncTable(entries);
+      showToast('Logs geladen');
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  function bindAutoSyncUi() {
+    const runForm = document.getElementById('autosyncRunForm');
+    if (runForm && !runForm.dataset.bound) {
+      runForm.addEventListener('submit', handleAutoSyncRun);
+      runForm.dataset.bound = 'true';
+    }
+    const manualForm = document.getElementById('autosyncManualForm');
+    if (manualForm && !manualForm.dataset.bound) {
+      manualForm.addEventListener('submit', handleAutoSyncManual);
+      manualForm.dataset.bound = 'true';
+    }
+    const deleteForm = document.getElementById('autosyncDeleteForm');
+    if (deleteForm && !deleteForm.dataset.bound) {
+      deleteForm.addEventListener('submit', handleAutoSyncDelete);
+      deleteForm.dataset.bound = 'true';
+    }
+    const logsForm = document.getElementById('autosyncLogsForm');
+    if (logsForm && !logsForm.dataset.bound) {
+      logsForm.addEventListener('submit', handleAutoSyncLogs);
+      logsForm.dataset.bound = 'true';
+    }
+    const reloadBtn = document.getElementById('autosyncReload');
+    if (reloadBtn && !reloadBtn.dataset.bound) {
+      reloadBtn.addEventListener('click', () => refreshAutoSyncStatus(true, true));
+      reloadBtn.dataset.bound = 'true';
+    }
+  }
+
+  async function loadAutoSyncDashboard(options = {}) {
+    try {
+      const params = new URLSearchParams();
+      if (options.limit) params.set('limit', options.limit);
+      if (options.sku) params.set('sku', options.sku);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const data = await request(`/api/autosync/dashboard${query}`);
+      state.autosync.status = data;
+      state.autosync.logs = data.logs || [];
+      state.autosync.metrics = data.stats || null;
+      state.autosync.errors = data.stats?.recent_errors || [];
+      renderAutoSyncSummarySection();
+      renderAutoSyncServiceMeta(data);
+      renderAutoSyncRecentErrors(state.autosync.errors);
+      renderAutoSyncPanel(data);
+      renderAutoSyncTable(state.autosync.logs);
+      bindAutoSyncUi();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function initAutoSyncPage() {
+    setBreadcrumbLabel('AutoSync');
+    bindAutoSyncUi();
+    await loadAutoSyncDashboard({ limit: 50 });
+    const refreshBtn = document.getElementById('autosyncDashboardRefresh');
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.addEventListener('click', () => loadAutoSyncDashboard({ limit: 50 }));
+      refreshBtn.dataset.bound = 'true';
     }
   }
 
@@ -812,23 +1576,31 @@ const App = (() => {
       target.innerHTML = `<li class="muted">${escapeHtml(emptyMessage)}</li>`;
       return;
     }
+    const orderLabel = translateTemplate('Bestellnummer');
+    const typeMetaLabel = translateTemplate('Art');
+    const openLabel = translateTemplate('Öffnen');
     target.innerHTML = items
       .map((ticket) => {
         const link = buildTicketLink(ticket);
-        const typeLabel = ticket.position_id ? 'Artikelticket' : 'Bestellticket';
+        const typeLabel = translateTemplate(ticket.position_id ? 'Artikelticket' : 'Bestellticket');
         const previewUrl = getTicketPreviewImage(ticket);
+        const previewAlt = translateTemplate('Ticket Vorschaubild');
         const preview = previewUrl
-          ? `<div class="ticket-preview"><img src="${escapeHtml(previewUrl)}" alt="Ticket Vorschaubild" loading="lazy" /></div>`
+          ? `<div class="ticket-preview"><img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(previewAlt)}" loading="lazy" /></div>`
           : '';
         return `<li>
           ${preview}
           <div class="ticket-list-body">
             <p class="ticket-list-title">${escapeHtml(ticket.title)}</p>
             <p class="ticket-list-meta">${ticket.id}</p>
-            <p class="ticket-list-meta">Bestellnummer: ${ticket.order_id}${ticket.position_id ? ` · ${ticket.position_id}` : ''}</p>
-            <p class="ticket-list-meta">Art: ${typeLabel}</p>
+            <p class="ticket-list-meta">${escapeHtml(orderLabel)}: ${escapeHtml(ticket.order_id)}${
+              ticket.position_id ? ` · ${escapeHtml(ticket.position_id)}` : ''
+            }</p>
+            <p class="ticket-list-meta">${escapeHtml(typeMetaLabel)}: ${escapeHtml(typeLabel)}</p>
             <div class="ticket-row-actions">
-              <a class="ghost small" href="${link}" ${ticket.position_id ? 'target="_blank" rel="noopener"' : ''}>Öffnen</a>
+              <a class="ghost small" href="${link}" ${ticket.position_id ? 'target="_blank" rel="noopener"' : ''}>${escapeHtml(
+                openLabel
+              )}</a>
             </div>
           </div>
         </li>`;
@@ -948,7 +1720,7 @@ function deriveSizeList(order) {
     const container = document.getElementById('sizeEditorMatrix');
     if (!container) return;
     if (!state.sizeList.length) {
-      container.innerHTML = '<p class="muted">Keine Größen für diese Bestellung vorhanden.</p>';
+      container.innerHTML = `<p class="muted">${escapeHtml(translateTemplate('Keine Größen für diese Bestellung vorhanden.'))}</p>`;
       return;
     }
     if (!state.labelCartons.length) {
@@ -968,27 +1740,33 @@ function deriveSizeList(order) {
               </div>`;
           })
           .join('');
+        const cartonLabel = translateTemplate('Karton {{number}}', { number: carton.number });
+        const removeLabel = translateTemplate('Karton entfernen');
+        const variationLabel = translateTemplate('Variation-Nr.');
+        const articleLabel = translateTemplate('Artikel-Nr.');
+        const leatherLabel = translateTemplate('Leder & Farbe');
+        const soleLabel = translateTemplate('Sohle');
         return `
           <div class="carton-row ${isActive ? 'active' : ''}" data-index="${index}">
             <div class="carton-row-head">
               <label class="selector">
                 <input type="radio" name="cartonSelection" ${isActive ? 'checked' : ''} data-carton-select="${index}" />
-                Karton ${carton.number}
+                ${escapeHtml(cartonLabel)}
               </label>
               <input type="number" min="1" step="1" value="${carton.number}" data-carton-number="${index}" />
-              <button type="button" class="ghost carton-remove" data-remove-carton="${index}" aria-label="Karton entfernen">×</button>
+              <button type="button" class="ghost carton-remove" data-remove-carton="${index}" aria-label="${escapeHtml(removeLabel)}">×</button>
             </div>
             <div class="carton-meta-grid">
-              <label>Variation-Nr.
+              <label>${escapeHtml(variationLabel)}
                 <input type="text" data-carton-meta="variation" data-carton="${index}" value="${escapeHtml(meta.variation || '')}" />
               </label>
-              <label>Artikel-Nr.
+              <label>${escapeHtml(articleLabel)}
                 <input type="text" data-carton-meta="article" data-carton="${index}" value="${escapeHtml(meta.article || '')}" />
               </label>
-              <label>Leder &amp; Farbe
+              <label>${escapeHtml(leatherLabel)}
                 <input type="text" data-carton-meta="leather" data-carton="${index}" value="${escapeHtml(meta.leather || '')}" />
               </label>
-              <label>Sohle
+              <label>${escapeHtml(soleLabel)}
                 <input type="text" data-carton-meta="sole" data-carton="${index}" value="${escapeHtml(meta.sole || '')}" />
               </label>
             </div>
@@ -998,7 +1776,7 @@ function deriveSizeList(order) {
           </div>`;
       })
       .join('');
-    container.innerHTML = rows || '<p class="muted">Keine Kartons konfiguriert.</p>';
+    container.innerHTML = rows || `<p class="muted">${escapeHtml(translateTemplate('Keine Kartons konfiguriert.'))}</p>`;
     container.querySelectorAll('input[data-carton][data-size]').forEach((input) => {
       input.addEventListener('input', (event) => {
         const idx = Number(event.target.dataset.carton);
@@ -1156,10 +1934,6 @@ function deriveSizeList(order) {
     if (node) node.textContent = value;
   }
 
-  function getStatusChoice(code) {
-    return STATUS_CHOICES.find((entry) => entry.code === code);
-  }
-
   function getDeliveryAddress(customerId, order) {
     const customer = state.customers.find((c) => c.id === customerId) || {};
     const addresses = Array.isArray(state.addresses) ? state.addresses : [];
@@ -1277,13 +2051,13 @@ function deriveSizeList(order) {
     const subtitle = document.getElementById(subtitleId);
     if (!subtitle) return;
     if (!customerId) {
-      subtitle.textContent = 'Kundenspezifisches Verpackungsset';
+      subtitle.textContent = translateTemplate('Kundenspezifisches Verpackungsset');
       return;
     }
     const customer = state.customers.find((entry) => entry.id === customerId);
     const label = customer?.name || customerId;
     if (!accessories.length) {
-      subtitle.textContent = `${label} · noch kein Zubehör hinterlegt`;
+      subtitle.textContent = translateTemplate('{{label}} · noch kein Zubehör hinterlegt', { label });
       return;
     }
     const latest = accessories.reduce((latestDate, entry) => {
@@ -1292,8 +2066,8 @@ function deriveSizeList(order) {
       if (!latestDate) return ts;
       return ts > latestDate ? ts : latestDate;
     }, null);
-    const formatted = latest ? new Date(latest).toLocaleDateString('de-DE') : 'aktuell';
-    subtitle.textContent = `${label} · Stand ${formatted}`;
+    const formatted = latest ? new Date(latest).toLocaleDateString('de-DE') : translateTemplate('aktuell');
+    subtitle.textContent = translateTemplate('{{label}} · Stand {{date}}', { label, date: formatted });
   }
 
   function buildAccessoryCard(slot, entry) {
@@ -1458,19 +2232,6 @@ function deriveSizeList(order) {
     }
   }
 
-  function bindTabs() {
-    document.querySelectorAll('.tabs button').forEach((button) => {
-      button.addEventListener('click', () => {
-        document.querySelectorAll('.tabs button').forEach((btn) => btn.classList.remove('active'));
-        button.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach((content) => content.classList.add('hidden'));
-        const tabId = button.dataset.tab;
-        const target = document.getElementById(`${tabId}Tab`);
-        if (target) target.classList.remove('hidden');
-      });
-    });
-  }
-
   async function initDashboard() {
     const refreshBtn = document.querySelector('[data-action="refresh-orders"]');
 
@@ -1490,8 +2251,13 @@ function deriveSizeList(order) {
       const productionTable = document.getElementById('productionTable');
       const pendingOrders = orders.filter((order) => order.portal_status === 'ORDER_EINGEREICHT');
       setKpiValue('kpiNewOrders', pendingOrders.length);
-      productionTable.innerHTML = pendingOrders.length
-        ? pendingOrders
+      const sortedPending = [...pendingOrders].sort(
+        (a, b) => new Date(b.creation || b.modified || b.requested_delivery || b.transaction_date || 0) -
+          new Date(a.creation || a.modified || a.requested_delivery || a.transaction_date || 0)
+      );
+      const limitedOrders = sortedPending.slice(0, 5);
+      productionTable.innerHTML = limitedOrders.length
+        ? limitedOrders
             .map(
               (order) => `
             <tr data-order-id="${order.id}">
@@ -1554,16 +2320,21 @@ function deriveSizeList(order) {
     if (!filters) return;
     const table = document.getElementById('orderTable');
     let filterDebounce;
+    const COMPLETED_STATUS = 'UEBERGEBEN_AN_SPEDITION';
 
     const loadOrders = async () => {
       const data = new FormData(filters);
       const params = new URLSearchParams();
+      const statusFilter = data.get('status') || '';
       for (const [key, value] of data.entries()) {
         if (value) params.append(key, value);
       }
       const query = params.toString();
       const orders = await request(`/api/erp/orders${query ? `?${query}` : ''}`);
-      renderOrderTable(orders);
+      const filteredOrders = statusFilter
+        ? orders
+        : orders.filter((order) => order.portal_status !== COMPLETED_STATUS);
+      renderOrderTable(filteredOrders);
     };
 
     const scheduleFilterReload = () => {
@@ -1572,17 +2343,27 @@ function deriveSizeList(order) {
     };
 
     const renderOrderTable = (orders) => {
-      table.innerHTML = orders
+      const sorted = [...orders].sort((a, b) => {
+        const dateA =
+          new Date(a.creation || a.modified || a.transaction_date || a.requested_delivery || 0).getTime() || 0;
+        const dateB =
+          new Date(b.creation || b.modified || b.transaction_date || b.requested_delivery || 0).getTime() || 0;
+        return dateB - dateA;
+      });
+      table.innerHTML = sorted
         .map(
-          (order) => `
+          (order) => {
+            const totalQuantity = deriveOrderQuantity(order);
+            return `
         <tr data-order-id="${order.id}">
           <td>${order.order_number}</td>
           <td><span class="badge">${formatStatus(order.portal_status)}</span></td>
           <td>${order.customer_name || order.customer_id}</td>
           <td>${getOrderTypeBadgeHtml(order.order_type)}</td>
           <td>${formatDate(order.requested_delivery)}</td>
-          <td>${formatMoney(deriveOrderTotal(order), order.currency)}</td>
-        </tr>`
+          <td>${totalQuantity}</td>
+        </tr>`;
+          }
         )
         .join('');
       table.querySelectorAll('tr').forEach((row) => {
@@ -1628,6 +2409,407 @@ function deriveSizeList(order) {
     return null;
   }
 
+  function deriveOrderQuantity(order) {
+    if (!order) return 0;
+    if (typeof order.total_qty === 'number' && Number.isFinite(order.total_qty)) {
+      return order.total_qty;
+    }
+    if (Array.isArray(order.positions)) {
+      return order.positions.reduce((sum, pos) => {
+        const qty = Number(pos.quantity);
+        return sum + (Number.isFinite(qty) ? qty : 0);
+      }, 0);
+    }
+    return 0;
+  }
+
+  function buildEmptyOrderDraft() {
+    return {
+      order_number: '',
+      order_type: '',
+      requested_delivery: '',
+      portal_status: 'ORDER_EINGEREICHT',
+      customer_id: '',
+      customer_number: '',
+      billing_address_id: '',
+      shipping_address_id: '',
+      dispatch_address_id: '',
+      supplier_id: '',
+      supplier_name: '',
+      naming_series: ORDER_SERIES_OPTIONS[0] || '',
+      company: COMPANY_OPTIONS[0] || '',
+      contact_id: '',
+      contact_name: '',
+      contact_email: '',
+      contact_phone: '',
+      shipping_payer: 'BATE',
+      shipping_method: 'Spedition',
+      shipping_packaging: '',
+      shipping_pickup: false,
+      shipping_notes: '',
+      tax_template: '',
+      currency: 'EUR',
+      positions: []
+    };
+  }
+
+function isEditingExistingOrder() {
+  return Boolean(state.orderDraftEditingId);
+}
+
+function ensureOrderDraft() {
+  if (!state.orderDraft) {
+    state.orderDraft = buildEmptyOrderDraft();
+  }
+  return state.orderDraft;
+  }
+
+  function loadOrderDraftFromStorage() {
+    try {
+      const raw = localStorage.getItem(ORDER_DRAFT_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      return {
+        ...buildEmptyOrderDraft(),
+        ...parsed,
+        positions: Array.isArray(parsed.positions) ? parsed.positions : []
+      };
+    } catch (err) {
+      console.warn('Draft konnte nicht geladen werden', err);
+      return null;
+    }
+  }
+
+function scheduleDraftPersist() {
+  if (isEditingExistingOrder()) return;
+  clearTimeout(state.orderDraftSaveTimeout);
+  state.orderDraftSaveTimeout = setTimeout(() => {
+    try {
+      const payload = JSON.stringify(state.orderDraft || buildEmptyOrderDraft());
+      localStorage.setItem(ORDER_DRAFT_STORAGE_KEY, payload);
+      } catch (err) {
+        console.warn('Draft konnte nicht gespeichert werden', err);
+      }
+    }, 150);
+}
+
+function persistDraftImmediately() {
+  if (isEditingExistingOrder()) return;
+  clearTimeout(state.orderDraftSaveTimeout);
+  try {
+    const payload = JSON.stringify(state.orderDraft || buildEmptyOrderDraft());
+    localStorage.setItem(ORDER_DRAFT_STORAGE_KEY, payload);
+  } catch (err) {
+      console.warn('Draft konnte nicht gespeichert werden', err);
+    }
+  }
+
+  function clearOrderDraftStorage() {
+    clearTimeout(state.orderDraftSaveTimeout);
+    try {
+      localStorage.removeItem(ORDER_DRAFT_STORAGE_KEY);
+    } catch (err) {
+      console.warn('Draft konnte nicht entfernt werden', err);
+    }
+    state.orderDraft = buildEmptyOrderDraft();
+  }
+
+  function calculateDraftTotals(positions = []) {
+    const net = positions.reduce((acc, pos) => {
+      const quantity = Number(pos.quantity) || 0;
+      const rate = Number(pos.rate) || 0;
+      if (typeof pos.amount === 'number') {
+        return acc + (Number(pos.amount) || 0);
+      }
+      return acc + quantity * rate;
+    }, 0);
+    const tax = net * VAT_RATE;
+    const gross = net + tax;
+    return { net, tax, gross };
+  }
+
+  function updateDraftTotalsOutputs(currency = 'EUR') {
+    const draft = ensureOrderDraft();
+    const totals = calculateDraftTotals(draft.positions);
+    const orderTotalOutput = document.getElementById('orderTotalOutput');
+    if (orderTotalOutput) orderTotalOutput.textContent = formatMoney(totals.net, currency);
+    const netOutput = document.getElementById('netAmountOutput');
+    if (netOutput) netOutput.textContent = formatMoney(totals.net, currency);
+    const taxOutput = document.getElementById('taxAmountOutput');
+    if (taxOutput) taxOutput.textContent = formatMoney(totals.tax, currency);
+    const grossOutput = document.getElementById('grossAmountOutput');
+    if (grossOutput) grossOutput.textContent = formatMoney(totals.gross, currency);
+  }
+
+  function updateOrderTypeBadgeDisplay(orderType) {
+    const badge = document.getElementById('orderTypeBadge');
+    if (!badge) return;
+    const meta = resolveOrderTypeMeta(orderType);
+    badge.textContent = meta.label;
+    badge.className = `badge order-type-badge ${meta.badgeClass}`;
+  }
+
+  function setInputValue(id, value) {
+    const node = document.getElementById(id);
+    if (!node) return;
+    if (node.type === 'checkbox') {
+      node.checked = Boolean(value);
+      return;
+    }
+    node.value = value ?? '';
+  }
+
+  function formatAddressLabel(address) {
+    if (!address) return '-';
+    const title = address.address_title || address.company || address.customer_name || address.customer_id || '';
+    const street = address.street || address.address_line1 || '';
+    const city = address.zip && address.city ? `${address.zip} ${address.city}` : address.city || address.zip || '';
+    const country = address.country || '';
+    return [title, street, city, country].filter(Boolean).join(' · ');
+  }
+
+  function populateSelectOptions(select, options = [], placeholder = 'Bitte wählen', selectedValue = undefined) {
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '';
+    if (placeholder) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = placeholder;
+      select.appendChild(option);
+    }
+    options.forEach((entry) => {
+      const option = document.createElement('option');
+      option.value = entry.value;
+      option.textContent = entry.label;
+      select.appendChild(option);
+    });
+    const targetValue = selectedValue !== undefined ? selectedValue : current;
+    const hasMatch = options.some((entry) => entry.value === targetValue);
+    select.value = hasMatch ? targetValue : '';
+  }
+
+  function renderAddressPreview(prefix, address) {
+    setText(`${prefix}StreetPreview`, address?.street || '-');
+    setText(`${prefix}CityPreview`, address?.city || '-');
+    setText(`${prefix}CountryPreview`, address?.country || '');
+  }
+
+  function getCustomerNumber(customer) {
+    if (!customer) return '';
+    return (
+      customer.customer_number ||
+      customer.customer_code ||
+      customer.tax_id ||
+      customer.id ||
+      ''
+    );
+  }
+
+  function getCustomerPrimaryContact(customerId) {
+    const contacts = getContactsForCustomer(customerId);
+    if (!contacts.length) return null;
+    const preferred = contacts.find((contact) => contact.is_primary_contact);
+    return preferred || contacts[0];
+  }
+
+  function listDispatchAddresses() {
+    const addresses = Array.isArray(state.addresses) ? state.addresses : [];
+    return addresses.filter((address) => {
+      if (!address) return false;
+      if (address.is_your_company_address) return true;
+      if (address.is_dispatch) return true;
+      if (!address.customer_id) return true;
+      return false;
+    });
+  }
+
+  function getSupplierMetaFromAddress(address) {
+    if (!address) {
+      return { id: '', name: '' };
+    }
+    const id = address.customer_id || address.address_title || address.name || '';
+    const name = address.address_title || address.company || id;
+    return { id, name };
+  }
+
+  function getErpItemByCode(code) {
+    if (!code) return null;
+    const normalized = code.toString().trim().toLowerCase();
+    return (state.erpItems || []).find((item) => {
+      const candidates = [item.item_code, item.name, item.item_name].filter(Boolean);
+      return candidates.some((value) => value.toString().trim().toLowerCase() === normalized);
+    });
+  }
+
+  function resolveItemImage(item) {
+    if (!item) return null;
+    if (item.media?.hero) return item.media.hero;
+    if (item.image) return item.image;
+    const viewer =
+      item.links?.viewer3d ||
+      item.custom_3d_produktlink ||
+      item.custom_3d_link ||
+      item.viewer3d ||
+      '';
+    if (viewer) {
+      const trimmed = viewer.replace(/\/+$/, '');
+      return `${trimmed}/images/0001.webp`;
+    }
+    if (item.gallery?.length) {
+      return item.gallery[0];
+    }
+    return null;
+  }
+
+  function ensureItemCodeSuggestions() {
+    let datalist = document.getElementById('itemCodeSuggestions');
+    if (!datalist) {
+      datalist = document.createElement('datalist');
+      datalist.id = 'itemCodeSuggestions';
+      document.body.appendChild(datalist);
+    }
+    const options = (state.erpItems || [])
+      .map((item) => {
+        const value = item.item_code || item.name;
+        if (!value) return '';
+        const label = [value, item.item_name || item.description || '']
+          .filter(Boolean)
+          .join(' · ');
+        return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+      })
+      .join('');
+    datalist.innerHTML = options;
+  }
+
+  function resolvePositionPreviewImage(position) {
+    if (position?.preview_image) return position.preview_image;
+    if (!position?.item_code) return null;
+    const item = getErpItemByCode(position.item_code);
+    return resolveItemImage(item);
+  }
+
+function applyItemAutoFill(position, itemCode) {
+  const item = getErpItemByCode(itemCode);
+  if (!item) return false;
+  let changed = false;
+  const description = item.item_name || item.description || position.description;
+  if (description && description !== position.description) {
+    position.description = description;
+    changed = true;
+  }
+  const priceEntry = Array.isArray(item.prices) ? item.prices[0] : null;
+  const priceAmount =
+    Number(priceEntry?.amount || priceEntry?.price_list_rate || item.standard_rate || 0) || null;
+  if (priceAmount !== null && priceAmount !== position.rate) {
+    position.rate = priceAmount;
+    changed = true;
+  }
+  if (item.stock_uom && item.stock_uom !== position.uom) {
+    position.uom = item.stock_uom;
+    changed = true;
+  }
+  const resolvedColor =
+    item.color_code ||
+    item.zusammenstellung ||
+    item.custom_farbcodes ||
+    item.custom_farbnr ||
+    null;
+  if (resolvedColor && resolvedColor !== position.color_code) {
+    position.color_code = resolvedColor;
+    changed = true;
+  }
+  const viewerImage = resolveItemImage(item);
+  if (viewerImage && position.preview_image !== viewerImage) {
+    position.preview_image = viewerImage;
+    changed = true;
+  }
+  const itemSizes = item.__parsed_sizes || null;
+  let normalizedItemSizes = null;
+  if (itemSizes) {
+    normalizedItemSizes = Object.keys(itemSizes);
+  } else if (Array.isArray(item.sizes) && item.sizes.length) {
+    normalizedItemSizes = item.sizes.map((entry) => entry.toString());
+  }
+  if (normalizedItemSizes && normalizedItemSizes.length) {
+    const sortedSizes = sortSizeKeys(normalizedItemSizes);
+    const nextBreakdown = {};
+    sortedSizes.forEach((size) => {
+      nextBreakdown[size] = position.size_breakdown?.[size] ?? '';
+    });
+    const existingKeys = Object.keys(position.size_breakdown || {});
+    const hasSizeChange =
+      existingKeys.length !== Object.keys(nextBreakdown).length ||
+      existingKeys.some((key) => !(key in nextBreakdown));
+    if (hasSizeChange) {
+      position.size_breakdown = nextBreakdown;
+      syncQuantityFromSizes(position);
+      changed = true;
+    }
+  }
+  position.item_name = item.item_name || position.item_name;
+  return changed;
+}
+
+  function collectSizesFromPosition(position) {
+    const sizes = new Set();
+    Object.keys(position?.size_breakdown || {}).forEach((size) => {
+      const key = size?.toString().trim();
+      if (key) sizes.add(key);
+    });
+    if (sizes.size === 0 && position?.item_code) {
+      const item = getErpItemByCode(position.item_code);
+      if (item?.__parsed_sizes) {
+        Object.keys(item.__parsed_sizes).forEach((size) => sizes.add(size));
+      }
+    }
+    return sizes;
+  }
+
+  function getDraftSizeColumns(positions = []) {
+    const collected = new Set();
+    positions.forEach((pos) => {
+      collectSizesFromPosition(pos).forEach((size) => collected.add(size));
+    });
+    if (!collected.size) {
+      SIZE_COLUMNS.forEach((size) => collected.add(size));
+    }
+    return sortSizeKeys(Array.from(collected));
+  }
+
+  function sortSizeKeys(sizeList = []) {
+    const cleaned = Array.from(new Set(sizeList.filter(Boolean).map((size) => size.toString().trim())));
+    cleaned.sort((a, b) => {
+      const numA = Number(a);
+      const numB = Number(b);
+      if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+        return numA - numB;
+      }
+      return a.localeCompare(b);
+    });
+    return cleaned;
+  }
+
+  function sumSizeQuantity(breakdown = {}) {
+    return Object.values(breakdown).reduce((acc, value) => {
+      if (value === '' || value === null || value === undefined) return acc;
+      const numeric = Number(value);
+      if (Number.isNaN(numeric)) return acc;
+      return acc + numeric;
+    }, 0);
+  }
+
+  function syncQuantityFromSizes(position, card) {
+    const total = sumSizeQuantity(position.size_breakdown);
+    position.quantity = total;
+    if (card) {
+      const qtyInput = card.querySelector('input[data-field="quantity"]');
+      if (qtyInput) qtyInput.value = total || '';
+    }
+    return total;
+  }
+
   async function initBestellung() {
     const backButton = document.getElementById('backToList');
     const [orders, customers, addresses, contacts, erpItems] = await Promise.all([
@@ -1655,11 +2837,765 @@ function deriveSizeList(order) {
     }
   }
 
+function getCustomerById(customerId) {
+  if (!customerId) return null;
+  return (state.customers || []).find((customer) => customer.id === customerId) || null;
+}
+
+function getCompanyConfig(companyValue) {
+  if (!COMPANY_CONFIG.length) return null;
+  if (!companyValue) return COMPANY_CONFIG[0];
+  return COMPANY_CONFIG.find((entry) => entry.value === companyValue) || COMPANY_CONFIG[0];
+}
+
+function getContactsForCustomer(customerId) {
+  if (!customerId) return [];
+  return (state.contacts || []).filter((contact) => contact.customer_id === customerId);
+}
+
+function getAddressesForCustomer(customerId) {
+  if (!customerId) return [];
+  return (state.addresses || []).filter((address) => address.customer_id === customerId);
+}
+
+function buildDraftFromOrder(order) {
+  const draft = buildEmptyOrderDraft();
+  if (!order) return draft;
+  draft.order_number = order.order_number || order.id || '';
+  draft.order_type = order.order_type || draft.order_type;
+  draft.requested_delivery = order.requested_delivery || '';
+  draft.portal_status = order.portal_status || draft.portal_status;
+  draft.naming_series = order.naming_series || draft.naming_series;
+  draft.company = order.company || draft.company;
+  draft.customer_id = order.customer_id || '';
+  draft.customer_number =
+    order.customer_snapshot?.id || order.customer_id || draft.customer_number;
+  draft.billing_address_id = order.billing_address_id || '';
+  draft.shipping_address_id = order.shipping_address_id || '';
+  draft.dispatch_address_id = order.dispatch_address_id || '';
+  draft.supplier_id = order.supplier_id || draft.supplier_id;
+  draft.supplier_name = order.supplier_name || draft.supplier_name;
+  draft.contact_id = order.contact_id || '';
+  draft.contact_name = order.contact?.name || order.contact_name || '';
+  draft.contact_email = order.contact?.email || order.contact_email || '';
+  draft.contact_phone = order.contact?.phone || order.contact_phone || '';
+  const shipping = order.shipping || {};
+  draft.shipping_payer = shipping.payer === 'KUNDE' ? 'KUNDE' : 'BATE';
+  draft.shipping_method = shipping.method || 'Spedition';
+  draft.shipping_packaging = shipping.packaging || '';
+  draft.shipping_pickup = Boolean(shipping.pickup);
+  draft.tax_template = order.taxes_and_charges || order.tax_template || draft.tax_template;
+  draft.currency = order.currency || draft.currency;
+  draft.positions = (order.positions || []).map((pos) => ({
+    item_code: pos.item_code || '',
+    description: pos.description || '',
+    color_code: pos.color_code || '',
+    quantity: pos.quantity ?? '',
+    rate: pos.rate ?? '',
+    amount: typeof pos.amount === 'number' ? pos.amount : null,
+    size_breakdown: { ...(pos.size_breakdown || {}) },
+    schedule_date: pos.schedule_date || order.requested_delivery || ''
+  }));
+  return draft;
+}
+
+function toPreviewAddress(record) {
+  if (!record) return null;
+  const street = record.street || record.address_line1 || '';
+  const zip = record.zip || record.pincode || '';
+  const cityName = record.city || '';
+    const city = zip && cityName ? `${zip} ${cityName}` : cityName || zip || '';
+    return {
+      street,
+      city,
+      country: record.country || ''
+    };
+  }
+
+function populateOrderCreateSelects(draft) {
+    populateSelectOptions(
+      document.getElementById('customerSelect'),
+      (state.customers || []).map((customer) => ({
+        value: customer.id,
+        label: customer.name || customer.customer_name || customer.id
+      })),
+      'Kunde auswählen',
+      draft.customer_id || ''
+    );
+    populateSelectOptions(
+      document.getElementById('orderSeriesSelect'),
+      ORDER_SERIES_OPTIONS.map((series) => ({ value: series, label: series })),
+      'Nummernkreis wählen',
+      draft.naming_series || ORDER_SERIES_OPTIONS[0] || ''
+    );
+    populateSelectOptions(
+      document.getElementById('orderCompanySelect'),
+      COMPANY_OPTIONS.map((company) => ({ value: company, label: company })),
+      'Unternehmen wählen',
+      draft.company || COMPANY_OPTIONS[0] || ''
+    );
+  }
+
+  function populateCustomerDependentSelects(customerId, draft, { autoSelect = false } = {}) {
+    const addresses = getAddressesForCustomer(customerId);
+    const options = addresses.map((address) => ({
+      value: address.id || address.name,
+      label: formatAddressLabel(address)
+    }));
+    populateSelectOptions(
+      document.getElementById('billingAddressSelect'),
+      options,
+      'Rechnungsadresse auswählen',
+      draft.billing_address_id || ''
+    );
+    populateSelectOptions(
+      document.getElementById('shippingAddressSelect'),
+      options,
+      'Lieferadresse auswählen',
+      draft.shipping_address_id || ''
+    );
+    if (autoSelect) {
+      if (!draft.billing_address_id && options.length) {
+        draft.billing_address_id = options[0].value;
+      }
+      if (!draft.shipping_address_id && options.length) {
+        draft.shipping_address_id = options[0].value;
+        renderAddressPreview('delivery', toPreviewAddress(getAddressById(draft.shipping_address_id)));
+      }
+    }
+    populateSelectOptions(
+      document.getElementById('contactSelect'),
+      getContactsForCustomer(customerId).map((contact) => ({
+        value: contact.id || contact.name,
+        label: contact.full_name || contact.name || contact.email || 'Kontakt'
+      })),
+      'Ansprechpartner (optional)',
+      draft.contact_id || ''
+    );
+    let contact = getContactsForCustomer(customerId).find((entry) => entry.id === draft.contact_id);
+    if (!contact && autoSelect) {
+      contact = getCustomerPrimaryContact(customerId);
+      if (contact) {
+        draft.contact_id = contact.id || contact.name;
+      }
+    }
+    if (contact) {
+      setInputValue('contactNameInput', contact.full_name || contact.name || '');
+      setInputValue('contactEmailInput', contact.email || '');
+      setInputValue('contactPhoneInput', contact.phone || '');
+      draft.contact_name = contact.full_name || contact.name || '';
+      draft.contact_email = contact.email || '';
+      draft.contact_phone = contact.phone || '';
+    }
+  }
+
+  function applyCompanyDefaults(draft, { ensureDispatch = true, force = false } = {}) {
+    const config = getCompanyConfig(draft.company);
+    if (config) {
+      draft.company = config.value;
+      if ((force || !draft.supplier_id) && config.supplierId) {
+        draft.supplier_id = config.supplierId;
+      }
+      if ((force || !draft.supplier_name) && config.supplierName) {
+        draft.supplier_name = config.supplierName;
+      }
+      if (ensureDispatch && (force || !draft.dispatch_address_id) && config.dispatchAddressId) {
+        draft.dispatch_address_id = config.dispatchAddressId;
+      }
+      return config;
+    }
+    return null;
+  }
+
+  function ensureDispatchDefaults(draft) {
+    if (draft.dispatch_address_id) {
+      const existing = getAddressById(draft.dispatch_address_id);
+      if (existing) return existing;
+    }
+    const config = applyCompanyDefaults(draft, { ensureDispatch: true });
+    if (config?.dispatchAddressId) {
+      const address = getAddressById(config.dispatchAddressId);
+      if (address) return address;
+    }
+    const dispatchAddresses = listDispatchAddresses();
+    if (dispatchAddresses.length) {
+      const address = dispatchAddresses[0];
+      draft.dispatch_address_id = address.id || address.name;
+      if (!draft.supplier_id) {
+        const supplierMeta = getSupplierMetaFromAddress(address);
+        draft.supplier_id = supplierMeta.id;
+        draft.supplier_name = supplierMeta.name;
+      }
+      return address;
+    }
+    return null;
+  }
+
+  function hydrateOrderCreateForm() {
+    const draft = ensureOrderDraft();
+    const isEditing = isEditingExistingOrder();
+    populateOrderCreateSelects(draft);
+    populateCustomerDependentSelects(draft.customer_id, draft, {
+      autoSelect: !draft.billing_address_id || !draft.shipping_address_id
+    });
+    const customer = getCustomerById(draft.customer_id);
+    setInputValue('orderNumberInput', draft.order_number || '');
+    setInputValue('orderDeliveryInput', draft.requested_delivery || '');
+    setInputValue('orderTypeInput', draft.order_type || '');
+    updateOrderTypeBadgeDisplay(draft.order_type || '');
+    setInputValue('orderStatusInput', draft.portal_status || 'ORDER_EINGEREICHT');
+    setInputValue('orderSeriesSelect', draft.naming_series || ORDER_SERIES_OPTIONS[0] || '');
+    setInputValue('orderCompanySelect', draft.company || COMPANY_OPTIONS[0] || '');
+    const inferredCustomerNumber = draft.customer_number || getCustomerNumber(customer);
+    draft.customer_number = inferredCustomerNumber || '';
+    setInputValue('customerNumberInput', inferredCustomerNumber || '');
+    setInputValue('contactNameInput', draft.contact_name || '');
+    setInputValue('contactEmailInput', draft.contact_email || '');
+    setInputValue('contactPhoneInput', draft.contact_phone || '');
+    setInputValue('shippingPayerSelect', draft.shipping_payer || 'BATE');
+    setInputValue('shippingMethodInput', draft.shipping_method || 'Spedition');
+    setInputValue('shippingPackagingInput', draft.shipping_packaging || '');
+    setInputValue('shippingPickupInput', Boolean(draft.shipping_pickup));
+    setText('customerTaxPreview', customer?.tax_id || draft.customer_tax_id || '-');
+    ensureDispatchDefaults(draft);
+    const orderNumberInput = document.getElementById('orderNumberInput');
+    if (orderNumberInput) {
+      orderNumberInput.disabled = isEditing;
+    }
+    const seriesSelect = document.getElementById('orderSeriesSelect');
+    if (seriesSelect) {
+      seriesSelect.disabled = isEditing;
+    }
+    const submitButton = document.getElementById('submitOrderCreate');
+    if (submitButton) {
+      submitButton.textContent = isEditing ? 'Änderungen speichern' : 'Bestellung speichern';
+    }
+    renderAddressPreview(
+      'delivery',
+      toPreviewAddress(getAddressById(draft.shipping_address_id)) || { street: '-', city: '-', country: '' }
+    );
+  }
+
+  function bindOrderCreateFormEvents() {
+    const draft = ensureOrderDraft();
+    document.getElementById('orderNumberInput')?.addEventListener('input', (event) => {
+      draft.order_number = event.target.value.trim();
+      scheduleDraftPersist();
+    });
+    document.getElementById('orderTypeInput')?.addEventListener('change', (event) => {
+      draft.order_type = event.target.value;
+      updateOrderTypeBadgeDisplay(event.target.value);
+      scheduleDraftPersist();
+    });
+    document.getElementById('orderSeriesSelect')?.addEventListener('change', (event) => {
+      draft.naming_series = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('orderCompanySelect')?.addEventListener('change', (event) => {
+      draft.company = event.target.value;
+      applyCompanyDefaults(draft, { ensureDispatch: true, force: true });
+      scheduleDraftPersist();
+    });
+    document.getElementById('orderDeliveryInput')?.addEventListener('change', (event) => {
+      draft.requested_delivery = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('orderStatusInput')?.addEventListener('change', (event) => {
+      draft.portal_status = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('customerNumberInput')?.addEventListener('input', (event) => {
+      draft.customer_number = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('customerSelect')?.addEventListener('change', (event) => {
+      draft.customer_id = event.target.value;
+      const customer = getCustomerById(event.target.value);
+      const taxId = customer?.tax_id || '-';
+      const customerNumber = getCustomerNumber(customer);
+      draft.customer_number = customerNumber;
+      setInputValue('customerNumberInput', customerNumber);
+      setText('customerTaxPreview', taxId);
+      populateCustomerDependentSelects(event.target.value, draft, { autoSelect: true });
+      scheduleDraftPersist();
+    });
+    document.getElementById('billingAddressSelect')?.addEventListener('change', (event) => {
+      draft.billing_address_id = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('shippingAddressSelect')?.addEventListener('change', (event) => {
+      draft.shipping_address_id = event.target.value;
+      renderAddressPreview('delivery', toPreviewAddress(getAddressById(event.target.value)));
+      scheduleDraftPersist();
+    });
+    document.getElementById('contactSelect')?.addEventListener('change', (event) => {
+      draft.contact_id = event.target.value;
+      const contact = (state.contacts || []).find((entry) => entry.id === event.target.value);
+      if (contact) {
+        setInputValue('contactNameInput', contact.full_name || contact.name || '');
+        setInputValue('contactEmailInput', contact.email || '');
+        setInputValue('contactPhoneInput', contact.phone || '');
+        draft.contact_name = contact.full_name || contact.name || '';
+        draft.contact_email = contact.email || '';
+        draft.contact_phone = contact.phone || '';
+      } else if (!event.target.value) {
+        draft.contact_name = '';
+        draft.contact_email = '';
+        draft.contact_phone = '';
+        setInputValue('contactNameInput', '');
+        setInputValue('contactEmailInput', '');
+        setInputValue('contactPhoneInput', '');
+      }
+      scheduleDraftPersist();
+    });
+    ['contactNameInput', 'contactEmailInput', 'contactPhoneInput'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('input', (event) => {
+        draft[event.target.name] = event.target.value;
+        scheduleDraftPersist();
+      });
+    });
+    document.getElementById('shippingPayerSelect')?.addEventListener('change', (event) => {
+      draft.shipping_payer = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('shippingMethodInput')?.addEventListener('input', (event) => {
+      draft.shipping_method = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('shippingPackagingInput')?.addEventListener('input', (event) => {
+      draft.shipping_packaging = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('shippingPickupInput')?.addEventListener('change', (event) => {
+      draft.shipping_pickup = event.target.checked;
+      scheduleDraftPersist();
+    });
+    document.getElementById('addPositionBtn')?.addEventListener('click', () => {
+      const newPosition = {
+        position_id: `POS-${(draft.positions?.length || 0) + 1}`,
+        item_code: '',
+        description: '',
+        color_code: '',
+        quantity: '',
+        rate: '',
+        amount: null,
+        size_breakdown: {}
+      };
+      draft.positions = [...(draft.positions || []), newPosition];
+      renderPositionsEditor();
+      updateDraftTotalsOutputs(draft.currency);
+      scheduleDraftPersist();
+    });
+    document.getElementById('importPositionsBtn')?.addEventListener('click', () => {
+      showToast(translateTemplate('Positionsimport wird später ergänzt.'));
+    });
+    const isEditing = isEditingExistingOrder();
+    const cancelButton = document.getElementById('cancelCreateOrder');
+    if (cancelButton && !cancelButton.dataset.bound) {
+      cancelButton.addEventListener('click', () => {
+        if (isEditingExistingOrder() && state.orderDraftEditingId) {
+          window.location.href = `/bestellung.html?order=${encodeURIComponent(state.orderDraftEditingId)}`;
+        } else {
+          window.location.href = '/bestellungen.html';
+        }
+      });
+      cancelButton.dataset.bound = 'true';
+    }
+    const discardButton = document.getElementById('discardOrderDraft');
+    if (discardButton) {
+      discardButton.textContent = translateTemplate(isEditing ? 'Änderungen verwerfen' : 'Entwurf verwerfen');
+      if (!discardButton.dataset.bound) {
+        discardButton.addEventListener('click', () => {
+          if (isEditingExistingOrder() && state.orderDraftEditingId) {
+            window.location.href = `/bestellung.html?order=${encodeURIComponent(state.orderDraftEditingId)}`;
+          } else {
+            clearOrderDraftStorage();
+            state.orderDraft = buildEmptyOrderDraft();
+            hydrateOrderCreateForm();
+            renderPositionsEditor();
+            updateDraftTotalsOutputs();
+            showToast(translateTemplate('Entwurf wurde verworfen.'));
+          }
+        });
+        discardButton.dataset.bound = 'true';
+      }
+    }
+    const saveDraftButton = document.getElementById('saveDraftOrder');
+    if (saveDraftButton) {
+      if (isEditing) {
+        saveDraftButton.classList.add('hidden');
+      } else {
+        saveDraftButton.classList.remove('hidden');
+        if (!saveDraftButton.dataset.bound) {
+          saveDraftButton.addEventListener('click', () => {
+            persistDraftImmediately();
+            showToast(translateTemplate('Entwurf gespeichert.'));
+          });
+          saveDraftButton.dataset.bound = 'true';
+        }
+      }
+    }
+    const submitButton = document.getElementById('submitOrderCreate');
+    if (submitButton) {
+      submitButton.addEventListener('click', async () => {
+        if (submitButton.dataset.loading === 'true') return;
+        const payload = buildOrderCreatePayloadForSubmit();
+        const errors = validateOrderCreatePayload(payload);
+        if (errors.length) {
+          showToast(errors[0]);
+          return;
+        }
+        const initialLabel = submitButton.textContent;
+        submitButton.dataset.loading = 'true';
+        submitButton.disabled = true;
+        submitButton.textContent = translateTemplate('Speichern …');
+        try {
+          if (isEditingExistingOrder() && state.orderDraftEditingId) {
+            const targetId = state.orderDraftEditingId;
+            const result = await request(`/api/orders/${encodeURIComponent(targetId)}`, {
+              method: 'PATCH',
+              body: { full_update: payload }
+            });
+            showToast(translateTemplate('Bestellung aktualisiert'));
+            state.orderDraftEditingId = null;
+            window.location.href = `/bestellung.html?order=${encodeURIComponent(result?.id || targetId)}`;
+            return;
+          }
+          const result = await request('/api/orders', { method: 'POST', body: payload });
+          clearOrderDraftStorage();
+          showToast(translateTemplate('Bestellung angelegt'));
+          if (result?.id) {
+            window.location.href = `/bestellung.html?order=${encodeURIComponent(result.id)}`;
+          } else {
+            window.location.href = '/bestellungen.html';
+          }
+        } catch (err) {
+          showToast(err.message);
+        } finally {
+          submitButton.dataset.loading = 'false';
+          submitButton.disabled = false;
+          submitButton.textContent = initialLabel;
+        }
+      });
+    }
+  }
+
+  function renderPositionsEditor() {
+    const container = document.getElementById('positionsEditor');
+    if (!container) return;
+    const draft = ensureOrderDraft();
+    const positions = draft.positions || [];
+    if (!positions.length) {
+      container.innerHTML = `<p class="muted">${escapeHtml(translateTemplate('Noch keine Positionen angelegt.'))}</p>`;
+      return;
+    }
+    const fallbackSizes = getDraftSizeColumns(positions);
+    const cards = positions
+      .map((pos, index) => {
+        const previewImage = resolvePositionPreviewImage(pos);
+        const ownSizes = sortSizeKeys(Array.from(collectSizesFromPosition(pos)));
+        const sizeColumns = ownSizes.length ? ownSizes : fallbackSizes;
+        const sizeInputs = sizeColumns
+          .map(
+            (size) => `
+              <label class="size-input" data-size="${size}">
+                <span>${size}</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  data-size="${size}"
+                  placeholder="0"
+                  value="${pos.size_breakdown?.[size] ?? ''}"
+                />
+              </label>`
+          )
+          .join('');
+        const amount =
+          typeof pos.amount === 'number'
+            ? pos.amount
+            : (Number(pos.quantity) || 0) * (Number(pos.rate) || 0);
+        return `
+          <article class="position-edit-card" data-index="${index}">
+            <header class="position-edit-card-head">
+              <div>
+                <span class="muted">Position</span>
+                <strong>${index + 1}</strong>
+              </div>
+              <button type="button" class="ghost remove-position-btn" data-action="remove-position" aria-label="Position entfernen">
+                ${TRASH_ICON_SVG}
+              </button>
+            </header>
+            <div class="position-edit-body">
+              <div class="position-edit-fields">
+                <label>
+                  Artikelnummer
+                  <input type="text" data-field="item_code" list="itemCodeSuggestions" placeholder="Artikelnummer" value="${pos.item_code || ''}" />
+                </label>
+                <label>
+                  Farbcode
+                  <input type="text" data-field="color_code" placeholder="Farbcode" value="${pos.color_code || ''}" />
+                </label>
+                <label>
+                  Menge
+                  <input type="number" min="0" step="1" data-field="quantity" placeholder="0" value="${pos.quantity ?? ''}" />
+                </label>
+                <label>
+                  Einzelpreis (netto)
+                  <input type="number" min="0" step="0.01" data-field="rate" placeholder="0,00" value="${pos.rate ?? ''}" />
+                </label>
+                <label>
+                  Gesamt
+                  <output data-role="position-total">${amount ? formatMoney(amount, draft.currency) : '-'}</output>
+                </label>
+              </div>
+              <div class="position-edit-image">
+                ${
+                  previewImage
+                    ? `<img src="${previewImage}" alt="${escapeHtml(pos.item_code || 'Artikel')}" loading="lazy" />`
+                    : '<span class="muted">Kein Bild</span>'
+                }
+              </div>
+            </div>
+            <div class="position-edit-sizes">
+              ${sizeInputs}
+            </div>
+          </article>`;
+      })
+      .join('');
+    container.innerHTML = `<div class="position-card-list">${cards}</div>`;
+    bindPositionsEditorEvents();
+  }
+
+  function bindPositionsEditorEvents() {
+    const container = document.getElementById('positionsEditor');
+    if (!container || container.dataset.bound) return;
+    container.dataset.bound = 'true';
+    container.addEventListener('input', handlePositionEditorInput);
+    container.addEventListener('click', handlePositionEditorClick);
+  }
+
+  function handlePositionEditorInput(event) {
+    const card = event.target.closest('[data-index]');
+    if (!card) return;
+    const index = Number(card.dataset.index);
+    const draft = ensureOrderDraft();
+    const position = draft.positions[index];
+    if (!position) return;
+    const field = event.target.dataset.field;
+    if (field) {
+      if (field === 'quantity' || field === 'rate') {
+        const value = event.target.value === '' ? '' : Number(event.target.value);
+        position[field] = value;
+      } else if (field === 'item_code') {
+        position[field] = event.target.value;
+        const applied = applyItemAutoFill(position, event.target.value);
+        if (applied) {
+          const qtyAuto = Number(position.quantity) || 0;
+          const rateAuto = Number(position.rate) || 0;
+          position.amount = qtyAuto && rateAuto ? qtyAuto * rateAuto : null;
+          renderPositionsEditor();
+          updateDraftTotalsOutputs(draft.currency);
+          scheduleDraftPersist();
+          return;
+        }
+      } else {
+        position[field] = event.target.value;
+      }
+    }
+    const sizeKey = event.target.dataset.size;
+    if (sizeKey) {
+      position.size_breakdown = position.size_breakdown || {};
+      position.size_breakdown[sizeKey] = event.target.value === '' ? '' : Number(event.target.value);
+      syncQuantityFromSizes(position, card);
+    }
+    const qty = Number(position.quantity) || 0;
+    const rate = Number(position.rate) || 0;
+    position.amount = qty && rate ? qty * rate : null;
+    const totalCell = card.querySelector('[data-role="position-total"]');
+    if (totalCell) {
+      totalCell.textContent = position.amount ? formatMoney(position.amount, draft.currency) : '-';
+    }
+    scheduleDraftPersist();
+    updateDraftTotalsOutputs(draft.currency);
+  }
+
+  function handlePositionEditorClick(event) {
+    const trigger = event.target.closest('[data-action]');
+    if (!trigger) return;
+    const action = trigger.dataset.action;
+    const card = trigger.closest('[data-index]');
+    if (!card) return;
+    const index = Number(card.dataset.index);
+    const draft = ensureOrderDraft();
+    if (action === 'remove-position') {
+      draft.positions.splice(index, 1);
+      renderPositionsEditor();
+      updateDraftTotalsOutputs(draft.currency);
+      scheduleDraftPersist();
+    }
+  }
+
+  function buildOrderCreatePayloadForSubmit() {
+    const draft = ensureOrderDraft();
+    ensureDispatchDefaults(draft);
+    const payload = {
+      order_number: draft.order_number || undefined,
+      order_type: draft.order_type || 'BESTELLUNG',
+      requested_delivery: draft.requested_delivery || '',
+      portal_status: draft.portal_status || 'ORDER_EINGEREICHT',
+      naming_series: draft.naming_series || ORDER_SERIES_OPTIONS[0] || '',
+      company: draft.company || COMPANY_OPTIONS[0] || '',
+      customer_id: draft.customer_id || '',
+      customer_number: draft.customer_number || '',
+      billing_address_id: draft.billing_address_id || '',
+      shipping_address_id: draft.shipping_address_id || '',
+      dispatch_address_id: draft.dispatch_address_id || '',
+      supplier_id: draft.supplier_id || '',
+      supplier_name: draft.supplier_name || '',
+      contact_id: draft.contact_id || '',
+      contact_name: draft.contact_name || '',
+      contact_email: draft.contact_email || '',
+      contact_phone: draft.contact_phone || '',
+      shipping_payer: draft.shipping_payer || 'BATE',
+      shipping_method: draft.shipping_method || 'Spedition',
+      shipping_packaging: draft.shipping_packaging || '',
+      shipping_pickup: Boolean(draft.shipping_pickup),
+      tax_template: draft.tax_template || '',
+      currency: draft.currency || 'EUR',
+      positions: []
+    };
+    payload.positions = (draft.positions || [])
+      .map((position) => {
+        const sizeBreakdown = {};
+        Object.entries(position.size_breakdown || {}).forEach(([size, value]) => {
+          if (value === '' || value === null || value === undefined) return;
+          const numeric = Number(value);
+          if (Number.isNaN(numeric)) return;
+          sizeBreakdown[size] = numeric;
+        });
+        const quantity = Number(position.quantity) || 0;
+        const rate = Number(position.rate) || 0;
+        const computedAmount = typeof position.amount === 'number' ? position.amount : quantity * rate;
+        const amount = Number.isFinite(computedAmount) ? computedAmount : null;
+        return {
+          item_code: position.item_code?.trim() || '',
+          description: position.description || '',
+          color_code: position.color_code || '',
+          quantity,
+          rate,
+          amount,
+          size_breakdown: sizeBreakdown,
+          schedule_date: position.schedule_date || draft.requested_delivery || '',
+          uom: position.uom || '',
+          warehouse: position.warehouse || '',
+          supplier_part_no: position.supplier_part_no || ''
+        };
+      })
+      .filter((pos) => pos.item_code && pos.quantity > 0);
+    return payload;
+  }
+
+  function validateOrderCreatePayload(payload) {
+    const t = (key) => translateTemplate(key);
+    const errors = [];
+    if (!payload.order_type) {
+      errors.push(t('Bitte eine Bestellart wählen.'));
+    }
+    if (!payload.requested_delivery) {
+      errors.push(t('Bitte ein Lieferdatum festlegen.'));
+    }
+    if (!payload.customer_id) {
+      errors.push(t('Bitte einen Kunden wählen.'));
+    }
+    if (!payload.billing_address_id) {
+      errors.push(t('Bitte eine Rechnungsadresse wählen.'));
+    }
+    if (!payload.shipping_address_id) {
+      errors.push(t('Bitte eine Lieferadresse wählen.'));
+    }
+    if (!payload.dispatch_address_id) {
+      errors.push(t('Bitte einen Absender wählen.'));
+    }
+    if (!payload.shipping_method) {
+      errors.push(t('Bitte eine Transportart angeben.'));
+    }
+    if (!payload.portal_status) {
+      errors.push(t('Bitte einen Status setzen.'));
+    }
+    if (!payload.naming_series) {
+      errors.push(t('Bitte einen Nummernkreis wählen.'));
+    }
+    if (!payload.company) {
+      errors.push(t('Bitte ein Unternehmen auswählen.'));
+    }
+    if (!payload.positions.length) {
+      errors.push(t('Mindestens eine Position mit Artikelnummer und Menge ist erforderlich.'));
+    }
+    return errors;
+  }
+
+  async function initBestellungNeu() {
+    const params = new URLSearchParams(window.location.search);
+    const editingOrderId = params.get('order');
+    state.orderDraftEditingId = editingOrderId || null;
+    const isEditing = Boolean(editingOrderId);
+    setBreadcrumbLabel(isEditing ? translateTemplate('Bestellung bearbeiten') : translateTemplate('Bestellung anlegen'));
+    const backButton = document.getElementById('backToList');
+    if (backButton) {
+      backButton.addEventListener('click', () => {
+        if (isEditing && state.orderDraftEditingId) {
+          window.location.href = `/bestellung.html?order=${encodeURIComponent(state.orderDraftEditingId)}`;
+        } else {
+          window.location.href = '/bestellungen.html';
+        }
+      });
+    }
+    const isDraftMode = params.get('draft') === '1';
+    const forceFresh = params.get('fresh') === '1' || (!isDraftMode && !isEditing);
+
+    try {
+      const [customers, addresses, contacts, items] = await Promise.all([
+        request('/api/erp/customers'),
+        request('/api/erp/addresses'),
+        request('/api/erp/contacts'),
+        request('/api/erp/items')
+      ]);
+      state.customers = customers;
+      state.addresses = addresses;
+      state.contacts = contacts;
+      state.erpItems = items;
+      ensureItemCodeSuggestions();
+    } catch (err) {
+      showToast(err.message || translateTemplate('Stammdaten konnten nicht geladen werden.'));
+      return;
+    }
+    if (isEditing) {
+      try {
+        const existingOrder = await request(`/api/orders/${editingOrderId}`);
+        state.orderDraft = buildDraftFromOrder(existingOrder);
+      } catch (err) {
+        showToast(err.message || translateTemplate('Bestellung konnte nicht geladen werden.'));
+        state.orderDraftEditingId = null;
+        state.orderDraft = buildEmptyOrderDraft();
+      }
+    } else if (forceFresh) {
+      clearOrderDraftStorage();
+      state.orderDraft = buildEmptyOrderDraft();
+    } else {
+      state.orderDraft = loadOrderDraftFromStorage() || buildEmptyOrderDraft();
+    }
+    hydrateOrderCreateForm();
+    bindOrderCreateFormEvents();
+    renderPositionsEditor();
+    updateDraftTotalsOutputs(state.orderDraft.currency);
+  }
+
   async function initEtikettenPage() {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order');
     if (!orderId) {
-      showToast('Keine Bestellung ausgewählt');
+      showToast(translateTemplate('Keine Bestellung ausgewählt'));
       return;
     }
     try {
@@ -1691,13 +3627,22 @@ function deriveSizeList(order) {
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('order');
     if (!orderId) {
-      showToast('Keine Bestellung ausgewählt');
+      showToast(translateTemplate('Keine Bestellung ausgewählt'));
       return;
     }
     try {
       const [order, erpItems] = await Promise.all([request(`/api/orders/${orderId}`), request('/api/erp/items')]);
       state.selectedOrder = order;
       state.erpItems = erpItems;
+      const inferredYear = order.requested_delivery ? new Date(order.requested_delivery).getFullYear() : null;
+      if (Number.isFinite(inferredYear)) {
+        state.shoeboxYear = inferredYear;
+      } else if (!Number.isFinite(state.shoeboxYear)) {
+        state.shoeboxYear = new Date().getFullYear();
+      }
+      if (!state.shoeboxSeason || !SHOEBOX_SEASON_CHOICES.includes(state.shoeboxSeason)) {
+        state.shoeboxSeason = 'FS';
+      }
       const badge = document.getElementById('shoeboxOrderNumber');
       if (badge) badge.textContent = order.order_number || order.id;
       const backButton = document.getElementById('backToBestellung');
@@ -1717,9 +3662,921 @@ function deriveSizeList(order) {
     }
   }
 
+  function buildEmptyProformaItem() {
+    return {
+      articleNumber: '',
+      color: '',
+      description: '',
+      size: '',
+      materialUpper: '',
+      materialLining: '',
+      materialSole: '',
+      customsCode: '',
+      producer: COMPANY_CONFIG[0]?.label || 'BATE GmbH',
+      quantity: 0,
+      unitType: 'PAIR',
+      unitPrice: 0,
+      purchasePrice: 0,
+      declaredValue: 0,
+      vatRate: 0,
+      imageData: ''
+    };
+  }
+
+  function buildDefaultProformaDraft() {
+    return {
+      meta: {
+        id: null,
+        number: null
+      },
+      document: {
+        reference: '',
+        invoiceNumber: '',
+        date: new Date().toISOString().slice(0, 10),
+        currency: 'EUR',
+        paymentTerms: 'Vorkasse'
+      },
+      seller: {
+        ...DEFAULT_SELLER_DETAILS,
+        address: composePartyAddress(DEFAULT_SELLER_DETAILS),
+        contact: composePartyContact(DEFAULT_SELLER_DETAILS)
+      },
+      buyer: {
+        ...DEFAULT_BUYER_DETAILS,
+        address: composePartyAddress(DEFAULT_BUYER_DETAILS),
+        contact: composePartyContact(DEFAULT_BUYER_DETAILS)
+      },
+      shipping: {
+        transportedBy: '',
+        shipmentInfo: '',
+        place: 'ISTANBUL GÜNGÖREN'
+      },
+      items: [buildEmptyProformaItem()]
+    };
+  }
+
+  function ensureProformaDraft() {
+    if (!state.proformaDraft) {
+      state.proformaDraft = buildDefaultProformaDraft();
+    }
+    if (!Array.isArray(state.proformaDraft.items) || !state.proformaDraft.items.length) {
+      state.proformaDraft.items = [buildEmptyProformaItem()];
+    }
+    if (!state.proformaDraft.meta) {
+      state.proformaDraft.meta = { id: null, number: null };
+    }
+    state.proformaDraft.seller = hydratePartyDraft(state.proformaDraft.seller, DEFAULT_SELLER_DETAILS);
+    state.proformaDraft.buyer = hydratePartyDraft(state.proformaDraft.buyer, DEFAULT_BUYER_DETAILS);
+    state.proformaDraft.shipping = {
+      ...buildDefaultProformaDraft().shipping,
+      ...(state.proformaDraft.shipping || {})
+    };
+    state.proformaDraft.items = state.proformaDraft.items.map((item) => ({
+      ...buildEmptyProformaItem(),
+      ...item
+    }));
+  }
+
+  function getProformaDraftValue(path) {
+    if (!path || !state.proformaDraft) return '';
+    return path.split('.').reduce((acc, key) => {
+      if (acc && Object.prototype.hasOwnProperty.call(acc, key)) {
+        return acc[key];
+      }
+      return '';
+    }, state.proformaDraft);
+  }
+
+  function setProformaDraftValue(path, value) {
+    if (!path) return;
+    ensureProformaDraft();
+    const keys = path.split('.');
+    let cursor = state.proformaDraft;
+    for (let i = 0; i < keys.length - 1; i += 1) {
+      const key = keys[i];
+      if (!cursor[key] || typeof cursor[key] !== 'object') {
+        cursor[key] = {};
+      }
+      cursor = cursor[key];
+    }
+    cursor[keys[keys.length - 1]] = value;
+  }
+
+  function hydrateProformaForm() {
+    const form = document.getElementById('proformaForm');
+    if (!form) return;
+    ensureProformaDraft();
+    form.querySelectorAll('[data-bind]').forEach((element) => {
+      const value = getProformaDraftValue(element.dataset.bind);
+      element.value = value || '';
+    });
+    renderProformaItems();
+    updateProformaTotals();
+    updateProformaMetaUi();
+    updateProformaActionState();
+    bindPresetButtons();
+    applyFormMode();
+  }
+
+  function bindProformaFormEvents() {
+    const form = document.getElementById('proformaForm');
+    if (!form || form.dataset.bound === '1') return;
+    form.dataset.bound = '1';
+    form.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!target || !(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) {
+        return;
+      }
+      const bindPath = target.dataset.bind;
+      if (bindPath) {
+        setProformaDraftValue(bindPath, target.value);
+        if (bindPath === 'document.currency') {
+          updateProformaTotals();
+        }
+        return;
+      }
+      const field = target.dataset.itemField;
+      if (!field) return;
+      const index = Number(target.dataset.itemIndex);
+      const valueType = target.dataset.valueType || 'text';
+      updateProformaItemField(index, field, target.value, valueType);
+      updateProformaTotals();
+    });
+    form.addEventListener('click', (event) => {
+      const addTrigger = event.target.closest('[data-action="add-item"]');
+      if (addTrigger) {
+        event.preventDefault();
+        addProformaItem();
+        return;
+      }
+      const removeTrigger = event.target.closest('[data-remove-item]');
+      if (removeTrigger) {
+        event.preventDefault();
+        const index = Number(removeTrigger.dataset.removeItem);
+        removeProformaItem(index);
+        return;
+      }
+      const duplicateTrigger = event.target.closest('[data-duplicate-item]');
+      if (duplicateTrigger) {
+        event.preventDefault();
+        duplicateProformaItem(Number(duplicateTrigger.dataset.duplicateItem));
+      }
+    });
+    form.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target) return;
+      const imageIndexAttr = target.dataset.imageInput;
+      if (imageIndexAttr !== undefined) {
+        const index = Number(imageIndexAttr);
+        const file = target.files && target.files[0];
+        if (!file) {
+          updateProformaImage(index, '');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          updateProformaImage(index, reader.result);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    form.addEventListener('click', (event) => {
+      const imageTrigger = event.target.closest('[data-image-trigger]');
+      if (imageTrigger) {
+        event.preventDefault();
+        const index = Number(imageTrigger.dataset.imageTrigger);
+        const input = form.querySelector(`[data-image-input="${index}"]`);
+        if (input) input.click();
+        return;
+      }
+      const removeImageBtn = event.target.closest('[data-remove-image]');
+      if (removeImageBtn) {
+        event.preventDefault();
+        const index = Number(removeImageBtn.dataset.removeImage);
+        updateProformaImage(index, '');
+      }
+    });
+    const pdfButton = document.getElementById('proformaPdfBtn');
+    if (pdfButton) {
+      pdfButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        if (!state.proformaDraft?.meta?.id) {
+          showToast('Bitte zuerst speichern.');
+          return;
+        }
+        await exportProformaPdf();
+      });
+    }
+    const saveButton = document.getElementById('proformaSave');
+    if (saveButton && saveButton.dataset.bound !== '1') {
+      saveButton.dataset.bound = '1';
+      saveButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await saveProformaDraft();
+      });
+    }
+    const deleteButton = document.getElementById('proformaDelete');
+    if (deleteButton && deleteButton.dataset.bound !== '1') {
+      deleteButton.dataset.bound = '1';
+      deleteButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        if (!state.proformaDraft?.meta?.id) return;
+        const confirmed = window.confirm('Muster Proforma wirklich löschen?');
+        if (!confirmed) return;
+        await deleteProforma(state.proformaDraft.meta.id, true);
+      });
+    }
+    const toggleBtn = document.getElementById('toggleEdit');
+    if (toggleBtn && toggleBtn.dataset.bound !== '1') {
+      toggleBtn.dataset.bound = '1';
+      toggleBtn.addEventListener('click', () => {
+        state.proformaReadOnly = !state.proformaReadOnly;
+        applyFormMode();
+      });
+    }
+  }
+
+  function renderProformaItems() {
+    const body = document.getElementById('proformaItemsBody');
+    if (!body) return;
+    ensureProformaDraft();
+    body.innerHTML = state.proformaDraft.items
+      .map((item, index) => {
+        const quantityValue = Number(item.quantity);
+        const unitPriceValue = Number(item.unitPrice);
+        const purchasePriceValue = Number(item.purchasePrice);
+        const declaredValue = Number(item.declaredValue);
+        const quantity = Number.isFinite(quantityValue) ? quantityValue : '';
+        const unitPrice = Number.isFinite(unitPriceValue) ? unitPriceValue : '';
+        const purchasePrice = Number.isFinite(purchasePriceValue) ? purchasePriceValue : '';
+        const declared = Number.isFinite(declaredValue) ? declaredValue : '';
+        const unitOptions = PROFORMA_UNIT_CHOICES.map((choice) => {
+          const selected = (item.unitType || 'PAIR') === choice.value ? 'selected' : '';
+          return `<option value="${choice.value}" ${selected}>${choice.label}</option>`;
+        }).join('');
+        const materialUpper = escapeHtml(item.materialUpper || '');
+        const materialLining = escapeHtml(item.materialLining || '');
+        const materialSole = escapeHtml(item.materialSole || '');
+        const imageSrc = item.imageData ? escapeHtml(item.imageData) : '';
+        const imagePreview = imageSrc
+          ? `<img src="${imageSrc}" alt="Positionsbild" class="proforma-image-preview" />`
+          : '<span class="muted">Kein Bild</span>';
+        const buildSelectOptions = (choices, value) => {
+          const options = ['<option value="">-</option>'];
+          const normalizedValue = (value || '').trim().toLowerCase();
+          let hasMatch = false;
+          choices.forEach((label) => {
+            const isSelected = normalizedValue && normalizedValue === label.toLowerCase();
+            if (isSelected) hasMatch = true;
+            options.push(
+              `<option value="${escapeHtml(label)}" ${isSelected ? 'selected' : ''}>${escapeHtml(label)}</option>`
+            );
+          });
+          if (!hasMatch && value) {
+            options.push(`<option value="${escapeHtml(value)}" selected>${escapeHtml(value)}</option>`);
+          }
+          return options.join('');
+        };
+        const descriptionOptions = buildSelectOptions(PROFORMA_DESCRIPTION_CHOICES, item.description);
+        const materialUpperOptions = buildSelectOptions(PROFORMA_MATERIAL_CHOICES, item.materialUpper);
+        const materialLiningOptions = buildSelectOptions(PROFORMA_MATERIAL_CHOICES, item.materialLining);
+        const materialSoleOptions = buildSelectOptions(PROFORMA_SOLE_CHOICES, item.materialSole);
+        return `<article class="proforma-item-card" data-index="${index}">
+          <header>
+            <strong>Position ${index + 1}</strong>
+            <div class="item-card-actions">
+              <button type="button" class="ghost small" data-duplicate-item="${index}">Duplizieren</button>
+              <button type="button" class="ghost small danger" data-remove-item="${index}">Entfernen</button>
+            </div>
+          </header>
+          <div class="proforma-item-layout">
+            <div class="proforma-item-media">
+              <div class="proforma-image-control">
+                ${imagePreview}
+                <input type="file" accept="image/*" data-image-input="${index}" hidden />
+                <div class="image-buttons">
+                  <button type="button" class="ghost small" data-image-trigger="${index}">Bild wählen</button>
+                  ${item.imageData ? `<button type="button" class="ghost small" data-remove-image="${index}">Entfernen</button>` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="proforma-item-content">
+              <div class="proforma-item-row">
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Artikelnummer</span>
+                    <input type="text" data-item-index="${index}" data-item-field="articleNumber" value="${escapeHtml(item.articleNumber || '')}" placeholder="Artikel / SKU" />
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Farbe / Variante</span>
+                    <input type="text" data-item-index="${index}" data-item-field="color" value="${escapeHtml(item.color || '')}" placeholder="Color" />
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                <label class="proforma-field">
+                  <span>Beschreibung</span>
+                  <select data-item-index="${index}" data-item-field="description">
+                    ${descriptionOptions}
+                  </select>
+                </label>
+              </div>
+              </div>
+              <div class="proforma-item-row">
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Außenmaterial</span>
+                    <select data-item-index="${index}" data-item-field="materialUpper">
+                      ${materialUpperOptions}
+                    </select>
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Innenmaterial</span>
+                    <select data-item-index="${index}" data-item-field="materialLining">
+                      ${materialLiningOptions}
+                    </select>
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Sohle</span>
+                    <select data-item-index="${index}" data-item-field="materialSole">
+                      ${materialSoleOptions}
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="proforma-item-row">
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Hersteller</span>
+                    <input type="text" data-item-index="${index}" data-item-field="producer" value="${escapeHtml(item.producer || '')}" />
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Zolltarifnr.</span>
+                    <input type="text" data-item-index="${index}" data-item-field="customsCode" value="${escapeHtml(item.customsCode || '')}" placeholder="HS-Code" />
+                  </label>
+                </div>
+              </div>
+              <div class="proforma-item-row">
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Menge</span>
+                    <input type="number" min="0" step="0.01" data-item-index="${index}" data-item-field="quantity" data-value-type="number" value="${quantity}" />
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Sample-Größe</span>
+                    <select data-item-index="${index}" data-item-field="size">
+                      <option value="" ${item.size ? '' : 'selected'}>-</option>
+                      ${Array.from({ length: 10 }, (_, i) => 36 + i)
+                        .map((sizeValue) => {
+                          const selected = String(item.size || '') === String(sizeValue) ? 'selected' : '';
+                          return `<option value="${sizeValue}" ${selected}>${sizeValue}</option>`;
+                        })
+                        .join('')}
+                    </select>
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Einheit</span>
+                    <select data-item-index="${index}" data-item-field="unitType">${unitOptions}</select>
+                  </label>
+                </div>
+              </div>
+              <div class="proforma-item-row">
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Einzelpreis</span>
+                    <input type="number" min="0" step="0.01" data-item-index="${index}" data-item-field="unitPrice" data-value-type="number" value="${unitPrice}" />
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Einkaufspreis</span>
+                    <input type="number" min="0" step="0.01" data-item-index="${index}" data-item-field="purchasePrice" data-value-type="number" value="${purchasePrice}" />
+                  </label>
+                </div>
+                <div class="proforma-item-cell">
+                  <label class="proforma-field">
+                    <span>Deklarierter Wert</span>
+                    <input type="number" min="0" step="0.01" data-item-index="${index}" data-item-field="declaredValue" data-value-type="number" value="${declared}" />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>`;
+      })
+      .join('');
+  }
+
+  function updateProformaItemField(index, field, rawValue, valueType = 'text') {
+    ensureProformaDraft();
+    if (!state.proformaDraft.items[index]) return;
+    let value = rawValue;
+    if (valueType === 'number') {
+      value = Number(rawValue);
+      if (!Number.isFinite(value)) value = 0;
+    } else if (valueType === 'percent') {
+      const percent = Number(rawValue);
+      value = Number.isFinite(percent) ? percent / 100 : 0;
+    } else if (typeof rawValue === 'string') {
+      value = rawValue;
+    }
+    state.proformaDraft.items[index][field] = valueType === 'text' ? value : Number(value) || 0;
+  }
+
+  function updateProformaImage(index, dataUrl) {
+    ensureProformaDraft();
+    if (!state.proformaDraft.items[index]) return;
+    state.proformaDraft.items[index].imageData = dataUrl || '';
+    renderProformaItems();
+  }
+
+  function getProformaItemTotals(item) {
+    const quantity = Number(item?.quantity) || 0;
+    const unitPrice = Number(item?.unitPrice) || 0;
+    const vatRate = Number(item?.vatRate) || 0;
+    const net = quantity * unitPrice;
+    const tax = net * vatRate;
+    const declaredInput = Number(item?.declaredValue);
+    const declared = Number.isFinite(declaredInput) ? declaredInput : net + tax;
+    return {
+      net,
+      tax,
+      gross: net + tax,
+      declared
+    };
+  }
+
+  function updateProformaTotals() {
+    ensureProformaDraft();
+    const currency = state.proformaDraft.document?.currency || 'EUR';
+    const totals = (state.proformaDraft.items || []).reduce(
+      (acc, item) => {
+        const rowTotals = getProformaItemTotals(item);
+        acc.net += rowTotals.net;
+        acc.tax += rowTotals.tax;
+        acc.gross += rowTotals.gross;
+        acc.declared += rowTotals.declared;
+        return acc;
+      },
+      { net: 0, tax: 0, gross: 0, declared: 0 }
+    );
+    setText('proformaNet', formatMoney(totals.net, currency));
+    setText('proformaTax', formatMoney(totals.tax, currency));
+    setText('proformaGross', formatMoney(totals.gross, currency));
+    setText('proformaDeclared', formatMoney(totals.declared, currency));
+  }
+
+  function addProformaItem() {
+    ensureProformaDraft();
+    state.proformaDraft.items.push(buildEmptyProformaItem());
+    renderProformaItems();
+    updateProformaTotals();
+  }
+
+  function removeProformaItem(index) {
+    ensureProformaDraft();
+    if (state.proformaDraft.items.length <= 1) {
+      state.proformaDraft.items = [buildEmptyProformaItem()];
+    } else {
+      state.proformaDraft.items.splice(index, 1);
+    }
+    renderProformaItems();
+    updateProformaTotals();
+  }
+
+  function duplicateProformaItem(index) {
+    ensureProformaDraft();
+    const source = state.proformaDraft.items[index];
+    if (!source) return;
+    const clone = JSON.parse(JSON.stringify(source));
+    state.proformaDraft.items.splice(index + 1, 0, clone);
+    renderProformaItems();
+    updateProformaTotals();
+  }
+
+  async function loadProformaArchive() {
+    try {
+      const archive = await request('/api/proforma');
+      state.proformaArchive = archive;
+      renderProformaArchive();
+    } catch (err) {
+      console.warn(err);
+    }
+  }
+
+  function renderProformaArchive() {
+    const body = document.getElementById('proformaArchiveBody');
+    if (!body) return;
+    const entries = Array.isArray(state.proformaArchive) ? state.proformaArchive : [];
+    if (!entries.length) {
+      body.innerHTML = '<tr><td colspan="4" class="muted">Noch keine Muster Proformas gespeichert.</td></tr>';
+      return;
+    }
+    body.innerHTML = entries
+      .map((entry) => {
+        const number = escapeHtml(entry.number || '-');
+        const date = entry.date ? formatDate(entry.date) : '-';
+        const quantity = Number(entry.total_quantity) || 0;
+        return `<tr>
+          <td>${number}</td>
+          <td>${escapeHtml(date)}</td>
+          <td>${quantity}</td>
+          <td class="proforma-archive-actions">
+            <a class="ghost small" href="/musterrechnung-detail.html?id=${encodeURIComponent(entry.id)}">Öffnen</a>
+            <button type="button" class="ghost small danger" data-delete-proforma="${escapeHtml(entry.id)}">Löschen</button>
+          </td>
+        </tr>`;
+      })
+      .join('');
+  }
+
+  function bindProformaArchiveEvents() {
+    const table = document.getElementById('proformaArchive');
+    if (!table || table.dataset.bound === '1') return;
+    table.dataset.bound = '1';
+    table.addEventListener('click', async (event) => {
+      const deleteBtn = event.target.closest('[data-delete-proforma]');
+      if (deleteBtn) {
+        event.preventDefault();
+        const id = deleteBtn.dataset.deleteProforma;
+        if (!id) return;
+        const confirmed = window.confirm('Muster Proforma wirklich löschen?');
+        if (!confirmed) return;
+        await deleteProforma(id, false);
+      }
+    });
+  }
+
+  async function loadSavedProforma(id, opts = {}) {
+    try {
+      const entry = await request(`/api/proforma/${id}`);
+      const payload = entry.payload || buildDefaultProformaDraft();
+      state.proformaDraft = {
+        ...payload,
+        meta: {
+          id: entry.id,
+          number: entry.number
+        }
+      };
+      hydrateProformaForm();
+      if (!opts.silent) showToast('Muster Proforma geladen.');
+    } catch (err) {
+      showToast(err.message || 'Muster Proforma konnte nicht geladen werden.');
+    }
+  }
+
+  function startNewProforma() {
+    state.proformaDraft = buildDefaultProformaDraft();
+    state.proformaReadOnly = false;
+    hydrateProformaForm();
+    showToast('Neue Muster Proforma gestartet.');
+  }
+
+  function bindPresetButtons() {
+    document.querySelectorAll('[data-apply-preset]').forEach((button) => {
+      if (button.dataset.bound === '1') return;
+      button.dataset.bound = '1';
+      button.addEventListener('click', () => {
+        const [type, presetId] = (button.dataset.applyPreset || '').split(':');
+        if (!type || !presetId) return;
+        applyProformaPreset(type, presetId);
+      });
+    });
+  }
+
+  function applyProformaPreset(type, presetId) {
+    const presets = PROFORMA_ADDRESS_PRESETS[type];
+    if (!presets) return;
+    const preset = presets.find((entry) => entry.id === presetId);
+    if (!preset) return;
+    ensureProformaDraft();
+    state.proformaDraft[type] = {
+      ...state.proformaDraft[type],
+      ...preset.data
+    };
+    hydrateProformaForm();
+    showToast(`${preset.label} übernommen.`);
+  }
+
+  function updateProformaMetaUi() {
+    const badge = document.getElementById('proformaNumberBadge');
+    if (!badge) return;
+    const number = state.proformaDraft?.meta?.number;
+    badge.textContent = number || 'Neu';
+  }
+
+  function updateProformaActionState() {
+    const saved = Boolean(state.proformaDraft?.meta?.id);
+    const excelBtn = document.getElementById('proformaSubmit');
+    const pdfBtn = document.getElementById('proformaPdfBtn');
+    const deleteBtn = document.getElementById('proformaDelete');
+    const saveBtn = document.getElementById('proformaSave');
+    if (excelBtn) excelBtn.disabled = !saved;
+    if (pdfBtn) pdfBtn.disabled = !saved;
+    if (deleteBtn) deleteBtn.disabled = !saved;
+    const readOnly = Boolean(state.proformaReadOnly);
+    if (saveBtn) saveBtn.disabled = readOnly;
+  }
+
+  function applyFormMode() {
+    const form = document.getElementById('proformaForm');
+    if (!form) return;
+    const readOnly = Boolean(state.proformaReadOnly);
+    form.classList.toggle('readonly-mode', readOnly);
+    form.querySelectorAll('input, textarea, select, button').forEach((element) => {
+      if (element.id === 'toggleEdit') return;
+      if (element.closest('.proforma-submit')) return;
+      element.disabled = readOnly;
+    });
+    const toggleBtn = document.getElementById('toggleEdit');
+    if (toggleBtn) {
+      toggleBtn.textContent = readOnly ? 'Bearbeiten' : 'Bearbeitung sperren';
+      toggleBtn.setAttribute('aria-pressed', String(!readOnly));
+    }
+    updateProformaActionState();
+  }
+
+  function collectProformaPayload() {
+    ensureProformaDraft();
+    const draft = state.proformaDraft;
+    const trimValue = (value) => (value ? value.toString().trim() : '');
+    const blockValue = (value) => (value ? value.toString().trim() : '');
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const items = (draft.items || [])
+      .map((item, index) => {
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.unitPrice) || 0;
+        const purchasePrice = Number(item.purchasePrice);
+        const declaredValue = Number(item.declaredValue);
+        const entry = {
+          position: index + 1,
+          articleNumber: trimValue(item.articleNumber),
+          color: trimValue(item.color),
+          description: trimValue(item.description),
+          size: trimValue(item.size),
+          materialUpper: trimValue(item.materialUpper),
+          materialLining: trimValue(item.materialLining),
+          materialSole: trimValue(item.materialSole),
+          customsCode: trimValue(item.customsCode),
+          producer: trimValue(item.producer),
+          quantity,
+          unitType: item.unitType || 'PAIR',
+          unitPrice,
+          vatRate: 0,
+          imageData: item.imageData || ''
+        };
+        if (Number.isFinite(purchasePrice)) {
+          entry.purchasePrice = purchasePrice;
+        }
+        if (Number.isFinite(declaredValue)) {
+          entry.declaredValue = declaredValue;
+        }
+        return entry;
+      })
+      .filter((item) => item.quantity > 0 && (item.description || item.articleNumber));
+    if (!items.length) {
+      showToast('Bitte mindestens eine Position mit Menge hinterlegen.');
+      return null;
+    }
+    const buildPartyPayload = (partyDraft = {}) => {
+      const base = {
+        name: trimValue(partyDraft.name),
+        street: trimValue(partyDraft.street),
+        postalCode: trimValue(partyDraft.postalCode),
+        city: trimValue(partyDraft.city),
+        country: trimValue(partyDraft.country),
+        email: trimValue(partyDraft.email),
+        website: trimValue(partyDraft.website),
+        taxId: trimValue(partyDraft.taxId),
+        court: trimValue(partyDraft.court),
+        ceo: trimValue(partyDraft.ceo)
+      };
+      const addressBlock = composePartyAddress({ ...partyDraft, ...base });
+      const contactLine = composePartyContact({ ...partyDraft, ...base });
+      return {
+        ...base,
+        address: addressBlock || blockValue(partyDraft.address),
+        contact: contactLine || trimValue(partyDraft.contact)
+      };
+    };
+    return {
+      meta: {
+        id: state.proformaDraft?.meta?.id || null
+      },
+      document: {
+        reference: trimValue(draft.document.reference),
+        invoiceNumber: trimValue(draft.document.invoiceNumber),
+        date: draft.document.date || todayIso,
+        currency: draft.document.currency || 'EUR',
+        paymentTerms: trimValue(draft.document.paymentTerms)
+      },
+      seller: buildPartyPayload(draft.seller),
+      buyer: buildPartyPayload(draft.buyer),
+      shipping: {
+        transportedBy: trimValue(draft.shipping.transportedBy),
+        shipmentInfo: trimValue(draft.shipping.shipmentInfo),
+        place: trimValue(draft.shipping.place)
+      },
+      items
+    };
+  }
+
+  async function exportProformaExcel() {
+    const payload = collectProformaPayload();
+    if (!payload) return;
+    const submitBtn = document.getElementById('proformaSubmit');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const response = await fetch('/api/proforma/export', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || 'Export fehlgeschlagen');
+      }
+      const blob = await response.blob();
+      const savedId = response.headers.get('x-proforma-id');
+      const savedNumber = response.headers.get('x-proforma-number');
+      if (savedId) {
+        state.proformaDraft.meta = state.proformaDraft.meta || {};
+        state.proformaDraft.meta.id = savedId;
+        if (savedNumber) {
+          state.proformaDraft.meta.number = savedNumber;
+          if (!state.proformaDraft.document.invoiceNumber) {
+            state.proformaDraft.document.invoiceNumber = savedNumber;
+            hydrateProformaForm();
+          }
+        }
+        await loadProformaArchive();
+      }
+      const url = URL.createObjectURL(blob);
+      const reference = payload.document.reference || 'musterrechnung';
+      const datePart = payload.document.date || new Date().toISOString().slice(0, 10);
+      const safeName = reference.toLowerCase().replace(/[^a-z0-9-_]/g, '_') || 'musterrechnung';
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeName}-${datePart}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast('Excel-Datei erstellt');
+    } catch (err) {
+      showToast(err.message || 'Export fehlgeschlagen');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  }
+
+  async function exportProformaPdf() {
+    const payload = collectProformaPayload();
+    if (!payload) return;
+    const pdfBtn = document.getElementById('proformaPdfBtn');
+    if (pdfBtn) pdfBtn.disabled = true;
+    try {
+      const response = await fetch('/api/proforma/export/pdf', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || 'PDF Export fehlgeschlagen');
+      }
+      const blob = await response.blob();
+      const savedId = response.headers.get('x-proforma-id');
+      const savedNumber = response.headers.get('x-proforma-number');
+      if (savedId) {
+        state.proformaDraft.meta = state.proformaDraft.meta || {};
+        state.proformaDraft.meta.id = savedId;
+        if (savedNumber) {
+          state.proformaDraft.meta.number = savedNumber;
+          if (!state.proformaDraft.document.invoiceNumber) {
+            state.proformaDraft.document.invoiceNumber = savedNumber;
+            hydrateProformaForm();
+          }
+        }
+        await loadProformaArchive();
+      }
+      const url = URL.createObjectURL(blob);
+      const reference = payload.document.reference || 'musterrechnung';
+      const datePart = payload.document.date || new Date().toISOString().slice(0, 10);
+      const safeName = reference.toLowerCase().replace(/[^a-z0-9-_]/g, '_') || 'musterrechnung';
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeName}-${datePart}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showToast(translateTemplate('PDF erstellt'));
+    } catch (err) {
+      showToast(err.message || 'PDF Export fehlgeschlagen');
+    } finally {
+      if (pdfBtn) pdfBtn.disabled = false;
+    }
+  }
+
+  async function saveProformaDraft() {
+    const payload = collectProformaPayload();
+    if (!payload) return null;
+    const saveBtn = document.getElementById('proformaSave');
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const response = await fetch('/api/proforma', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || 'Speichern fehlgeschlagen');
+      }
+      const entry = await response.json();
+      state.proformaDraft = entry.payload || state.proformaDraft;
+      state.proformaDraft.meta = {
+        id: entry.id,
+        number: entry.number
+      };
+      if (!state.proformaDraft.document.invoiceNumber) {
+        state.proformaDraft.document.invoiceNumber = entry.number;
+      }
+      hydrateProformaForm();
+      await loadProformaArchive();
+      showToast('Muster Proforma gespeichert.');
+      return entry;
+    } catch (err) {
+      showToast(err.message || 'Speichern fehlgeschlagen');
+      return null;
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  }
+
+  async function deleteProforma(id, redirectToList = false) {
+    if (!id) return;
+    try {
+      const response = await fetch(`/api/proforma/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || 'Löschen fehlgeschlagen');
+      }
+      await loadProformaArchive();
+      showToast('Muster Proforma gelöscht.');
+      if (redirectToList) {
+        window.location.href = '/musterrechnung.html';
+      }
+    } catch (err) {
+      showToast(err.message || 'Löschen fehlgeschlagen');
+    }
+  }
+
+  async function initMusterProformaPage() {
+    setBreadcrumbLabel('Muster Proforma');
+    await loadProformaArchive();
+    renderProformaArchive();
+    bindProformaArchiveEvents();
+  }
+
+  async function initMusterProformaDetailPage() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    setBreadcrumbLabel(id ? 'Muster Proforma bearbeiten' : 'Muster Proforma anlegen');
+    if (id) {
+      state.proformaReadOnly = true;
+      await loadSavedProforma(id, { silent: true });
+    } else {
+      state.proformaReadOnly = false;
+      startNewProforma();
+    }
+    bindProformaFormEvents();
+    bindPresetButtons();
+    applyFormMode();
+  }
+
   async function initDiagnosticsPage() {
     setBreadcrumbLabel('Systemstatus');
     await loadDiagnostics();
+    bindAutoSyncUi();
     const refreshBtn = document.getElementById('diagnosticsRefresh');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => loadDiagnostics());
@@ -1732,21 +4589,33 @@ function deriveSizeList(order) {
   async function printShoeboxLabels() {
     const orderId = state.selectedOrder?.id;
     if (!orderId) {
-      showToast('Keine Bestellung gewählt');
+      showToast(translateTemplate('Keine Bestellung gewählt'));
+      return;
+    }
+    const season = (state.shoeboxSeason || 'FS').toUpperCase();
+    if (!SHOEBOX_SEASON_CHOICES.includes(season)) {
+      showToast(translateTemplate('Bitte Saison auswählen.'));
+      return;
+    }
+    const year = Number(state.shoeboxYear);
+    if (!Number.isFinite(year) || year < 2000 || year > 2099) {
+      showToast(translateTemplate('Bitte gültiges Jahr angeben (z. B. 2025).'));
       return;
     }
     const rows = (state.shoeboxRows || []).filter((row) => Number(row.quantity) > 0);
     if (!rows.length) {
-      showToast('Bitte mindestens eine Menge hinterlegen.');
+      showToast(translateTemplate('Bitte mindestens eine Menge hinterlegen.'));
       return;
     }
     const payload = {
+      season,
+      year,
       labels: rows.map((row) => ({
         article_number: row.articleNumber,
         name: row.name,
         color_code: row.colorCode,
         size: row.size,
-        image_url: row.imageUrl,
+        image_url: row.imageUrl || row.defaultImageUrl || '',
         quantity: Number(row.quantity)
       }))
     };
@@ -1759,7 +4628,7 @@ function deriveSizeList(order) {
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error?.error || 'PDF konnte nicht erstellt werden');
+        throw new Error(error?.error || translateTemplate('PDF konnte nicht erstellt werden'));
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -1868,21 +4737,24 @@ function deriveSizeList(order) {
     try {
       const data = await request(`/api/orders/${orderId}`);
       state.selectedOrder = data;
-      state.orderTickets = Array.isArray(data.tickets) ? data.tickets.filter((ticket) => !ticket.position_id) : [];
+      applyOrderTickets(data.id, data.tickets || []);
       setText('orderNumber', data.order_number || '-');
       setText('orderDelivery', formatDate(data.requested_delivery));
-      setText('orderTotal', formatMoney(deriveOrderTotal(data), data.currency));
+      const totalQuantity = deriveOrderQuantity(data);
+      setText('orderQuantity', `${totalQuantity}`);
       renderStatusControl(data);
       const shipping = data.shipping || {};
-      setText('shippingPayer', shipping.payer === 'KUNDE' ? 'Kunde' : shipping.payer || '-');
+      const shippingPayerText =
+        shipping.payer === 'KUNDE' ? translateTemplate('Kunde') : shipping.payer || '-';
+      setText('shippingPayer', shippingPayerText);
       setText('shippingMethod', shipping.method || '-');
       setText('shippingPackaging', shipping.packaging || '-');
-      const pickupText = shipping.pickup
+      const pickupKey = shipping.pickup
         ? 'Kunde holt Ware ab'
         : shipping.payer === 'KUNDE'
         ? 'Kunde beauftragt Versand'
         : 'BATE organisiert Versand';
-      setText('shippingPickup', pickupText);
+      setText('shippingPickup', translateTemplate(pickupKey));
       const customer = state.customers.find((c) => c.id === data.customer_id);
       const deliveryAddress = getDeliveryAddress(data.customer_id, data);
       const billingAddress = getCustomerAddress(data.customer_id, 'rechnung') || getCustomerAddress(data.customer_id);
@@ -1893,7 +4765,8 @@ function deriveSizeList(order) {
       const customerSnapshot = data.customer_snapshot || null;
       const snapshotShipping = normalizeSnapshotAddress(customerSnapshot?.shipping_address);
       const snapshotBilling = normalizeSnapshotAddress(customerSnapshot?.billing_address);
-      const customerDisplayName = customerSnapshot?.name || data.customer_name || customer?.name || 'Kunde';
+      const customerDisplayName =
+        customerSnapshot?.name || data.customer_name || customer?.name || translateTemplate('Kunde');
       const deliveryDisplay = normalizeSnapshotAddress(erpShippingAddress) || erpShippingDisplay || snapshotShipping || deliveryAddress;
       const billingDisplay = snapshotBilling || billingAddress;
       const deliveryCompanyLabel =
@@ -1924,7 +4797,8 @@ function deriveSizeList(order) {
       setText('customerStreet', billingDisplay?.street || '-');
       setText('customerCity', billingDisplay?.city || '-');
       setText('customerCountry', billingDisplay?.country || '');
-      setText('customerTax', `Steuernummer: ${customerSnapshot?.tax_id || customer?.tax_id || 'nicht hinterlegt'}`);
+      const taxValue = customerSnapshot?.tax_id || customer?.tax_id || translateTemplate('nicht hinterlegt');
+      setText('customerTax', translateTemplate('Steuernummer: {{value}}', { value: taxValue }));
       setText('customerNumber', customerSnapshot?.id || data.customer_id || '-');
       setText('senderName', senderNameValue);
       setText('senderStreet', dispatchAddress?.street || '-');
@@ -1951,6 +4825,19 @@ function deriveSizeList(order) {
         shoeboxButton.onclick = () => {
           window.location.href = `/schuhbox.html?order=${encodeURIComponent(data.id)}`;
         };
+      }
+      state.orderPrintOptions = null;
+      bindPrintOptionEvents(data.id);
+      loadOrderPrintOptions(data.id);
+      const editButton = document.getElementById('editOrderBtn');
+      if (editButton) {
+        if (state.user?.role === 'BATE') {
+          editButton.onclick = () => {
+            window.location.href = `/bestellung-neu.html?order=${encodeURIComponent(data.id)}`;
+          };
+        } else {
+          editButton.remove();
+        }
       }
       const ticketsBadge = document.getElementById('orderTicketsSummary');
       if (ticketsBadge) {
@@ -1993,7 +4880,7 @@ function deriveSizeList(order) {
           : '<span class="muted">–</span>';
         const description = pos.description || item?.item_name || '';
         const codeMatch = description.match(/([A-Za-z]\d{3,})$/i);
-        const baseNameRaw = codeMatch ? description.replace(new RegExp(`\s*${codeMatch[1]}$`, 'i'), '').trim() : description;
+        const baseNameRaw = codeMatch ? description.replace(new RegExp(`\\s*${codeMatch[1]}$`, 'i'), '').trim() : description;
         const displayName = baseNameRaw ? baseNameRaw.toUpperCase() : description || '-';
         const colorCode = resolvePositionColorCode(order, pos, item);
         const priceEntry = item?.prices?.[0];
@@ -2098,39 +4985,33 @@ function deriveSizeList(order) {
     const hint = document.querySelector('.techpack-overlay-hint');
     const stage = document.getElementById('techpackMediaStage');
     if (!stageImg) return;
-    const activeEntry = media.find((entry) => entry.id === state.techpackActiveMedia) || null;
+    const activeEntry = getActiveTechpackMedia();
     updateTechpackStatusDisplay(activeEntry);
-    renderTechpackStage(media, stageImg, hint, stage);
+    renderTechpackStage(media, activeEntry, stageImg, hint, stage);
     renderTechpackAnnotations();
   }
 
-  function renderTechpackStage(media, stageImg, hint, stage) {
-    if (!media.length) {
+  function renderTechpackStage(media, activeMedia, stageImg, hint, stage) {
+    if (!activeMedia) {
       if (stage) stage.classList.add('techpack-stage-empty');
       stageImg.src = '';
-      stageImg.alt = 'Keine Medien vorhanden';
-      if (hint) hint.textContent = 'Bitte zuerst ein Bild hochladen.';
-      state.techpackActiveMedia = null;
-      return;
-    }
-    if (!state.techpackActiveMedia) {
-      if (stage) stage.classList.remove('techpack-stage-empty');
-      stageImg.src = '';
+      stageImg.srcset = '';
       stageImg.alt = 'Bitte Ansicht wählen';
-      if (hint) {
-        hint.textContent = state.techpackRequestedView ? 'Bitte zuerst ein Bild hochladen.' : 'Bitte zuerst eine Ansicht wählen.';
-      }
+      if (hint) hint.textContent = 'Bitte eine Ansicht auswählen.';
       return;
     }
+    const isPlaceholder = Boolean(activeMedia.isPlaceholder || activeMedia.is_placeholder);
     if (stage) stage.classList.remove('techpack-stage-empty');
-    const active = media.find((entry) => entry.id === state.techpackActiveMedia);
-    if (!active) {
-      state.techpackActiveMedia = null;
-      renderTechpackStage(media, stageImg, hint, stage);
+    if (isPlaceholder) {
+      stageImg.src = activeMedia.url || activeMedia.placeholderSrc || '';
+      stageImg.srcset = activeMedia.placeholderSrcset || '';
+      stageImg.alt = activeMedia.label || 'Platzhalter';
+      if (hint) hint.textContent = 'Klicke ins Bild, um einen Pin zu setzen';
       return;
     }
-    stageImg.src = active.url || '';
-    stageImg.alt = active.label || active.id || 'Artikelspezifikation';
+    stageImg.src = activeMedia.url || '';
+    stageImg.srcset = '';
+    stageImg.alt = activeMedia.label || activeMedia.id || 'Artikelspezifikation';
     if (hint) hint.textContent = 'Klicke ins Bild, um einen Pin zu setzen';
   }
 
@@ -2149,9 +5030,9 @@ function deriveSizeList(order) {
     layer.innerHTML = annotations
       .map(
         (ann, idx) =>
-          `<button type=\"button\" data-index=\"${idx}\" style=\"left:${ann.x * 100}%;top:${ann.y * 100}%\" title=\"${escapeHtml(
+          `<button type="button" data-index="${idx}" style="left:${ann.x * 100}%;top:${ann.y * 100}%" title="${escapeHtml(
             ann.note
-          )}\">${idx + 1}</button>`
+          )}">${idx + 1}</button>`
       )
       .join('');
     list.innerHTML =
@@ -2196,7 +5077,7 @@ function deriveSizeList(order) {
       const statusBadge = `<span class="badge ${statusMeta.badgeClass}">${statusMeta.label}</span>`;
       const preview = media
         ? `<img src="${media.url}" alt="${escapeHtml(media.label || view.label)}" class="techpack-preview" />`
-        : '<span class="muted">–</span>';
+        : getTechpackPreviewPlaceholder(view);
       const questionBadge = hasQuestions
         ? `<span class="question-badge question-open"><span class="dot">?</span><span class="count">${questionCount}</span></span>`
         : '<span class="question-badge question-closed"><span class="dot">✓</span><span class="count">0</span></span>';
@@ -2233,24 +5114,32 @@ function deriveSizeList(order) {
         ticket.position_id === positionId &&
         ticketMatchesView(ticket, effectiveView)
     );
+    const dateLocale = state.locale === 'tr' ? 'tr-TR' : 'de-DE';
     if (badge) badge.textContent = tickets.length.toString();
     if (!tickets.length) {
-      list.innerHTML = '<p class="muted">Noch keine Tickets.</p>';
+      list.innerHTML = `<p class="muted">${escapeHtml(translateTemplate('Noch keine Tickets.'))}</p>`;
       return;
     }
     list.innerHTML = tickets
       .map((ticket) => {
+        const ticketKey = buildOrderTicketKey(ticket);
         const isOpen = ticket.status !== 'CLOSED';
-        const statusBadge = `<span class="badge ${isOpen ? 'warning' : 'success'}">${isOpen ? 'Offen' : 'OK'}</span>`;
-        const viewLabel = ticket.view_key ? getTechpackViewLabel(ticket.view_key) : 'Allgemein';
+        const statusLabel = translateTemplate(isOpen ? 'Offen' : 'OK');
+        const statusBadge = `<span class="badge ${isOpen ? 'warning' : 'success'}">${escapeHtml(statusLabel)}</span>`;
+        const viewLabel = ticket.view_key ? getTechpackViewLabel(ticket.view_key) : translateTemplate('Allgemein');
         const viewBadge = `<span class="badge ghost">${escapeHtml(viewLabel)}</span>`;
         const comments = renderTicketCommentsHtml(ticket);
+        const priorityLabel = formatTicketPriority(ticket.priority);
+        const created = ticket.created_at ? new Date(ticket.created_at).toLocaleDateString(dateLocale) : '';
+        const closeLabel = translateTemplate('Als geklärt markieren');
+        const reopenLabel = translateTemplate('Wieder öffnen');
+        const deleteLabel = translateTemplate('Löschen');
         return `
-          <article class="ticket-card collapsed" data-ticket="${ticket.id}">
-            <div class="ticket-header" data-ticket-toggle="${ticket.id}">
+          <article class="ticket-card collapsed" data-ticket="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
+            <div class="ticket-header" data-ticket-toggle="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
               <div class="ticket-header-info">
                 <strong>${escapeHtml(ticket.title)}</strong>
-                <small>${ticket.id} · ${ticket.priority || 'mittel'} · ${new Date(ticket.created_at).toLocaleDateString('de-DE')}</small>
+                <small>${escapeHtml(ticket.id)} · ${escapeHtml(priorityLabel)}${created ? ` · ${escapeHtml(created)}` : ''}</small>
               </div>
               <div class="ticket-header-meta">
                 ${viewBadge}
@@ -2261,21 +5150,25 @@ function deriveSizeList(order) {
             <div class="ticket-body">
               <div class="ticket-meta">
                 <ul class="ticket-comments">${comments}</ul>
-                <form class="ticket-comment-form" data-ticket-id="${ticket.id}">
+                <form class="ticket-comment-form" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
                   ${buildCommentFormFields()}
                   <div class="ticket-comment-actions">
                     ${buildAutoTranslateButton()}
-                    <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
-                    <button type="submit" class="small">Antwort senden</button>
+                    <label class="file-input small">
+                      <span class="file-label">${escapeHtml(translateTemplate('Datei'))}</span>
+                      <span class="file-name" data-file-name>${escapeHtml(translateTemplate('Keine Datei ausgewählt'))}</span>
+                      <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
+                    </label>
+                    <button type="submit" class="small">${escapeHtml(translateTemplate('Antwort senden'))}</button>
                   </div>
                 </form>
               </div>
               <div class="ticket-status">
                 ${statusBadge}
-                <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}">
-                  ${isOpen ? 'Als geklärt markieren' : 'Wieder öffnen'}
+                <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
+                  ${escapeHtml(isOpen ? closeLabel : reopenLabel)}
                 </button>
-                <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}">Löschen</button>
+                <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">${escapeHtml(deleteLabel)}</button>
               </div>
             </div>
           </article>`;
@@ -2283,25 +5176,28 @@ function deriveSizeList(order) {
       .join('');
     list.querySelectorAll('button[data-ticket-action]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const ticketId = button.dataset.ticketId;
-        const action = button.dataset.ticketAction;
-        if (!ticketId || !action) return;
-        const nextStatus = action === 'close' ? 'CLOSED' : 'OPEN';
+        const { ticketId, ticketAction, ticketCreated, ticketKey } = button.dataset;
+        if (!ticketId || !ticketAction) return;
+        const nextStatus = ticketAction === 'close' ? 'CLOSED' : 'OPEN';
         await updateTicketStatus(ticketId, nextStatus, {
           type: 'techpack',
           orderId,
           positionId,
-          viewKey: effectiveView
+          viewKey: effectiveView,
+          createdAt: ticketCreated,
+          ticketKey
         });
       });
     });
     list.querySelectorAll('button[data-ticket-delete]').forEach((button) => {
       button.addEventListener('click', async () => {
         const ticketId = button.dataset.ticketDelete;
+        const ticketCreated = button.dataset.ticketCreated;
+        const ticketKey = button.dataset.ticketKey;
         if (!ticketId) return;
-        if (!window.confirm('Ticket wirklich löschen?')) return;
+        if (!window.confirm(translateTemplate('Ticket wirklich löschen?'))) return;
         try {
-          await deleteTicket(ticketId);
+          await deleteTicket(ticketId, { orderId, positionId, createdAt: ticketCreated, ticketKey });
           renderTechpackTickets(orderId, positionId, effectiveView);
           updateTechpackStatusDisplay(getActiveTechpackMedia());
         } catch (err) {
@@ -2313,10 +5209,12 @@ function deriveSizeList(order) {
       button.addEventListener('click', async () => {
         const commentId = button.dataset.commentDelete;
         const ticketId = button.dataset.ticket;
+        const ticketCreated = button.dataset.ticketCreated;
+        const ticketKey = button.dataset.ticketKey;
         if (!commentId || !ticketId) return;
-        if (!window.confirm('Kommentar wirklich löschen?')) return;
+        if (!window.confirm(translateTemplate('Kommentar wirklich löschen?'))) return;
         try {
-          await deleteTicketComment(ticketId, commentId);
+          await deleteTicketComment(ticketId, commentId, { orderId, positionId, createdAt: ticketCreated, ticketKey });
           renderTechpackTickets(orderId, positionId, effectiveView);
         } catch (err) {
           showToast(err.message);
@@ -2344,50 +5242,73 @@ function deriveSizeList(order) {
   }
 
   function buildCommentFormFields() {
-    const isBate = state.user?.role === 'BATE';
-    if (isBate) {
-      return `
-        <div class="comment-fields bilingual">
-          <textarea name="message_de" rows="2" placeholder="Antwort (Deutsch)"></textarea>
-          <textarea name="message_tr" rows="2" placeholder="Antwort (Türkisch)"></textarea>
-        </div>`;
-    }
+    const placeholderDe = translateTemplate('Text (Deutsch)');
+    const placeholderTr = translateTemplate('Text (Türkisch)');
     return `
-      <div class="comment-fields">
-        <textarea name="message_tr" rows="2" placeholder="Antwort hinzufügen"></textarea>
+      <div class="comment-fields translation-pair">
+        <label class="translation-field">
+          <span class="lang-label">DE</span>
+          <textarea name="message_de" rows="2" placeholder="${escapeHtml(placeholderDe)}"></textarea>
+        </label>
+        <label class="translation-field">
+          <span class="lang-label">TR</span>
+          <textarea name="message_tr" rows="2" placeholder="${escapeHtml(placeholderTr)}"></textarea>
+        </label>
       </div>`;
   }
 
   function buildAutoTranslateButton() {
-    if (state.user?.role !== 'BATE') return '';
-    return '<button type="button" class="ghost small auto-translate-btn">Automatisch übersetzen</button>';
+    return `<button type="button" class="ghost small auto-translate-btn">${escapeHtml(translateTemplate('Automatisch übersetzen'))}</button>`;
   }
 
   function renderTicketCommentsHtml(ticket) {
     const dateLocale = state.locale === 'tr' ? 'tr-TR' : 'de-DE';
+    const attachmentLinkLabel = translateTemplate('Anhang anzeigen');
+    const attachmentAlt = translateTemplate('Anhang');
+    const unknownAuthor = translateTemplate('Unbekannt');
+    const noComments = translateTemplate('Noch keine Antworten.');
     const comments = (ticket.comments || [])
       .map((comment) => {
         const attachment = comment.attachment
-          ? `<a href="${escapeHtml(comment.attachment.url)}" target="_blank" rel="noopener">Anhang anzeigen</a>`
+          ? `<a href="${escapeHtml(comment.attachment.url)}" target="_blank" rel="noopener">${escapeHtml(attachmentLinkLabel)}</a>`
           : '';
         const isMine = comment.author === state.user?.email;
         const commentClass = isMine ? 'comment-mine' : 'comment-other';
         const preview = comment.attachment
-          ? `<img src="${escapeHtml(comment.attachment.url)}" alt="Anhang" class="ticket-attachment-preview" />`
+          ? `<img src="${escapeHtml(comment.attachment.url)}" alt="${escapeHtml(attachmentAlt)}" class="ticket-attachment-preview" />`
           : '';
         const timestamp = comment.ts ? new Date(comment.ts).toLocaleString(dateLocale) : '';
         const body = resolveTicketCommentText(comment);
+        const author = comment.author || unknownAuthor;
         return `<li class="${commentClass}">
           <div class="comment-content">
-            <p><strong>${escapeHtml(comment.author || 'Unbekannt')}</strong>${timestamp ? ` · ${timestamp}` : ''}</p>
+            <p><strong>${escapeHtml(author)}</strong>${timestamp ? ` · ${timestamp}` : ''}</p>
             <p>${escapeHtml(body)}</p>
             ${preview}${attachment ? `<div class="attachment-link">${attachment}</div>` : ''}
           </div>
-          <button type="button" class="ghost small danger" data-comment-delete="${comment.id}" data-ticket="${ticket.id}">Löschen</button>
+          <button type="button" class="ghost small danger" data-comment-delete="${comment.id}" data-ticket="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${buildOrderTicketKey(ticket)}">${escapeHtml(
+            translateTemplate('Löschen')
+          )}</button>
         </li>`;
       })
       .join('');
-    return comments || '<li class="muted">Noch keine Antworten.</li>';
+    return comments || `<li class="muted">${escapeHtml(noComments)}</li>`;
+  }
+
+  function applyOrderTickets(orderId, tickets = []) {
+    if (!orderId) return [];
+    const orderSpecific = (tickets || []).filter((ticket) => ticket.order_id === orderId);
+    const otherTickets = (state.tickets || []).filter((ticket) => ticket.order_id !== orderId);
+    state.tickets = [...otherTickets, ...orderSpecific];
+    state.orderTickets = orderSpecific.filter((ticket) => !ticket.position_id);
+    return orderSpecific;
+  }
+
+  async function refreshOrderTickets(orderId) {
+    if (!orderId) return [];
+    const tickets = await request(`/api/orders/${encodeURIComponent(orderId)}/tickets`);
+    applyOrderTickets(orderId, tickets);
+    return tickets;
   }
 
   function renderOrderTicketSummary(order = state.selectedOrder) {
@@ -2399,15 +5320,51 @@ function deriveSizeList(order) {
     const hasOpen = openCount > 0;
     badge.className = `question-badge ${hasOpen ? 'question-open' : 'question-closed'}`;
     badge.innerHTML = `<span class="dot">${hasOpen ? '?' : '✓'}</span><span class="count">${openCount}</span>`;
-    badge.title = hasOpen ? `${openCount} offene Tickets` : 'Keine offenen Tickets';
+    badge.title = hasOpen
+      ? translateTemplate('{{count}} offene Tickets', { count: openCount })
+      : translateTemplate('Keine offenen Tickets');
   }
 
   function getTicketContextLabel(ticket) {
-    const baseLabel = ticket.position_id ? ticket.position_id : 'Bestellung';
+    const baseLabel = ticket.position_id ? ticket.position_id : translateTemplate('Bestellung');
     if (ticket.view_key) {
       return `${baseLabel} · ${getTechpackViewLabel(ticket.view_key)}`;
     }
     return baseLabel;
+  }
+
+  function formatTicketPriority(priority) {
+    const normalized = (priority || '').toLowerCase();
+    if (normalized === 'hoch') return translateTemplate('Hoch');
+    if (normalized === 'niedrig') return translateTemplate('Niedrig');
+    return translateTemplate('Mittel');
+  }
+
+  function getOrderComposerElements() {
+    return {
+      form: document.getElementById('orderTicketForm'),
+      toggle: document.getElementById('toggleOrderComposer')
+    };
+  }
+
+  function setOrderComposerVisibility(visible) {
+    const { form, toggle } = getOrderComposerElements();
+    if (!form) return;
+    form.classList.toggle('is-hidden', !visible);
+    if (toggle) {
+      toggle.classList.toggle('active', visible);
+      toggle.setAttribute('aria-expanded', visible ? 'true' : 'false');
+    }
+  }
+
+  function setOrderComposerEnabled(enabled) {
+    const { toggle } = getOrderComposerElements();
+    if (!toggle) return;
+    toggle.disabled = !enabled;
+    toggle.classList.toggle('disabled', !enabled);
+    if (!enabled) {
+      setOrderComposerVisibility(false);
+    }
   }
 
   function renderOrderTickets(order = state.selectedOrder) {
@@ -2415,23 +5372,31 @@ function deriveSizeList(order) {
     const badge = document.getElementById('orderTicketsCount');
     if (!list || !order) return;
     const tickets = (state.orderTickets || []).filter((ticket) => ticket.order_id === order.id);
+    const dateLocale = state.locale === 'tr' ? 'tr-TR' : 'de-DE';
     if (badge) badge.textContent = tickets.length.toString();
     if (!tickets.length) {
-      list.innerHTML = '<p class="muted">Noch keine Tickets.</p>';
+      list.innerHTML = `<p class="muted">${escapeHtml(translateTemplate('Noch keine Tickets.'))}</p>`;
       return;
     }
     list.innerHTML = tickets
       .map((ticket) => {
+        const ticketKey = buildOrderTicketKey(ticket);
         const isOpen = ticket.status !== 'CLOSED';
-        const statusBadge = `<span class="badge ${isOpen ? 'warning' : 'success'}">${isOpen ? 'Offen' : 'OK'}</span>`;
+        const statusLabel = translateTemplate(isOpen ? 'Offen' : 'OK');
+        const statusBadge = `<span class="badge ${isOpen ? 'warning' : 'success'}">${escapeHtml(statusLabel)}</span>`;
         const contextBadge = `<span class="badge ghost">${escapeHtml(getTicketContextLabel(ticket))}</span>`;
         const comments = renderTicketCommentsHtml(ticket);
+        const priorityLabel = formatTicketPriority(ticket.priority);
+        const created = ticket.created_at ? new Date(ticket.created_at).toLocaleDateString(dateLocale) : '';
+        const closeLabel = translateTemplate('Als geklärt markieren');
+        const reopenLabel = translateTemplate('Wieder öffnen');
+        const deleteLabel = translateTemplate('Löschen');
         return `
-          <article class="ticket-card collapsed" data-ticket="${ticket.id}">
-            <div class="ticket-header" data-ticket-toggle="${ticket.id}">
+          <article class="ticket-card collapsed" data-ticket="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
+            <div class="ticket-header" data-ticket-toggle="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
               <div class="ticket-header-info">
                 <strong>${escapeHtml(ticket.title)}</strong>
-                <small>${ticket.id} · ${ticket.priority || 'mittel'} · ${new Date(ticket.created_at).toLocaleDateString('de-DE')}</small>
+                <small>${escapeHtml(ticket.id)} · ${escapeHtml(priorityLabel)}${created ? ` · ${escapeHtml(created)}` : ''}</small>
               </div>
               <div class="ticket-header-meta">
                 ${contextBadge}
@@ -2442,21 +5407,25 @@ function deriveSizeList(order) {
             <div class="ticket-body">
               <div class="ticket-meta">
                 <ul class="ticket-comments">${comments}</ul>
-                <form class="ticket-comment-form" data-ticket-id="${ticket.id}">
+                <form class="ticket-comment-form" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
                   ${buildCommentFormFields()}
                   <div class="ticket-comment-actions">
                     ${buildAutoTranslateButton()}
-                    <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
-                    <button type="submit" class="small">Antwort senden</button>
+                    <label class="file-input small">
+                      <span class="file-label">${escapeHtml(translateTemplate('Datei'))}</span>
+                      <span class="file-name" data-file-name>${escapeHtml(translateTemplate('Keine Datei ausgewählt'))}</span>
+                      <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
+                    </label>
+                    <button type="submit" class="small">${escapeHtml(translateTemplate('Antwort senden'))}</button>
                   </div>
                 </form>
               </div>
               <div class="ticket-status">
                 ${statusBadge}
-                <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}">
-                  ${isOpen ? 'Als geklärt markieren' : 'Wieder öffnen'}
+                <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
+                  ${escapeHtml(isOpen ? closeLabel : reopenLabel)}
                 </button>
-                <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}">Löschen</button>
+                <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">${escapeHtml(deleteLabel)}</button>
               </div>
             </div>
           </article>`;
@@ -2464,19 +5433,21 @@ function deriveSizeList(order) {
       .join('');
     list.querySelectorAll('button[data-ticket-action]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const { ticketId, ticketAction } = button.dataset;
+        const { ticketId, ticketAction, ticketCreated, ticketKey } = button.dataset;
         if (!ticketId || !ticketAction) return;
         const nextStatus = ticketAction === 'close' ? 'CLOSED' : 'OPEN';
-        await updateTicketStatus(ticketId, nextStatus, { type: 'order', orderId: order.id });
+        await updateTicketStatus(ticketId, nextStatus, { type: 'order', orderId: order.id, positionId: null, createdAt: ticketCreated, ticketKey });
       });
     });
     list.querySelectorAll('button[data-ticket-delete]').forEach((button) => {
       button.addEventListener('click', async () => {
         const ticketId = button.dataset.ticketDelete;
+        const ticketCreated = button.dataset.ticketCreated;
+        const ticketKey = button.dataset.ticketKey;
         if (!ticketId) return;
-        if (!window.confirm('Ticket wirklich löschen?')) return;
+        if (!window.confirm(translateTemplate('Ticket wirklich löschen?'))) return;
         try {
-          await deleteTicket(ticketId);
+          await deleteTicket(ticketId, { orderId: order.id, positionId: null, createdAt: ticketCreated, ticketKey });
           renderOrderTickets(order);
         } catch (err) {
           showToast(err.message);
@@ -2487,10 +5458,12 @@ function deriveSizeList(order) {
       button.addEventListener('click', async () => {
         const commentId = button.dataset.commentDelete;
         const ticketId = button.dataset.ticket;
+        const ticketCreated = button.dataset.ticketCreated;
+        const ticketKey = button.dataset.ticketKey;
         if (!commentId || !ticketId) return;
-        if (!window.confirm('Kommentar wirklich löschen?')) return;
+        if (!window.confirm(translateTemplate('Kommentar wirklich löschen?'))) return;
         try {
-          await deleteTicketComment(ticketId, commentId);
+          await deleteTicketComment(ticketId, commentId, { orderId: order.id, positionId: null, createdAt: ticketCreated, ticketKey });
           renderOrderTickets(order);
         } catch (err) {
           showToast(err.message);
@@ -2503,10 +5476,14 @@ function deriveSizeList(order) {
         if (!card) return;
         if (event.target.closest('button')) return;
         card.classList.toggle('collapsed');
+        const hasOpen = Boolean(list.querySelector('.ticket-card:not(.collapsed)'));
+        setOrderComposerEnabled(!hasOpen);
       });
     });
     bindOrderTicketCommentForms(order.id);
     renderOrderTicketSummary(order);
+    const hasOpen = Boolean(list.querySelector('.ticket-card:not(.collapsed)'));
+    setOrderComposerEnabled(!hasOpen);
   }
 
   function bindOrderTicketCommentForms(orderId) {
@@ -2516,11 +5493,13 @@ function deriveSizeList(order) {
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const ticketId = form.dataset.ticketId;
+        const ticketCreated = form.dataset.ticketCreated;
+        const ticketKey = form.dataset.ticketKey;
         if (!ticketId) return;
         const payload = collectCommentPayload(form);
         if (!payload) return;
         try {
-          await submitTicketComment(ticketId, payload);
+          await submitTicketComment(ticketId, payload, { orderId, positionId: null, createdAt: ticketCreated, ticketKey });
           form.reset();
           renderOrderTickets(state.selectedOrder || { id: orderId });
           showToast('Antwort gespeichert');
@@ -2535,6 +5514,14 @@ function deriveSizeList(order) {
           await handleAutoTranslate(form, autoBtn);
         });
       }
+      const fileInput = form.querySelector('input[type="file"][name="file"]');
+      const fileNameDisplay = form.querySelector('[data-file-name]');
+      if (fileInput && fileNameDisplay && fileInput.dataset.bound !== 'true') {
+        fileInput.dataset.bound = 'true';
+        fileInput.addEventListener('change', () => {
+          fileNameDisplay.textContent = fileInput.files?.[0]?.name || translateTemplate('Keine Datei ausgewählt');
+        });
+      }
     });
   }
 
@@ -2543,17 +5530,44 @@ function deriveSizeList(order) {
     if (!form) return;
     form.dataset.orderId = orderId;
     if (form.dataset.bound === 'true') return;
+
+    const initialCommentContainer = document.getElementById('orderTicketInitialComment');
+    if (initialCommentContainer && initialCommentContainer.dataset.hydrated !== 'true') {
+      initialCommentContainer.innerHTML = `
+        <div class="ticket-comment-form initial">
+          ${buildCommentFormFields()}
+        </div>`;
+      initialCommentContainer.dataset.hydrated = 'true';
+    }
+
+    const initialTranslateBtn = initialCommentContainer?.querySelector('.auto-translate-btn');
+    const composerTranslateBtn = form.querySelector('.composer-auto');
+    [initialTranslateBtn, composerTranslateBtn]
+      .filter(Boolean)
+      .forEach((btn) => {
+        if (btn.dataset.bound === 'true') return;
+        btn.dataset.bound = 'true';
+        btn.addEventListener('click', async () => {
+          await handleAutoTranslate(form, btn);
+        });
+      });
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const currentOrderId = form.dataset.orderId || state.selectedOrder?.id;
       if (!currentOrderId) return;
-      const data = new FormData(form);
-      const title = data.get('title')?.toString().trim();
-      if (!title) {
-        showToast('Bitte eine Rückfrage eingeben.');
-        return;
-      }
-      const priority = data.get('priority') || 'mittel';
+      const prioritySelect = form.querySelector('select[name="priority"]');
+      const priority = prioritySelect?.value || 'mittel';
+      const initialCommentPayload = collectCommentPayload(form);
+      if (!initialCommentPayload) return;
+      const rawTitle = initialCommentPayload.message_de || initialCommentPayload.message_tr || '';
+      const fallbackTitle = translateTemplate('Neue Rückfrage');
+      const title = rawTitle
+        ? rawTitle.length > 120
+          ? `${rawTitle.slice(0, 117)}...`
+          : rawTitle
+        : fallbackTitle;
+      let initialCommentFailed = false;
       try {
         const ticket = await request('/api/tickets', {
           method: 'POST',
@@ -2563,15 +5577,54 @@ function deriveSizeList(order) {
             priority
           }
         });
-        state.orderTickets = [...(state.orderTickets || []), ticket];
+        const ticketKey = buildOrderTicketKey(ticket);
+        if (initialCommentPayload) {
+          try {
+            await submitTicketComment(ticket.id, initialCommentPayload, {
+              orderId: currentOrderId,
+              positionId: null,
+              createdAt: ticket.created_at,
+              ticketKey
+            });
+          } catch (commentErr) {
+            console.warn('Initial ticket comment konnte nicht gespeichert werden', commentErr);
+            showToast(translateTemplate('Ticket erstellt, initialer Kommentar fehlgeschlagen.'));
+            initialCommentFailed = true;
+          }
+        }
+        try {
+          await refreshOrderTickets(currentOrderId);
+        } catch (refreshErr) {
+          console.warn('Ticket refresh failed', refreshErr);
+        }
         form.reset();
-        renderOrderTickets(state.selectedOrder);
-        showToast('Rückfrage gespeichert');
+        renderOrderTickets(state.selectedOrder || { id: currentOrderId });
+        if (!initialCommentFailed) {
+          showToast(translateTemplate('Rückfrage gespeichert'));
+        }
       } catch (err) {
         showToast(err.message);
       }
     });
     form.dataset.bound = 'true';
+
+    const { toggle } = getOrderComposerElements();
+    if (toggle && toggle.dataset.bound !== 'true') {
+      toggle.dataset.bound = 'true';
+      toggle.addEventListener('click', () => {
+        if (toggle.disabled) return;
+        const isVisible = !form.classList.contains('is-hidden');
+        setOrderComposerVisibility(!isVisible);
+      });
+    }
+
+    const fileInput = form.querySelector('input[type="file"][name="file"]');
+    const fileNameDisplay = form.querySelector('[data-file-name]');
+    if (fileInput && fileNameDisplay) {
+      fileInput.addEventListener('change', () => {
+        fileNameDisplay.textContent = fileInput.files?.[0]?.name || translateTemplate('Keine Datei ausgewählt');
+      });
+    }
   }
 
   function bindTechpackTicketForm(orderId, positionId) {
@@ -2582,13 +5635,13 @@ function deriveSizeList(order) {
       const data = new FormData(form);
       const title = data.get('title')?.toString().trim();
       if (!title) {
-        showToast('Bitte eine Rückfrage eingeben.');
+        showToast(translateTemplate('Bitte eine Rückfrage eingeben.'));
         return;
       }
       const priority = data.get('priority') || 'mittel';
       const viewKey = resolveActiveViewKey();
       if (!viewKey) {
-        showToast('Bitte zuerst eine Ansicht laden.');
+        showToast(translateTemplate('Bitte zuerst eine Ansicht laden.'));
         return;
       }
       try {
@@ -2606,7 +5659,7 @@ function deriveSizeList(order) {
         form.reset();
         renderTechpackTickets(orderId, positionId, viewKey);
         updateTechpackStatusDisplay(getActiveTechpackMedia());
-        showToast('Rückfrage gespeichert');
+        showToast(translateTemplate('Rückfrage gespeichert'));
       } catch (err) {
         showToast(err.message);
       }
@@ -2620,11 +5673,13 @@ function deriveSizeList(order) {
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const ticketId = form.dataset.ticketId;
+        const ticketCreated = form.dataset.ticketCreated;
+        const ticketKey = form.dataset.ticketKey;
         if (!ticketId) return;
         const payload = collectCommentPayload(form);
         if (!payload) return;
         try {
-          await submitTicketComment(ticketId, payload);
+          await submitTicketComment(ticketId, payload, { orderId, positionId, createdAt: ticketCreated, ticketKey });
           form.reset();
           renderTechpackTickets(orderId, positionId, viewKey);
           showToast('Antwort gespeichert');
@@ -2639,25 +5694,27 @@ function deriveSizeList(order) {
           await handleAutoTranslate(form, autoBtn);
         });
       }
+      const fileInput = form.querySelector('input[type="file"][name="file"]');
+      const fileNameDisplay = form.querySelector('[data-file-name]');
+      if (fileInput && fileNameDisplay && fileInput.dataset.bound !== 'true') {
+        fileInput.dataset.bound = 'true';
+      fileInput.addEventListener('change', () => {
+        fileNameDisplay.textContent = fileInput.files?.[0]?.name || translateTemplate('Keine Datei ausgewählt');
+      });
+      }
     });
   }
 
-  function collectCommentPayload(form) {
-    const messageDe = form.querySelector('textarea[name="message_de"]')?.value.trim() || '';
-    const messageTr = form.querySelector('textarea[name="message_tr"]')?.value.trim() || '';
+  function collectCommentPayload(form, options = {}) {
+    const { allowEmpty = false } = options;
+    const messageDe = form.querySelector('[name="message_de"]')?.value.trim() || '';
+    const messageTr = form.querySelector('[name="message_tr"]')?.value.trim() || '';
     const fileInput = form.querySelector('input[name="file"]');
     const file = fileInput?.files?.[0];
-    const isBate = state.user?.role === 'BATE';
-    if (!messageDe && !messageTr && !file) {
+    const hasContent = Boolean(messageDe || messageTr || file);
+    if (!hasContent) {
+      if (allowEmpty) return null;
       showToast('Kommentar oder Datei erforderlich.');
-      return null;
-    }
-    if (isBate && !file && (!messageDe || !messageTr)) {
-      showToast('Bitte Deutsch und Türkisch ausfüllen.');
-      return null;
-    }
-    if (!isBate && !file && !messageTr) {
-      showToast('Bitte türkische Antwort eingeben.');
       return null;
     }
     return {
@@ -2668,20 +5725,29 @@ function deriveSizeList(order) {
   }
 
   async function handleAutoTranslate(form, button) {
-    const messageDeField = form.querySelector('textarea[name="message_de"]');
-    const messageTrField = form.querySelector('textarea[name="message_tr"]');
-    if (!messageDeField || !messageTrField) {
-      showToast('Automatische Übersetzung nur für BATE verfügbar.');
+    const wrapper =
+      button.closest('.ticket-comment-form') ||
+      button.closest('.ticket-comment-initial') ||
+      form;
+    const fieldContainer = wrapper?.querySelector('.comment-fields');
+    if (!fieldContainer) {
+      showToast('Kein Textfeld gefunden.');
       return;
     }
-    const sourceText = messageDeField.value.trim() || messageTrField.value.trim();
-    if (!sourceText) {
+    const deField = fieldContainer.querySelector('textarea[name="message_de"]');
+    const trField = fieldContainer.querySelector('textarea[name="message_tr"]');
+    if (!deField || !trField) {
+      showToast('Automatische Übersetzung nicht verfügbar.');
+      return;
+    }
+    const sourceLang = deField.value.trim() ? 'de' : trField.value.trim() ? 'tr' : null;
+    if (!sourceLang) {
       showToast('Bitte zuerst Text eingeben.');
       return;
     }
-    const sourceLang = messageDeField.value.trim() ? 'de' : 'tr';
     const targetLang = sourceLang === 'de' ? 'tr' : 'de';
-    const targetField = sourceLang === 'de' ? messageTrField : messageDeField;
+    const sourceField = sourceLang === 'de' ? deField : trField;
+    const targetField = targetLang === 'de' ? deField : trField;
     const originalLabel = button.textContent;
     button.disabled = true;
     button.textContent = 'Übersetze...';
@@ -2689,12 +5755,14 @@ function deriveSizeList(order) {
       const response = await request('/api/translate', {
         method: 'POST',
         body: {
-          text: sourceText,
+          text: sourceField.value.trim(),
           source: sourceLang,
           target: targetLang
         }
       });
-      targetField.value = response?.translation || '';
+      const translatedText = response?.translation || response?.text || '';
+      targetField.value = translatedText;
+      showToast(`Text in ${targetLang === 'de' ? 'Deutsch' : 'Türkisch'} übersetzt`);
     } catch (err) {
       showToast(err.message);
     } finally {
@@ -2738,12 +5806,12 @@ function deriveSizeList(order) {
     const stage = document.getElementById('techpackMediaStage');
     if (!stage) return;
     stage.addEventListener('click', async (event) => {
-      if (!state.techpackActiveMedia) {
-        showToast('Bitte zuerst ein Bild hochladen.');
+      const activeMedia = getActiveTechpackMedia();
+      if (!activeMedia) {
+        showToast('Bitte zuerst eine Ansicht wählen.');
         return;
       }
       if (event.target.closest('.techpack-annotation-layer button')) return;
-      if (!state.techpackActiveMedia) return;
       const rect = stage.getBoundingClientRect();
       const x = (event.clientX - rect.left) / rect.width;
       const y = (event.clientY - rect.top) / rect.height;
@@ -2751,7 +5819,7 @@ function deriveSizeList(order) {
       const note = prompt('Kommentar für diesen Punkt:');
       if (!note) return;
       try {
-        await addTechpackAnnotation(orderId, positionId, state.techpackActiveMedia, x, y, note);
+        await addTechpackAnnotation(orderId, positionId, activeMedia.id, x, y, note);
       } catch (err) {
         showToast(err.message);
       }
@@ -2818,8 +5886,11 @@ function deriveSizeList(order) {
     input.addEventListener('change', () => {
       const file = input.files?.[0];
       const activeMedia = getActiveTechpackMedia();
-      if (!file || !activeMedia) {
+      if (!file || !activeMedia || activeMedia.isPlaceholder || activeMedia.is_placeholder) {
         input.value = '';
+        if (!activeMedia || activeMedia.isPlaceholder || activeMedia.is_placeholder) {
+          showToast('Bitte zuerst ein Bild hochladen.');
+        }
         return;
       }
       replaceTechpackImage(orderId, positionId, activeMedia.id, activeMedia.view_key, file);
@@ -2832,7 +5903,7 @@ function deriveSizeList(order) {
     if (!button) return;
     button.addEventListener('click', async () => {
       const activeMedia = getActiveTechpackMedia();
-      if (!activeMedia) {
+      if (!activeMedia || activeMedia.isPlaceholder || activeMedia.is_placeholder) {
         showToast('Bitte zuerst eine Ansicht auswählen.');
         return;
       }
@@ -2892,43 +5963,215 @@ function deriveSizeList(order) {
   }
 
   async function updateTicketStatus(ticketId, status, context = {}) {
-    await request(`/api/tickets/${ticketId}`, {
+    const resolvedContext = { ...context };
+    if (!resolvedContext.orderId && state.selectedOrder?.id) {
+      resolvedContext.orderId = state.selectedOrder.id;
+    }
+    const payload = { status };
+    if (resolvedContext.orderId) payload.order_id = resolvedContext.orderId;
+    if (Object.prototype.hasOwnProperty.call(resolvedContext, 'positionId')) {
+      payload.position_id = resolvedContext.positionId ?? null;
+    }
+    if (resolvedContext.createdAt) payload.created_at = resolvedContext.createdAt;
+    if (resolvedContext.ticketKey) payload.ticket_key = resolvedContext.ticketKey;
+    const updatedTicket = await request(`/api/tickets/${ticketId}`, {
       method: 'PATCH',
-      body: { status }
+      body: payload
     });
-    state.tickets = (state.tickets || []).map((ticket) =>
-      ticket.id === ticketId ? { ...ticket, status } : ticket
-    );
+    const matches = (ticket) => ticketMatchesContext(ticket, ticketId, resolvedContext);
+    state.tickets = (state.tickets || []).map((ticket) => (matches(ticket) ? { ...ticket, status, ...updatedTicket } : ticket));
     state.orderTickets = (state.orderTickets || []).map((ticket) =>
-      ticket.id === ticketId ? { ...ticket, status } : ticket
+      matches(ticket) ? { ...ticket, status, ...updatedTicket } : ticket
     );
-    if (context.type === 'techpack' && context.orderId && context.positionId) {
+    if (context.type === 'techpack' && resolvedContext.orderId && context.positionId) {
       const nextView = context.viewKey || resolveActiveViewKey();
-      renderTechpackTickets(context.orderId, context.positionId, nextView);
+      renderTechpackTickets(resolvedContext.orderId, context.positionId, nextView);
       updateTechpackStatusDisplay(getActiveTechpackMedia());
     } else if (context.type === 'order') {
-      renderOrderTickets(state.selectedOrder || { id: context.orderId });
+      try {
+        if (resolvedContext.orderId) {
+          await refreshOrderTickets(resolvedContext.orderId);
+        }
+      } catch (refreshErr) {
+        console.warn('Ticket refresh failed', refreshErr);
+      }
+      renderOrderTickets(state.selectedOrder || (resolvedContext.orderId ? { id: resolvedContext.orderId } : undefined));
     }
   }
 
-  async function submitTicketComment(ticketId, payload) {
+  async function loadOrderPrintOptions(orderId) {
+    const statusLabel = document.getElementById('printOptionsStatus');
+    if (!statusLabel || !orderId) return null;
+    statusLabel.textContent = translateTemplate('Optionen werden geladen …');
+    try {
+      const options = await request(`/api/orders/${encodeURIComponent(orderId)}/print-options`);
+      state.orderPrintOptions = options;
+      populatePrintOptionSelects(options);
+      statusLabel.textContent = '';
+      return options;
+    } catch (err) {
+      state.orderPrintOptions = null;
+      populatePrintOptionSelects({});
+      statusLabel.textContent = translateTemplate('Druckoptionen konnten nicht geladen werden.');
+      console.warn('Print options error', err);
+      return null;
+    }
+  }
+
+  function populatePrintOptionSelects(options = {}) {
+    const { formats = [], languages = [], letterheads = [], defaults = {} } = options;
+    const formatSelect = document.getElementById('printFormatSelect');
+    if (formatSelect) {
+      if (formats.length) {
+        formatSelect.innerHTML = formats
+          .map((entry) => `<option value="${escapeHtml(entry.value || entry.name)}">${escapeHtml(entry.label || entry.name || entry.value)}</option>`)
+          .join('');
+        const preferred = defaults.format;
+        const hasPreferred = formats.some((entry) => (entry.value || entry.name) === preferred);
+        formatSelect.value = hasPreferred ? preferred : formats[0].value || formats[0].name;
+        formatSelect.disabled = false;
+      } else {
+        formatSelect.innerHTML = `<option value="">${escapeHtml(translateTemplate('Keine Daten geladen.'))}</option>`;
+        formatSelect.disabled = true;
+      }
+    }
+    const languageSelect = document.getElementById('printLanguageSelect');
+    if (languageSelect) {
+      if (languages.length) {
+        languageSelect.innerHTML = languages
+          .map((entry) => `<option value="${escapeHtml(entry.code)}">${escapeHtml(entry.label || entry.code)}</option>`)
+          .join('');
+        const preferredLanguage = defaults.language;
+        const hasPreferredLanguage = languages.some((entry) => entry.code === preferredLanguage);
+        languageSelect.value = hasPreferredLanguage ? preferredLanguage : languages[0].code;
+        languageSelect.disabled = false;
+      } else {
+        languageSelect.innerHTML = `<option value="">${escapeHtml(translateTemplate('Keine Daten geladen.'))}</option>`;
+        languageSelect.disabled = true;
+      }
+    }
+    const letterheadSelect = document.getElementById('printLetterheadSelect');
+    if (letterheadSelect) {
+      const fallbackOption = `<option value="">${escapeHtml(translateTemplate('Kein Briefkopf'))}</option>`;
+      if (letterheads.length) {
+        const optionsHtml = letterheads
+          .map((entry) => `<option value="${escapeHtml(entry.value || entry.name)}">${escapeHtml(entry.label || entry.name || entry.value)}</option>`)
+          .join('');
+        letterheadSelect.innerHTML = `${fallbackOption}${optionsHtml}`;
+        const preferredLetterhead = defaults.letterhead;
+        const hasPreferredLetterhead = letterheads.some((entry) => (entry.value || entry.name) === preferredLetterhead);
+        letterheadSelect.value = hasPreferredLetterhead ? preferredLetterhead : '';
+        letterheadSelect.disabled = false;
+      } else {
+        letterheadSelect.innerHTML = fallbackOption;
+        letterheadSelect.disabled = false;
+        letterheadSelect.value = '';
+      }
+    }
+  }
+
+  function bindPrintOptionEvents(orderId) {
+    const refreshBtn = document.getElementById('refreshPrintOptions');
+    if (refreshBtn) {
+      refreshBtn.dataset.orderId = orderId || '';
+      if (refreshBtn.dataset.bound !== 'true') {
+        refreshBtn.dataset.bound = 'true';
+        refreshBtn.addEventListener('click', () => {
+          const targetOrderId = refreshBtn.dataset.orderId || state.selectedOrder?.id;
+          if (targetOrderId) {
+            loadOrderPrintOptions(targetOrderId);
+          }
+        });
+      }
+    }
+    const printBtn = document.getElementById('printOrderPdfBtn');
+    if (printBtn) {
+      printBtn.dataset.orderId = orderId || '';
+      if (printBtn.dataset.bound !== 'true') {
+        printBtn.dataset.bound = 'true';
+        printBtn.addEventListener('click', () => {
+          const targetOrderId = printBtn.dataset.orderId || state.selectedOrder?.id;
+          if (targetOrderId) {
+            handleOrderPrint(targetOrderId);
+          }
+        });
+      }
+    }
+  }
+
+  function setPrintButtonLoading(isLoading) {
+    const button = document.getElementById('printOrderPdfBtn');
+    if (!button) return;
+    if (isLoading) {
+      button.dataset.originalLabel = button.dataset.originalLabel || button.textContent;
+      button.textContent = translateTemplate('PDF wird erstellt …');
+      button.disabled = true;
+    } else {
+      if (button.dataset.originalLabel) {
+        button.textContent = button.dataset.originalLabel;
+      }
+      button.disabled = false;
+    }
+  }
+
+  async function handleOrderPrint(orderId) {
+    const formatSelect = document.getElementById('printFormatSelect');
+    const languageSelect = document.getElementById('printLanguageSelect');
+    const letterheadSelect = document.getElementById('printLetterheadSelect');
+    const format = formatSelect?.value;
+    if (!format) {
+      showToast(translateTemplate('Druckoptionen konnten nicht geladen werden.'));
+      return;
+    }
+    const language = languageSelect?.value || '';
+    const letterhead = letterheadSelect?.value || '';
+    setPrintButtonLoading(true);
+    try {
+      const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/print/pdf`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format, language, letterhead })
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || translateTemplate('PDF konnte nicht erstellt werden'));
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      showToast(translateTemplate('PDF erstellt'));
+    } catch (err) {
+      showToast(err.message || translateTemplate('PDF konnte nicht erstellt werden'));
+    } finally {
+      setPrintButtonLoading(false);
+    }
+  }
+
+  async function submitTicketComment(ticketId, payload, context = {}) {
+    const resolvedContext = { ...context };
+    if (!resolvedContext.orderId && state.selectedOrder?.id) {
+      resolvedContext.orderId = state.selectedOrder.id;
+    }
     const data = new FormData();
     if (payload.message_de) data.append('message_de', payload.message_de);
     if (payload.message_tr) data.append('message_tr', payload.message_tr);
     if (payload.file) data.append('file', payload.file);
+    if (resolvedContext.orderId) data.append('order_id', resolvedContext.orderId);
+    if (Object.prototype.hasOwnProperty.call(resolvedContext, 'positionId')) {
+      data.append('position_id', resolvedContext.positionId ?? '');
+    }
     const comment = await request(`/api/tickets/${ticketId}/comment`, {
       method: 'POST',
       body: data
     });
+    const matches = (ticket) => ticketMatchesContext(ticket, ticketId, resolvedContext);
     state.tickets = (state.tickets || []).map((ticket) =>
-      ticket.id === ticketId
-        ? { ...ticket, comments: [...(ticket.comments || []), comment] }
-        : ticket
+      matches(ticket) ? { ...ticket, comments: [...(ticket.comments || []), comment] } : ticket
     );
     state.orderTickets = (state.orderTickets || []).map((ticket) =>
-      ticket.id === ticketId
-        ? { ...ticket, comments: [...(ticket.comments || []), comment] }
-        : ticket
+      matches(ticket) ? { ...ticket, comments: [...(ticket.comments || []), comment] } : ticket
     );
   }
 
@@ -2945,24 +6188,57 @@ function deriveSizeList(order) {
     showToast('Annotation entfernt');
   }
 
-  async function deleteTicket(ticketId) {
-    await request(`/api/tickets/${ticketId}`, { method: 'DELETE' });
-    state.tickets = (state.tickets || []).filter((ticket) => ticket.id !== ticketId);
-    state.orderTickets = (state.orderTickets || []).filter((ticket) => ticket.id !== ticketId);
-    showToast('Ticket gelöscht');
+  async function deleteTicket(ticketId, context = {}) {
+    const resolvedContext = { ...context };
+    if (!resolvedContext.orderId && state.selectedOrder?.id) {
+      resolvedContext.orderId = state.selectedOrder.id;
+    }
+    const existing = (state.tickets || []).find((ticket) => ticketMatchesContext(ticket, ticketId, resolvedContext));
+    const orderId = resolvedContext.orderId || existing?.order_id || null;
+    const hasPositionContext = Object.prototype.hasOwnProperty.call(resolvedContext, 'positionId');
+    const positionId =
+      hasPositionContext ? resolvedContext.positionId : existing && Object.prototype.hasOwnProperty.call(existing, 'position_id')
+        ? existing.position_id
+        : undefined;
+    const params = new URLSearchParams();
+    if (orderId) params.set('order_id', orderId);
+    if (hasPositionContext || positionId !== undefined) {
+      params.set('position_id', positionId ?? '');
+    }
+    const query = params.toString();
+    await request(`/api/tickets/${ticketId}${query ? `?${query}` : ''}`, { method: 'DELETE' });
+    const matches = (ticket) => ticketMatchesContext(ticket, ticketId, resolvedContext);
+    state.tickets = (state.tickets || []).filter((ticket) => !matches(ticket));
+    state.orderTickets = (state.orderTickets || []).filter((ticket) => !matches(ticket));
+    const targetOrderId = orderId;
+    if (targetOrderId) {
+      try {
+        await refreshOrderTickets(targetOrderId);
+      } catch (err) {
+        console.warn('Ticket refresh failed', err);
+      }
+    }
+    showToast(translateTemplate('Ticket gelöscht'));
   }
 
-  async function deleteTicketComment(ticketId, commentId) {
-    await request(`/api/tickets/${ticketId}/comment/${commentId}`, { method: 'DELETE' });
+  async function deleteTicketComment(ticketId, commentId, context = {}) {
+    const resolvedContext = { ...context };
+    if (!resolvedContext.orderId && state.selectedOrder?.id) {
+      resolvedContext.orderId = state.selectedOrder.id;
+    }
+    const params = new URLSearchParams();
+    if (resolvedContext.orderId) params.set('order_id', resolvedContext.orderId);
+    if (Object.prototype.hasOwnProperty.call(resolvedContext, 'positionId')) {
+      params.set('position_id', resolvedContext.positionId ?? '');
+    }
+    const query = params.toString();
+    await request(`/api/tickets/${ticketId}/comment/${commentId}${query ? `?${query}` : ''}`, { method: 'DELETE' });
+    const matches = (ticket) => ticketMatchesContext(ticket, ticketId, resolvedContext);
     state.tickets = (state.tickets || []).map((ticket) =>
-      ticket.id === ticketId
-        ? { ...ticket, comments: (ticket.comments || []).filter((comment) => comment.id !== commentId) }
-        : ticket
+      matches(ticket) ? { ...ticket, comments: (ticket.comments || []).filter((comment) => comment.id !== commentId) } : ticket
     );
     state.orderTickets = (state.orderTickets || []).map((ticket) =>
-      ticket.id === ticketId
-        ? { ...ticket, comments: (ticket.comments || []).filter((comment) => comment.id !== commentId) }
-        : ticket
+      matches(ticket) ? { ...ticket, comments: (ticket.comments || []).filter((comment) => comment.id !== commentId) } : ticket
     );
     showToast('Kommentar gelöscht');
   }
@@ -3055,13 +6331,43 @@ function deriveSizeList(order) {
       showToast('Kein Kunde verknüpft');
       return;
     }
+    const encodedType = encodeURIComponent(type);
+    if (type === 'shoebox') {
+      if (!state.shoeboxRows?.length) {
+        showToast('Keine Schuhbox-Daten vorhanden.');
+        return;
+      }
+      try {
+        const payload = {
+          cartons: (state.shoeboxRows || []).map((row) => ({
+            id: row.id,
+            article_number: row.articleNumber,
+            name: row.name,
+            color_code: row.colorCode,
+            size: row.size,
+            image_url: row.imageUrl,
+            quantity: row.quantity
+          })),
+          sizes: [],
+          defaults: null
+        };
+        await request(`/api/customers/${encodeURIComponent(customerId)}/packaging/${encodedType}`, {
+          method: 'POST',
+          body: payload
+        });
+        showToast('Kundenlayout gespeichert');
+      } catch (err) {
+        showToast(err.message);
+      }
+      return;
+    }
     try {
       const payload = {
         sizes: state.sizeList,
         defaults: state.cartonDefaults,
         cartons: state.labelCartons.map((carton) => serializeCarton(carton))
       };
-      await request(`/api/customers/${encodeURIComponent(customerId)}/packaging/${encodeURIComponent(type)}`, {
+      await request(`/api/customers/${encodeURIComponent(customerId)}/packaging/${encodedType}`, {
         method: 'POST',
         body: payload
       });
@@ -3084,6 +6390,7 @@ function deriveSizeList(order) {
         name: (row.name || 'Artikel').toString().toUpperCase(),
         colorCode: row.color_code || '-',
         imageUrl: row.image_url || '',
+        defaultImageUrl: row.image_url || '',
         size: row.size || '-',
         quantity: Math.max(0, Math.floor(Number(row.quantity) || 0))
       }));
@@ -3092,37 +6399,6 @@ function deriveSizeList(order) {
     } catch (err) {
       console.warn('Shoebox preset konnte nicht geladen werden', err);
       return false;
-    }
-  }
-
-  async function saveShoeboxPackaging(customerId) {
-    if (!customerId) {
-      showToast('Kein Kunde verknüpft');
-      return;
-    }
-    if (!state.shoeboxRows?.length) {
-      showToast('Keine Schuhbox-Daten vorhanden.');
-      return;
-    }
-    try {
-      const payload = {
-        cartons: (state.shoeboxRows || []).map((row) => ({
-          id: row.id,
-          article_number: row.articleNumber,
-          name: row.name,
-          color_code: row.colorCode,
-          size: row.size,
-          image_url: row.imageUrl,
-          quantity: row.quantity
-        }))
-      };
-      await request(`/api/customers/${encodeURIComponent(customerId)}/packaging/shoebox`, {
-        method: 'POST',
-        body: payload
-      });
-      showToast('Kundenlayout gespeichert');
-    } catch (err) {
-      showToast(err.message);
     }
   }
 
@@ -3140,7 +6416,9 @@ function deriveSizeList(order) {
     state.currentLabel = null;
     state.currentLabelHtml = '';
     if (hint) {
-      hint.textContent = order.customer_name ? `Etikettvorlage für ${order.customer_name}` : 'Kundenspezifisches Layout';
+      hint.textContent = order.customer_name
+        ? translateTemplate('Etikettvorlage für {{customer}}', { customer: order.customer_name })
+        : translateTemplate('Kundenspezifisches Layout');
     }
     if (totalInput) {
       const fallbackTotal = state.labelCartons.length || 1;
@@ -3255,7 +6533,7 @@ function deriveSizeList(order) {
     if (!orderId) return;
     const activeCarton = getActiveCarton();
     if (!activeCarton) {
-      showToast('Kein Karton ausgewählt');
+      showToast(translateTemplate('Kein Karton ausgewählt'));
       return;
     }
     const totalInput = document.getElementById('cartonTotal');
@@ -3281,6 +6559,7 @@ function deriveSizeList(order) {
     const sizeValues = (data.size_table || [])
       .map((entry) => `<td>${escapeHtml(entry.quantity ?? '')}</td>`)
       .join('');
+    const noSizesText = translateTemplate('Keine Größeninformationen hinterlegt.');
     const sizeSection =
       data.size_table && data.size_table.length
         ? `<table class="label-size-table">
@@ -3297,15 +6576,26 @@ function deriveSizeList(order) {
               </tr>
             </tbody>
           </table>`
-        : '<p class="muted">Keine Größeninformationen hinterlegt.</p>';
+        : `<p class="muted">${escapeHtml(noSizesText)}</p>`;
+    const taxLine = data.order_customer?.tax_id
+      ? translateTemplate('Steuernummer: {{value}}', { value: data.order_customer.tax_id })
+      : null;
     const customerLines = [
       data.order_customer?.name,
       ...(data.order_customer?.address_lines || []),
-      data.order_customer?.tax_id ? `Steuernummer: ${data.order_customer.tax_id}` : null
+      taxLine
     ]
       .filter(Boolean)
       .map((line) => escapeHtml(line));
-    container.innerHTML = `
+    const orderLabel = translateTemplate('Bestell-Nr.');
+    const cartonTotalLabel = translateTemplate('Karton gesamt');
+    const cartonNumberLabel = translateTemplate('Karton-Nr.');
+    const variationLabel = translateTemplate('Variation-Nr.:');
+    const articleLabel = translateTemplate('Artikel-Nr.:');
+    const leatherLabel = data.leather_label || translateTemplate('Leder & Farbe');
+    const soleLabel = data.sole_label || translateTemplate('Sohle');
+    const customerLabel = translateTemplate('Kunde');
+    return `
       <div class="carton-label">
         <div class="label-row top">
           <div>
@@ -3313,7 +6603,7 @@ function deriveSizeList(order) {
             <p>${formatLines(data.warehouse_lines)}</p>
           </div>
           <div>
-            <p class="label-heading">Bestell-Nr.</p>
+            <p class="label-heading">${escapeHtml(orderLabel)}</p>
             <p class="order-number-value">${escapeHtml(data.order_number || '')}</p>
             <div class="supplier-block">
               <p class="label-heading">${escapeHtml(data.supplier_title || '')}</p>
@@ -3321,26 +6611,26 @@ function deriveSizeList(order) {
             </div>
           </div>
           <div class="carton-total">
-            <p>Karton gesamt</p>
+            <p>${escapeHtml(cartonTotalLabel)}</p>
             <span>${escapeHtml(data.carton?.total ?? '')}</span>
           </div>
           <div class="carton-number">
-            <p>Karton-Nr.</p>
+            <p>${escapeHtml(cartonNumberLabel)}</p>
             <span>${escapeHtml(data.carton?.number ?? '')}</span>
           </div>
         </div>
         <div class="label-row meta">
-          <div><strong>Variation-Nr.:</strong> ${escapeHtml(data.variation || '-')}</div>
-          <div><strong>Artikel-Nr.:</strong> ${escapeHtml(data.article_number || '-')}</div>
+          <div><strong>${escapeHtml(variationLabel)}</strong> ${escapeHtml(data.variation || '-')}</div>
+          <div><strong>${escapeHtml(articleLabel)}</strong> ${escapeHtml(data.article_number || '-')}</div>
         </div>
         <div class="label-row meta">
-          <div><strong>${escapeHtml(data.leather_label)}</strong> ${escapeHtml(data.leather_value || '-')}</div>
-          <div><strong>${escapeHtml(data.sole_label)}</strong> ${escapeHtml(data.sole_value || '-')}</div>
+          <div><strong>${escapeHtml(leatherLabel)}</strong> ${escapeHtml(data.leather_value || '-')}</div>
+          <div><strong>${escapeHtml(soleLabel)}</strong> ${escapeHtml(data.sole_value || '-')}</div>
         </div>
         ${sizeSection}
         <div class="label-footer">
           <div class="label-customer">
-            <strong>Kunde</strong>
+            <strong>${escapeHtml(customerLabel)}</strong>
             <div>${customerLines.join('<br />') || '-'}</div>
           </div>
           <div class="label-version">${escapeHtml(data.notes || '')}</div>
@@ -3361,18 +6651,21 @@ function deriveSizeList(order) {
     if (!state.currentLabelHtml && state.selectedOrder?.id) {
       await generateCartonLabel(state.selectedOrder.id);
       if (!state.currentLabelHtml) {
-        showToast('Etikett konnte nicht erzeugt werden.');
+        showToast(translateTemplate('Etikett konnte nicht erzeugt werden.'));
         return;
       }
     }
     const popup = window.open('', '_blank');
     if (!popup) {
-      showToast('Popup blockiert – bitte Popup-Blocker deaktivieren.');
+      showToast(translateTemplate('Popup blockiert – bitte Popup-Blocker deaktivieren.'));
       return;
     }
+    const labelTitle = translateTemplate('Kartonetikett {{order}}', {
+      order: state.selectedOrder?.order_number || ''
+    });
     popup.document.write(
-      `<html><head><title>Kartonetikett ${escapeHtml(
-        state.selectedOrder?.order_number || ''
+      `<html><head><title>${escapeHtml(
+        labelTitle
       )}</title><link rel="stylesheet" href="/styles.css" /></head><body class="label-print">${state.currentLabelHtml}</body></html>`
     );
     popup.document.close();
@@ -3383,7 +6676,7 @@ function deriveSizeList(order) {
   async function printAllCartonLabels(orderId = state.selectedOrder?.id) {
     if (!orderId) return;
     if (!state.labelCartons.length) {
-      showToast('Keine Kartons konfiguriert.');
+      showToast(translateTemplate('Keine Kartons konfiguriert.'));
       return;
     }
     const totalInput = document.getElementById('cartonTotal');
@@ -3401,7 +6694,7 @@ function deriveSizeList(order) {
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error?.error || 'PDF konnte nicht erstellt werden');
+        throw new Error(error?.error || translateTemplate('PDF konnte nicht erstellt werden'));
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -3429,7 +6722,7 @@ function deriveSizeList(order) {
     const detailView = document.getElementById('artikelDetailView');
     if (detailView) detailView.classList.add('hidden');
     if (listView) listView.classList.remove('hidden');
-    setBreadcrumbLabel('Artikel');
+    setBreadcrumbLabel(translateTemplate('Artikel'));
   }
 
   function updateArtikelUrlParam(itemCode) {
@@ -3456,7 +6749,7 @@ function deriveSizeList(order) {
     const detailView = document.getElementById('customerDetailView');
     if (detailView) detailView.classList.add('hidden');
     if (listView) listView.classList.remove('hidden');
-    setBreadcrumbLabel('Kunden');
+    setBreadcrumbLabel(translateTemplate('Kunden'));
   }
 
   function updateCustomerUrlParam(customerId) {
@@ -3503,7 +6796,9 @@ function deriveSizeList(order) {
 
       const renderRows = (items) => {
         if (!items.length) {
-          table.innerHTML = '<tr><td colspan="4" class="muted">Keine Artikel gefunden.</td></tr>';
+          table.innerHTML = `<tr><td colspan="4" class="muted">${escapeHtml(
+            translateTemplate('Keine Artikel gefunden.')
+          )}</td></tr>`;
           return;
         }
         table.innerHTML = items
@@ -3574,7 +6869,7 @@ function deriveSizeList(order) {
         }
       }
     } catch (err) {
-      const message = err?.message || 'Artikel konnten nicht geladen werden.';
+      const message = err?.message || translateTemplate('Artikel konnten nicht geladen werden.');
       table.innerHTML = `<tr><td colspan="3" class="muted">${escapeHtml(message)}</td></tr>`;
       showToast(message);
     }
@@ -3584,7 +6879,7 @@ function deriveSizeList(order) {
     if (!itemCode) return;
     const item = state.erpItems?.find((entry) => entry.item_code === itemCode);
     if (!item) {
-      showToast('Artikel nicht gefunden');
+      showToast(translateTemplate('Artikel nicht gefunden'));
       return;
     }
     state.activeArtikelCode = itemCode;
@@ -3597,7 +6892,7 @@ function deriveSizeList(order) {
     if (!customerId) return;
     const customer = state.customers?.find((entry) => entry.id === customerId);
     if (!customer) {
-      showToast('Kunde nicht gefunden');
+      showToast(translateTemplate('Kunde nicht gefunden'));
       return;
     }
     state.activeCustomerId = customerId;
@@ -3609,9 +6904,10 @@ function deriveSizeList(order) {
   function renderCustomerDetail(customer) {
     const container = document.getElementById('customerDetail');
     if (!container) return;
+    const t = (key, replacements) => translateTemplate(key, replacements);
     if (!customer) {
-      container.innerHTML = '<p class="muted">Bitte einen Kunden auswählen.</p>';
-      setBreadcrumbLabel('Kunden');
+      container.innerHTML = `<p class="muted">${escapeHtml(t('Bitte einen Kunden auswählen.'))}</p>`;
+      setBreadcrumbLabel(t('Kunden'));
       return;
     }
     const statusMeta = getCustomerStatusMeta(customer);
@@ -3622,28 +6918,29 @@ function deriveSizeList(order) {
     const otherAddresses = addresses.filter((addr) => addr !== billingAddress && addr !== shippingAddress);
     const contact = (state.contacts || []).find((entry) => entry.customer_id === customer.id);
     const infoRowOne = [
-      { label: 'Kundennummer', value: customer.id },
-      { label: 'Kundenname', value: customer.name },
-      { label: 'Steuernummer', value: customer.tax_id },
-      { label: 'Account Manager', value: customer.account_manager }
+      { label: t('Kundennummer'), value: customer.id },
+      { label: t('Kundenname'), value: customer.name },
+      { label: t('Steuernummer'), value: customer.tax_id },
+      { label: t('Account Manager'), value: customer.account_manager }
     ];
     const infoRowTwo = [
-      { label: 'WooCommerce Benutzer', value: customer.woocommerce_user || '-' },
-      { label: 'WooCommerce Passwort', value: customer.woocommerce_password_hint || '–' },
-      { label: 'Priorität', value: customer.priority || '-' },
-      { label: 'Status', value: customer.status || '-' }
+      { label: t('WooCommerce Benutzer'), value: customer.woocommerce_user || '-' },
+      { label: t('WooCommerce Passwort'), value: customer.woocommerce_password_hint || '–' },
+      { label: t('Priorität'), value: customer.priority || '-' },
+      { label: t('Status'), value: customer.status || '-' }
     ];
     const addressCards = [];
-    addressCards.push(buildCustomerAddressCard('Rechnungsadresse', billingAddress));
-    addressCards.push(buildCustomerAddressCard('Lieferadresse', shippingAddress));
+    addressCards.push(buildCustomerAddressCard(t('Rechnungsadresse'), billingAddress));
+    addressCards.push(buildCustomerAddressCard(t('Lieferadresse'), shippingAddress));
     otherAddresses.forEach((addr, idx) => {
-      addressCards.push(buildCustomerAddressCard(`${addr.type || 'Adresse'} ${idx + 1}`, addr));
+      const typeLabel = addr?.type ? t(addr.type) : t('Adresse');
+      addressCards.push(buildCustomerAddressCard(`${typeLabel} ${idx + 1}`, addr));
     });
-    setBreadcrumbLabel(`Kunden · ${customer.name}`);
+    setBreadcrumbLabel(t('Kunden · {{name}}', { name: customer.name }));
     container.innerHTML = `
       <div class="customer-profile-head">
         <div class="customer-status-meta">
-          <p class="muted">Kunde</p>
+          <p class="muted">${escapeHtml(t('Kunde'))}</p>
           <h2>${escapeHtml(customer.name)}</h2>
           <span class="status-pill ${statusMeta.className}">${statusMeta.label}</span>
         </div>
@@ -3661,17 +6958,17 @@ function deriveSizeList(order) {
         ${addressCards.join('')}
       </section>
       <section class="customer-contact-row">
-        ${detailField('Ansprechpartner', contact?.name || '-')}
-        ${detailField('E-Mail', contact?.email || '-')}
-        ${detailField('Telefon', contact?.phone || '-')}
+        ${detailField(t('Ansprechpartner'), contact?.name || '-')}
+        ${detailField(t('E-Mail'), contact?.email || '-')}
+        ${detailField(t('Telefon'), contact?.phone || '-')}
       </section>
       <section class="customer-accessories">
         <div class="customer-accessories-head">
-          <h4>Zubehör</h4>
-          <p class="muted" id="customerAccessoriesSubtitle">Kundenspezifisches Verpackungsset</p>
+          <h4>${escapeHtml(t('Zubehör'))}</h4>
+          <p class="muted" id="customerAccessoriesSubtitle">${escapeHtml(t('Kundenspezifisches Verpackungsset'))}</p>
         </div>
         <div id="customerAccessories" class="accessories-placeholder">
-          <p class="muted">Keine Daten geladen.</p>
+          <p class="muted">${escapeHtml(t('Keine Daten geladen.'))}</p>
         </div>
       </section>
     `;
@@ -3740,6 +7037,7 @@ function deriveSizeList(order) {
           articleNumber,
           colorCode: resolvePositionColorCode(order, pos, item, size),
           imageUrl,
+          defaultImageUrl: imageUrl,
           size,
           quantity: qty
         });
@@ -3751,6 +7049,44 @@ function deriveSizeList(order) {
   function renderShoeboxLabels(order) {
     state.shoeboxRows = buildShoeboxLabelEntries(order);
     renderShoeboxTable();
+    renderShoeboxMetaControls();
+    bindShoeboxMetaControls();
+  }
+
+  function renderShoeboxMetaControls() {
+    const seasonSelect = document.getElementById('shoeboxSeasonSelect');
+    const yearInput = document.getElementById('shoeboxYearInput');
+    if (seasonSelect) {
+      const current = (state.shoeboxSeason || 'FS').toUpperCase();
+      if (!SHOEBOX_SEASON_CHOICES.includes(current)) {
+        state.shoeboxSeason = 'FS';
+      }
+      seasonSelect.value = state.shoeboxSeason || 'FS';
+    }
+    if (yearInput) {
+      yearInput.value = state.shoeboxYear || new Date().getFullYear();
+    }
+  }
+
+  function bindShoeboxMetaControls() {
+    const seasonSelect = document.getElementById('shoeboxSeasonSelect');
+    if (seasonSelect && seasonSelect.dataset.bound !== '1') {
+      seasonSelect.dataset.bound = '1';
+      seasonSelect.addEventListener('change', (event) => {
+        const value = (event.target.value || 'FS').toUpperCase();
+        state.shoeboxSeason = SHOEBOX_SEASON_CHOICES.includes(value) ? value : 'FS';
+      });
+    }
+    const yearInput = document.getElementById('shoeboxYearInput');
+    if (yearInput && yearInput.dataset.bound !== '1') {
+      yearInput.dataset.bound = '1';
+      yearInput.addEventListener('input', (event) => {
+        const numeric = Number(event.target.value);
+        if (Number.isFinite(numeric)) {
+          state.shoeboxYear = numeric;
+        }
+      });
+    }
   }
 
   function renderShoeboxTable() {
@@ -3758,17 +7094,32 @@ function deriveSizeList(order) {
     if (!table) return;
     const entries = state.shoeboxRows || [];
     if (!entries.length) {
-      table.innerHTML = '<tr><td colspan="6" class="muted">Keine Schuhbox-Etiketten vorhanden.</td></tr>';
+      table.innerHTML = `<tr><td colspan="6" class="muted">${escapeHtml(
+        translateTemplate('Keine Schuhbox-Etiketten vorhanden.')
+      )}</td></tr>`;
       return;
     }
+    const replaceLabel = translateTemplate('Bild ersetzen');
+    const resetLabel = translateTemplate('Standard');
     table.innerHTML = entries
       .map((entry) => {
         const imageCell = entry.imageUrl
           ? `<img src="${escapeHtml(entry.imageUrl)}" alt="${escapeHtml(entry.name)}" loading="lazy" />`
-          : '<span class="muted">Kein Bild</span>';
+          : `<span class="muted">${escapeHtml(translateTemplate('Kein Bild'))}</span>`;
+        const imageBlock = `<div class="shoebox-image-cell">
+          ${imageCell}
+          <div class="shoebox-image-actions">
+            <button type="button" class="ghost small" data-image-edit="${entry.id}">${escapeHtml(replaceLabel)}</button>
+            ${
+              entry.imageUrl !== entry.defaultImageUrl
+                ? `<button type="button" class="ghost small" data-image-reset="${entry.id}">${escapeHtml(resetLabel)}</button>`
+                : ''
+            }
+          </div>
+        </div>`;
         return `<tr data-row-id="${entry.id}">
           <td>${escapeHtml(entry.articleNumber)}</td>
-          <td>${imageCell}</td>
+          <td>${imageBlock}</td>
           <td>${escapeHtml(entry.name)}</td>
           <td>${escapeHtml(entry.colorCode || '-')}</td>
           <td>${escapeHtml(entry.size)}</td>
@@ -3783,6 +7134,12 @@ function deriveSizeList(order) {
         updateShoeboxQuantity(event.target.dataset.rowId, event.target.value);
       });
     });
+    table.querySelectorAll('[data-image-edit]').forEach((button) => {
+      button.addEventListener('click', () => openShoeboxImagePrompt(button.dataset.imageEdit));
+    });
+    table.querySelectorAll('[data-image-reset]').forEach((button) => {
+      button.addEventListener('click', () => resetShoeboxImage(button.dataset.imageReset));
+    });
   }
 
   function updateShoeboxQuantity(rowId, value) {
@@ -3794,27 +7151,47 @@ function deriveSizeList(order) {
     if (input) input.value = String(next);
   }
 
+  function openShoeboxImagePrompt(rowId) {
+    const row = state.shoeboxRows.find((entry) => entry.id === rowId);
+    if (!row) return;
+    const current = row.imageUrl || '';
+    const promptText = translateTemplate('Bild-URL für dieses Etikett eingeben:');
+    const next = window.prompt(promptText, current);
+    if (next === null) return;
+    row.imageUrl = next.trim();
+    renderShoeboxTable();
+  }
+
+  function resetShoeboxImage(rowId) {
+    const row = state.shoeboxRows.find((entry) => entry.id === rowId);
+    if (!row) return;
+    row.imageUrl = row.defaultImageUrl || '';
+    renderShoeboxTable();
+  }
+
   function renderArtikelDetail(item) {
     const container = document.getElementById('artikelDetail');
     if (!container) return;
+    const t = (key, replacements) => translateTemplate(key, replacements);
     if (!item) {
-      container.innerHTML = '<p class="muted">Bitte einen Artikel auswählen.</p>';
-      setBreadcrumbLabel('Artikel');
+      container.innerHTML = `<p class="muted">${escapeHtml(t('Bitte einen Artikel auswählen.'))}</p>`;
+      setBreadcrumbLabel(t('Artikel'));
       setArtikelHeaderLinks(null);
       return;
     }
-    const statusMeta = getItemStatusMeta(item);
     const colorCode = getItemColorCode(item);
+    const statusMeta = getItemStatusMeta(item);
     const heroFields = [
-      { label: 'Artikelnummer', value: item.item_code },
-      { label: 'Artikelname', value: item.item_name }
+      { label: t('Artikelnummer'), value: item.item_code },
+      { label: t('Artikelname'), value: item.item_name }
     ];
     const detailFields = [
-      { label: 'Farbcode', value: colorCode },
-      { label: 'Artikelgruppe', value: item.item_group },
-      { label: 'Kollektion', value: item.collection },
-      { label: 'Verknüpfung zum Kunden', value: item.customer_link },
-      { label: 'Kunden-Artikelcode', value: item.customer_item_code }
+      { label: t('Status'), value: statusMeta.label },
+      { label: t('Farbcode'), value: colorCode },
+      { label: t('Artikelgruppe'), value: item.item_group },
+      { label: t('Kollektion'), value: item.collection },
+      { label: t('Verknüpfung zum Kunden'), value: item.customer_link },
+      { label: t('Kunden-Artikelcode'), value: item.customer_item_code }
     ];
     const priceRows =
       (item.prices || []).length > 0
@@ -3828,43 +7205,46 @@ function deriveSizeList(order) {
               </tr>`
             )
             .join('')
-        : '<tr><td colspan="3" class="muted">Keine Preisdaten gepflegt.</td></tr>';
+        : `<tr><td colspan="3" class="muted">${escapeHtml(t('Keine Preisdaten gepflegt.'))}</td></tr>`;
     const sizesMarkup =
       (item.sizes || []).length > 0
         ? item.sizes.map((size) => `<span class="size-pill">${escapeHtml(size)}</span>`).join('')
-        : '<span class="muted">Keine Größen</span>';
+        : `<span class="muted">${escapeHtml(t('Keine Größen'))}</span>`;
     const materialList = [
-      { label: 'Außenmaterial', value: item.materials?.outer },
-      { label: 'Innenmaterial', value: item.materials?.inner },
-      { label: 'Sohle', value: item.materials?.sole }
+      { label: t('Außenmaterial'), value: item.materials?.outer },
+      { label: t('Innenmaterial'), value: item.materials?.inner },
+      { label: t('Sohle'), value: item.materials?.sole }
     ]
       .map(
         (entry) => `<div class="detail-field">
-        <p class="detail-field-label">${entry.label}</p>
+        <p class="detail-field-label">${escapeHtml(entry.label)}</p>
         <p class="detail-field-value">${escapeHtml(entry.value || '-')}</p>
       </div>`
       )
       .join('');
     const galleryImages = Array.isArray(item.media?.gallery) ? item.media.gallery : [];
     const heroImage = item.media?.hero || galleryImages[0]?.url || null;
-    const gallerySelection = galleryImages
-      .filter((media) => media.url !== heroImage)
-      .slice(0, 4);
+    const gallerySelection = galleryImages.filter((media) => media.url !== heroImage).slice(0, 4);
     const galleryThumbs = `<section class="artikel-gallery">
-        <h4>Bilder</h4>
+        <h4>${escapeHtml(t('Bilder'))}</h4>
         <div class="item-gallery item-gallery-fixed">
           ${
             gallerySelection.length
               ? gallerySelection
                   .map((media) => `<img src="${media.url}" alt="" loading="lazy" referrerpolicy="no-referrer" />`)
                   .join('')
-              : '<div class="artikel-gallery-placeholder">Keine weiteren Bilder</div>'
+              : `<div class="artikel-gallery-placeholder">${escapeHtml(t('Keine weiteren Bilder'))}</div>`
           }
         </div>
       </section>`;
     const hasLinks = Boolean(item.links?.b2b || item.links?.viewer3d);
     setArtikelHeaderLinks(hasLinks ? item : null);
-    setBreadcrumbLabel(`Artikel · ${item.item_name || item.item_code || 'Details'}`);
+    setBreadcrumbLabel(t('Artikel · {{name}}', { name: item.item_name || item.item_code || t('Artikel') }));
+    const heroMediaMarkup = heroImage
+      ? `<img src="${heroImage}" alt="${escapeHtml(item.item_name || item.item_code || '')}" loading="lazy" referrerpolicy="no-referrer" />`
+      : `<div class="artikel-hero-placeholder">${escapeHtml(t('Kein Bild'))}</div>`;
+    const sizeCount = (item.sizes || []).length || 0;
+    const sizeMetaText = t('{{count}} verfügbare Größen', { count: sizeCount });
     container.innerHTML = `
       <div class="artikel-hero-grid">
         <div class="artikel-hero-fields">
@@ -3874,21 +7254,17 @@ function deriveSizeList(order) {
           </div>
         </div>
         <div class="artikel-hero-media">
-          ${
-            heroImage
-              ? `<img src="${heroImage}" alt="${escapeHtml(item.item_name || item.item_code || '')}" loading="lazy" referrerpolicy="no-referrer" />`
-              : '<div class="artikel-hero-placeholder">Kein Bild</div>'
-          }
+          ${heroMediaMarkup}
         </div>
       </div>
       <section class="artikel-prices">
-        <h4>Preisübersicht</h4>
+        <h4>${escapeHtml(t('Preisübersicht'))}</h4>
         <table>
           <thead>
             <tr>
-              <th>Liste</th>
-              <th>Typ</th>
-              <th class="align-right">Betrag</th>
+              <th>${escapeHtml(t('Liste'))}</th>
+              <th>${escapeHtml(t('Typ'))}</th>
+              <th class="align-right">${escapeHtml(t('Betrag'))}</th>
             </tr>
           </thead>
           <tbody>${priceRows}</tbody>
@@ -3897,14 +7273,14 @@ function deriveSizeList(order) {
       <section class="artikel-variants">
         <div class="size-card">
           <div class="size-card-head">
-            <h4>Größen</h4>
-            <span class="size-meta">${(item.sizes || []).length || 0} verfügbare Größen</span>
+            <h4>${escapeHtml(t('Größen'))}</h4>
+            <span class="size-meta">${escapeHtml(sizeMetaText)}</span>
           </div>
           <div class="size-grid">${sizesMarkup}</div>
         </div>
       </section>
       <section class="artikel-materials">
-        <h4>Materialien</h4>
+        <h4>${escapeHtml(t('Materialien'))}</h4>
         <div class="detail-field-grid">${materialList}</div>
       </section>
       ${galleryThumbs}
@@ -3919,12 +7295,18 @@ function deriveSizeList(order) {
       holder.classList.add('hidden');
       return;
     }
+    const viewLabel = translateTemplate('3D Ansicht');
+    const articleLabel = translateTemplate('Zum Artikel');
     const links = [];
     if (item.links?.b2b) {
-      links.push(`<a class="artikel-head-link" href="${item.links.b2b}" target="_blank" rel="noopener">Zum Artikel</a>`);
+      links.push(
+        `<a class="artikel-head-link" href="${item.links.b2b}" target="_blank" rel="noopener">${escapeHtml(articleLabel)}</a>`
+      );
     }
     if (item.links?.viewer3d) {
-      links.push(`<a class="artikel-head-link" href="${item.links.viewer3d}" target="_blank" rel="noopener">3D Ansicht</a>`);
+      links.push(
+        `<a class="artikel-head-link" href="${item.links.viewer3d}" target="_blank" rel="noopener">${escapeHtml(viewLabel)}</a>`
+      );
     }
     if (!links.length) {
       holder.innerHTML = '';
@@ -3943,10 +7325,20 @@ function deriveSizeList(order) {
   }
 
   function getCustomerStatusMeta(customer) {
-    const status = (customer?.status || '').toLowerCase();
-    if (status === 'aktiv') return { label: 'Aktiv', className: 'success' };
-    if (status === 'gesperrt') return { label: 'Gesperrt', className: 'warning' };
-    return { label: customer?.status || 'Unbekannt', className: 'warning' };
+    const raw = (customer?.status || '').trim();
+    const normalized = raw.toLowerCase();
+    let className = 'warning';
+    let labelKey = raw || 'Unbekannt';
+    if (normalized === 'aktiv') {
+      className = 'success';
+      labelKey = 'Aktiv';
+    } else if (normalized === 'gesperrt') {
+      className = 'warning';
+      labelKey = 'Gesperrt';
+    } else if (!raw) {
+      labelKey = 'Unbekannt';
+    }
+    return { label: translateTemplate(labelKey), className };
   }
 
   function getCustomerInitials(name) {
@@ -3957,10 +7349,11 @@ function deriveSizeList(order) {
   }
 
   function formatCustomerAddress(address) {
-    if (!address) return '<span class="muted">Keine Adresse hinterlegt</span>';
+    const empty = `<span class="muted">${escapeHtml(translateTemplate('Keine Adresse hinterlegt'))}</span>`;
+    if (!address) return empty;
     const cityLine = [address.zip, address.city].filter(Boolean).join(' ');
     const lines = [address.street, cityLine, address.country].filter(Boolean).map((line) => escapeHtml(line));
-    return lines.length ? lines.join('<br />') : '<span class="muted">Keine Adresse hinterlegt</span>';
+    return lines.length ? lines.join('<br />') : empty;
   }
 
   function buildCustomerAddressCard(title, address, customHtml = null) {
@@ -3982,7 +7375,9 @@ function deriveSizeList(order) {
 
   function getItemStatusMeta(item) {
     const isActive = item?.status ? item.status.toLowerCase() === 'active' : !item?.disabled;
-    return isActive ? { label: 'Aktiviert', className: 'success' } : { label: 'Deaktiviert', className: 'warning' };
+    return isActive
+      ? { label: translateTemplate('Aktiviert'), className: 'success' }
+      : { label: translateTemplate('Deaktiviert'), className: 'warning' };
   }
 
   async function initKunden() {
@@ -4019,7 +7414,9 @@ function deriveSizeList(order) {
 
       const renderTable = (items) => {
         if (!items.length) {
-          tableBody.innerHTML = '<tr><td colspan="3" class="muted">Keine Kunden gefunden.</td></tr>';
+          tableBody.innerHTML = `<tr><td colspan="3" class="muted">${escapeHtml(
+            translateTemplate('Keine Kunden gefunden.')
+          )}</td></tr>`;
           return;
         }
         tableBody.innerHTML = items
@@ -4105,13 +7502,10 @@ function deriveSizeList(order) {
   }
 
   async function initKalender() {
-    const grid = document.getElementById('calendarGrid');
     const list = document.getElementById('calendarList');
-    const monthLabel = document.getElementById('calendarMonthLabel');
     const subtitle = document.getElementById('calendarSubtitle');
-    const prevBtn = document.getElementById('prevMonthBtn');
-    const nextBtn = document.getElementById('nextMonthBtn');
-    if (!grid || !list) return;
+    const rangeSelect = document.getElementById('calendarRange');
+    if (!list) return;
 
     const [calendarEvents, orders] = await Promise.all([request('/api/calendar'), request('/api/orders')]);
     const buildOrderEvents = (orderList) =>
@@ -4128,8 +7522,7 @@ function deriveSizeList(order) {
 
     state.orderDeliveryEvents = buildOrderEvents(orders);
     state.manualCalendarEvents = calendarEvents;
-    state.calendarMonth = new Date().getMonth();
-    state.calendarYear = new Date().getFullYear();
+    state.calendarRange = rangeSelect?.value || 'month';
 
     const btn = document.getElementById('newEventBtn');
     const dialog = document.getElementById('eventDialog');
@@ -4144,160 +7537,143 @@ function deriveSizeList(order) {
             await request('/api/calendar', { method: 'POST', body: data });
             dialog.querySelector('form').reset();
             state.manualCalendarEvents = await request('/api/calendar');
-            renderCalendar();
+            renderEventList();
           }
         });
       }
     }
 
-    if (prevBtn) {
-      prevBtn.addEventListener('click', () => {
-        const date = new Date(state.calendarYear, state.calendarMonth - 1, 1);
-        state.calendarMonth = date.getMonth();
-        state.calendarYear = date.getFullYear();
-        renderCalendar();
+    if (rangeSelect) {
+      rangeSelect.addEventListener('change', () => {
+        state.calendarRange = rangeSelect.value;
+        renderEventList();
       });
-    }
-    if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
-        const date = new Date(state.calendarYear, state.calendarMonth + 1, 1);
-        state.calendarMonth = date.getMonth();
-        state.calendarYear = date.getFullYear();
-        renderCalendar();
-      });
-    }
-
-    function formatDateKey(dateInput) {
-      const date = new Date(dateInput);
-      if (Number.isNaN(date.getTime())) return null;
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
     function getAllEvents() {
       return [...state.orderDeliveryEvents, ...state.manualCalendarEvents];
     }
 
-    function renderCalendar() {
-      const month = state.calendarMonth;
-      const year = state.calendarYear;
-      const current = new Date();
-      if (monthLabel) {
-        monthLabel.textContent = new Date(year, month, 1).toLocaleDateString('de-DE', {
-          month: 'long',
-          year: 'numeric'
-        });
+    function filterEventsByRange(range) {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      let end = null;
+      switch (range) {
+        case 'week': {
+          end = new Date(start);
+          end.setDate(end.getDate() + 7);
+          break;
+        }
+        case 'month': {
+          end = new Date(start);
+          end.setMonth(end.getMonth() + 1);
+          break;
+        }
+        case 'quarter': {
+          end = new Date(start);
+          end.setMonth(end.getMonth() + 3);
+          break;
+        }
+        case 'all':
+        default:
+          break;
       }
-
-      const events = getAllEvents();
-      const buckets = events.reduce((acc, event) => {
-        if (!event?.start) return acc;
-        const key = formatDateKey(event.start);
-        if (!key) return acc;
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(event);
-        return acc;
-      }, {});
-
-      const eventsThisMonth = events.filter((event) => {
-        const date = new Date(event.start);
-        return date.getFullYear() === year && date.getMonth() === month;
-      });
-      const orderCount = state.orderDeliveryEvents.filter((event) => {
-        const date = new Date(event.start);
-        return date.getFullYear() === year && date.getMonth() === month;
-      }).length;
-      if (subtitle) {
-        subtitle.textContent = `${orderCount} Liefertermine · ${Math.max(
-          eventsThisMonth.length - orderCount,
-          0
-        )} weitere Ereignisse`;
-      }
-
-      const firstDay = new Date(year, month, 1);
-      const startOffset = (firstDay.getDay() + 6) % 7; // Monday as first day
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-      const weekdayHeader = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
-        .map((day) => `<div class="weekday">${day}</div>`)
-        .join('');
-
-      let cells = '';
-      for (let i = 0; i < startOffset; i += 1) {
-        cells += '<div class="calendar-day muted"></div>';
-      }
-      for (let day = 1; day <= daysInMonth; day += 1) {
-        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayEvents = buckets[dateKey] || [];
-        const isToday =
-          day === current.getDate() && month === current.getMonth() && year === current.getFullYear();
-        cells += `<div class="calendar-day ${isToday ? 'today' : ''}">
-          <div class="calendar-day-number">${day}</div>
-          <div class="calendar-day-events">
-            ${dayEvents
-              .map(
-                (event) =>
-                  `<span class="calendar-event-badge ${event.type === 'ORDER' ? 'order' : ''}">${escapeHtml(
-                    event.title
-                  )}</span>`
-              )
-              .join('')}
-          </div>
-        </div>`;
-      }
-      grid.innerHTML = weekdayHeader + cells;
-      renderEventsList(eventsThisMonth);
+      return getAllEvents()
+        .map((event) => ({ ...event, parsedDate: new Date(event.start) }))
+        .filter((event) => !Number.isNaN(event.parsedDate.getTime()))
+        .filter((event) => {
+          if (event.parsedDate < start) return false;
+          if (end && event.parsedDate > end) return false;
+          return true;
+        })
+        .sort((a, b) => a.parsedDate - b.parsedDate);
     }
 
-    function renderEventsList(events) {
-      if (!events.length) {
-        list.innerHTML = '<li class="muted">Keine Termine für diesen Monat.</li>';
+    function renderEventList() {
+      const range = rangeSelect?.value || state.calendarRange || 'month';
+      const filtered = filterEventsByRange(range);
+      const orderCount = filtered.filter((event) => event.type === 'ORDER').length;
+      if (subtitle) {
+        if (!filtered.length) {
+          subtitle.textContent = 'Keine Termine im gewählten Zeitraum';
+        } else {
+          subtitle.textContent = `${orderCount} Liefertermine · ${Math.max(
+            filtered.length - orderCount,
+            0
+          )} weitere Ereignisse`;
+        }
+      }
+      if (!filtered.length) {
+        list.innerHTML = '<li class="muted">Keine Termine im gewählten Zeitraum.</li>';
         return;
       }
-      const sorted = [...events].sort(
-        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
-      );
-      list.innerHTML = sorted
+      list.innerHTML = filtered
         .map((event) => {
-          const date = new Date(event.start);
+          const date = event.parsedDate;
           return `<li>
             <strong>${escapeHtml(event.title)}</strong>
-            <span class="meta">${date.toLocaleDateString('de-DE')} · ${date
-            .toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>
-            <span class="meta">${event.type === 'ORDER' ? 'Liefertermin' : event.type}</span>
+            <span class="meta">${date.toLocaleDateString('de-DE')} · ${date.toLocaleTimeString('de-DE', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}</span>
+            <span class="meta">${event.type === 'ORDER' ? 'Liefertermin' : event.type || 'Termin'}</span>
           </li>`;
         })
         .join('');
     }
 
-    renderCalendar();
+    renderEventList();
   }
 
   async function initProzessstatus() {
     const container = document.getElementById('processGrid');
+    const statusFilter = document.getElementById('processStatusFilter');
     if (!container) return;
+    let allOrders = [];
+    const COMPLETED_STATUS = 'UEBERGEBEN_AN_SPEDITION';
+    const dateLocale = state.locale === 'tr' ? 'tr-TR' : 'de-DE';
+
+    function renderProcessGrid(orders = []) {
+      if (!orders.length) {
+        container.innerHTML = `<p class="muted">${escapeHtml(translateTemplate('Keine Bestellungen für diesen Filter.'))}</p>`;
+        return;
+      }
+      container.innerHTML = orders.map((order) => buildProcessCard(order)).join('');
+    }
+
+    function applyProcessFilters() {
+      if (!container) return;
+      const filterValue = statusFilter?.value || 'active';
+      let filtered = allOrders.slice();
+      if (filterValue === 'active') {
+        filtered = filtered.filter((order) => order.portal_status !== COMPLETED_STATUS);
+      } else if (filterValue === 'completed') {
+        filtered = filtered.filter((order) => order.portal_status === COMPLETED_STATUS);
+      }
+      renderProcessGrid(filtered);
+    }
+
     try {
       if (!state.orders || !state.orders.length) {
         state.orders = await request('/api/orders');
       }
-      const orders = state.orders;
-      renderProcessGrid(orders);
+      allOrders = state.orders || [];
+      applyProcessFilters();
     } catch (err) {
-      container.innerHTML = `<p class="muted">${escapeHtml(err.message || 'Prozessdaten konnten nicht geladen werden.')}</p>`;
+      container.innerHTML = `<p class="muted">${escapeHtml(
+        err.message || translateTemplate('Prozessdaten konnten nicht geladen werden.')
+      )}</p>`;
     }
 
-    function renderProcessGrid(orders = []) {
-      if (!orders.length) {
-        container.innerHTML = '<p class="muted">Keine Bestellungen vorhanden.</p>';
-        return;
-      }
-      container.innerHTML = orders.map((order) => buildProcessCard(order)).join('');
+    if (statusFilter) {
+      statusFilter.addEventListener('change', applyProcessFilters);
     }
 
     function formatLocalDate(value) {
       if (!value) return '';
       const date = new Date(value);
       if (Number.isNaN(date.getTime())) return '';
-      return date.toLocaleDateString('de-DE');
+      return date.toLocaleDateString(dateLocale);
     }
 
     function buildProcessCard(order) {
@@ -4314,23 +7690,21 @@ function deriveSizeList(order) {
         if (!dateValue && status === 'ORDER_EINGEREICHT' && order.created_at) {
           dateValue = new Date(order.created_at);
         }
-        if (!dateValue && status === 'WARE_ABHOLBEREIT' && order.requested_delivery) {
-          dateValue = new Date(order.requested_delivery);
-        }
         const actualLabel = dateValue ? formatLocalDate(dateValue) : '';
         const planLabel =
           status === 'WARE_ABHOLBEREIT' && order.requested_delivery
             ? formatLocalDate(order.requested_delivery)
             : '';
+        const statusLabel = translateTemplate(STATUS_LABELS[status]);
         return `<div class="process-step ${stepState}">
           <div class="process-dot"></div>
           <div class="process-step-meta">
             ${
               planLabel
-                ? `<small class="process-plan-label">Soll-Datum: ${planLabel}</small><p>${escapeHtml(
-                    STATUS_LABELS[status]
-                  )}</p>`
-                : `<p>${escapeHtml(STATUS_LABELS[status])}</p>`
+                ? `<small class="process-plan-label">${escapeHtml(
+                    translateTemplate('Soll-Datum: {{date}}', { date: planLabel })
+                  )}</small><p>${escapeHtml(statusLabel)}</p>`
+                : `<p>${escapeHtml(statusLabel)}</p>`
             }
             ${actualLabel ? `<span>${actualLabel}</span>` : ''}
           </div>
@@ -4338,17 +7712,24 @@ function deriveSizeList(order) {
       }).join('');
       const orderLink = `/bestellung.html?order=${encodeURIComponent(order.id)}`;
       const customerLink = order.customer_id ? `/kunden.html?customer=${encodeURIComponent(order.customer_id)}` : null;
+      const totalQuantity = deriveOrderQuantity(order);
+      const quantityLabel = translateTemplate('Gesamtmenge');
       return `<article class="process-card">
         <div class="process-card-head">
           <div>
-            <p class="muted">Bestellnummer</p>
+            <p class="muted">${escapeHtml(translateTemplate('Bestellnummer'))}</p>
             <h3><a href="${orderLink}">${escapeHtml(order.order_number || order.id)}</a></h3>
+            <p class="process-quantity">${escapeHtml(quantityLabel)}: <strong>${totalQuantity}</strong></p>
           </div>
           <div class="process-card-meta">
             ${
               customerLink
-                ? `<a class="badge ghost" href="${customerLink}">${escapeHtml(order.customer_name || order.customer_id || 'Kunde')}</a>`
-                : `<span class="badge ghost">${escapeHtml(order.customer_name || order.customer_id || 'Kunde')}</span>`
+                ? `<a class="badge ghost" href="${customerLink}">${escapeHtml(
+                    order.customer_name || order.customer_id || translateTemplate('Kunde')
+                  )}</a>`
+                : `<span class="badge ghost">${escapeHtml(
+                    order.customer_name || order.customer_id || translateTemplate('Kunde')
+                  )}</span>`
             }
             ${getOrderTypeBadgeHtml(order.order_type)}
           </div>
@@ -4358,31 +7739,6 @@ function deriveSizeList(order) {
         </div>
       </article>`;
     }
-  }
-
-  async function initLieferant() {
-    const [orders, calendar, tickets] = await Promise.all([
-      request('/api/orders'),
-      request('/api/calendar'),
-      request('/api/tickets')
-    ]);
-    const myOrders = state.user.role === 'SUPPLIER' ? orders.filter((o) => o.supplier_id === state.user.supplier_id) : orders;
-    document.getElementById('supplierOrders').innerHTML = myOrders
-      .map((order) => `<li><strong>${order.order_number}</strong><br />Status: ${formatStatus(order.portal_status)}</li>`)
-      .join('');
-    document.getElementById('supplierApprovals').innerHTML = myOrders
-      .filter((order) => order.portal_status === 'ORDER_BESTAETIGT')
-      .map((order) => `<li>${order.order_number} – Freigabe offen</li>`)
-      .join('');
-    const relevantOrders = new Set(myOrders.map((order) => order.id));
-    document.getElementById('supplierEvents').innerHTML = calendar
-      .filter((event) => state.user.role === 'BATE' || !event.order_id || relevantOrders.has(event.order_id))
-      .map((event) => `<li>${event.title} – ${new Date(event.start).toLocaleDateString('de-DE')}</li>`)
-      .join('');
-    document.getElementById('supplierTickets').innerHTML = tickets
-      .filter((ticket) => ticket.owner === state.user.id || ticket.watchers?.includes(state.user.id))
-      .map((ticket) => `<li>${ticket.title} (${ticket.status})</li>`)
-      .join('');
   }
 
   async function initPage(pageId) {
@@ -4403,6 +7759,9 @@ function deriveSizeList(order) {
       case 'bestellung':
         await initBestellung();
         break;
+      case 'bestellung-neu':
+        await initBestellungNeu();
+        break;
       case 'artikel':
         await initArtikel();
         break;
@@ -4412,20 +7771,23 @@ function deriveSizeList(order) {
       case 'tickets':
         await initTickets();
         break;
-      case 'kalender':
-        await initKalender();
-        break;
       case 'prozessstatus':
         await initProzessstatus();
-        break;
-      case 'lieferant':
-        await initLieferant();
         break;
       case 'etiketten':
         await initEtikettenPage();
         break;
       case 'schuhbox':
         await initSchuhboxPage();
+        break;
+      case 'musterrechnung':
+        await initMusterProformaPage();
+        break;
+      case 'musterrechnung-detail':
+        await initMusterProformaDetailPage();
+        break;
+      case 'autosync':
+        await initAutoSyncPage();
         break;
       case 'diagnostics':
         await initDiagnosticsPage();
@@ -4483,3 +7845,9 @@ function deriveSizeList(order) {
 })();
 
 window.App = App;
+      const moreOrdersBtn = document.getElementById('dashboardOrdersMore');
+      if (moreOrdersBtn) {
+        moreOrdersBtn.onclick = () => {
+          window.location.href = '/bestellungen.html';
+        };
+      }

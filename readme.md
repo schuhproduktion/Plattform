@@ -35,9 +35,24 @@ ERP_API_SECRET=35d3f6beda59e7c
 # Optionales Fallback (falls oben nicht gesetzt)
 ERP_TOKEN=token123
 SYNC_INTERVAL_CRON=*/10 * * * *
+AUTOSYNC_SERVICE_URL=http://localhost:5050
+AUTOSYNC_SERVICE_TOKEN=super-secret
+AUTOSYNC_TIMEOUT_MS=120000
 ```
 
 `ERP_URL` kann entweder mit oder ohne `/api` angegeben werden – falls der Suffix fehlt, hängt das Backend ihn automatisch an.
+
+### AutoSync-Brücke
+
+Für den vollautomatischen ERP→WooCommerce→Telegram-Flow wird der bestehende Python-Sync (`BATE-AutoSync/core/sync_listener.py`) als eigener Dienst gestartet:
+
+```bash
+cd ~/Desktop/BATE-AutoSync
+source bateenv/bin/activate  # falls vorhanden
+python core/sync_listener.py --port 5050
+```
+
+Der Dienst stellt REST-Endpunkte wie `/api/sync/run`, `/api/wc/delete`, `/api/logs/latest` bereit und erwartet optional den Header `X-Autosync-Token`. Das Portal ruft ihn über `AUTOSYNC_SERVICE_URL` auf – der Systemstatus (Diagnose-Seite) sowie neue Admin-Actions (SKU-Sync, manueller Payload, Woo-Löschung, Log-Viewer) sprechen diese Schnittstelle an. Ohne laufenden Dienst bleiben die Buttons automatisch deaktiviert.
 
 ## Architektur
 
@@ -49,6 +64,25 @@ SYNC_INTERVAL_CRON=*/10 * * * *
 - Workflow-Layer liefert sprechende Statuslabels (z. B. „Bestellung bestätigt“) und schreibt `portal_status` nach jedem Statuswechsel zurück an ERPNext.
 
 👉 Ausführliches Zielbild inkl. Workflow-, Rollen- und Architektur-Blueprint: `docs/blueprint.md`.
+
+## Techpack Platzhalterbilder
+
+Die Artikelspezifikation zeigt pro Ansicht (Seite, Front etc.) automatisch dein Placeholder-Artwork, wenn für die Position noch kein echtes Techpack-Bild existiert. Lege deine Dateien einfach hier ab:
+
+```
+frontend/public/images/techpack-placeholders/
+├── side.png
+├── front.png
+├── inner.png
+├── rear.png
+├── top.png
+├── bottom.png
+└── sole.png
+```
+
+- Dateiformat beliebig (`.png`, `.jpg`, `.webp`), wichtig ist lediglich der Dateiname je View-Key.
+- Nach dem Kopieren ist kein Build nötig – die statischen Assets werden direkt vom Server ausgeliefert.
+- Falls eine Datei fehlt, greift automatisch wieder das farbige SVG-Placeholder, sodass die Ansicht nie leer bleibt.
 
 ## 1️⃣ Gesamtkonzept – Ziel & Nutzen
 
@@ -76,6 +110,7 @@ SYNC_INTERVAL_CRON=*/10 * * * *
 - Portal-Orders inkl. Workflow (`/api/orders`, `/api/orders/:id`, `/api/orders/:id/workflow`, Statuswechsel via `PATCH`).
 - Spezifikationen pro Position (`/api/specs/...`) mit Kommentaren, Uploads, Flag-Updates und Notifications.
 - Tickets CRUD, Calendar Auto+Manual, Notifications, Audit-Logs, Health/Snyc Endpoint.
+- **AutoSync Konsole** (`/autosync.html` + `/api/autosync/*`): zeigt Service-Health, Erfolgskennzahlen, Log-Tabelle und erlaubt SKU-Läufe, manuelle Payloads, Woo-Löschungen sowie Log-Queries – alles im Portal-Design.
 
 ## Tests
 

@@ -7,8 +7,9 @@ async function loadUsers() {
 
 function sanitizeUser(user) {
   if (!user) return null;
-  const { password_hash, ...safe } = user;
-  return safe;
+  const safeUser = { ...user };
+  delete safeUser.password_hash;
+  return safeUser;
 }
 
 async function authenticate(email, password) {

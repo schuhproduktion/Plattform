@@ -17,7 +17,7 @@ const defaults = {
       email: 'supplier.meyer@example.com',
       password_hash: '$2a$10$egTtvwSwQadofo4imQvISuresNR6u2Rd9eOtE93VHG8cZhMyIqcwm',
       role: 'SUPPLIER',
-      supplier_id: 'SUP-001',
+    supplier_id: 'BATE AYAKKABI İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ',
       locale: 'tr'
     }
   ],
@@ -361,7 +361,7 @@ async function ensureFile(fileName, data) {
   try {
     await fs.access(filePath);
     return false;
-  } catch (err) {
+  } catch {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2));
     return true;
   }

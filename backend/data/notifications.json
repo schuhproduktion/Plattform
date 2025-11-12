@@ -979,5 +979,1040 @@
     "message": "Ticket TIC-TE-202576413 erstellt",
     "read": false,
     "ts": "2025-11-09T14:34:29.879Z"
+  },
+  {
+    "id": "NOT-7284b8c4-499c-49e3-a7c1-492f843eac71",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500016",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576413 aktualisiert",
+    "read": false,
+    "ts": "2025-11-09T20:31:15.708Z"
+  },
+  {
+    "id": "NOT-875b6fb9-95bf-445d-90b2-d258f310ad08",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576414 erstellt",
+    "read": false,
+    "ts": "2025-11-09T20:42:06.737Z"
+  },
+  {
+    "id": "NOT-654a01a2-8656-4a12-bf1b-1dc4761c3151",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T20:42:26.254Z"
+  },
+  {
+    "id": "NOT-d2882e5d-8a52-4651-a5d4-f2ef21903c87",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T21:08:03.913Z"
+  },
+  {
+    "id": "NOT-1a641c81-fa93-454f-91bf-625e7279146a",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T21:10:59.627Z"
+  },
+  {
+    "id": "NOT-ff70821d-c6b4-4796-9a2d-f0b7308755e4",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T21:19:37.472Z"
+  },
+  {
+    "id": "NOT-2076b526-abc4-4d99-9f20-a6fc854d64c2",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T21:26:49.688Z"
+  },
+  {
+    "id": "NOT-e2a53d97-006d-4e82-89ef-428bd36c4245",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-09T21:27:20.049Z"
+  },
+  {
+    "id": "NOT-f59b98b2-6645-492b-aaa5-ae26b41f48e1",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576415 erstellt",
+    "read": false,
+    "ts": "2025-11-10T15:57:27.535Z"
+  },
+  {
+    "id": "NOT-ef7867d4-fb44-4eb8-a860-de7c1e5f3488",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576415 aktualisiert",
+    "read": false,
+    "ts": "2025-11-10T15:57:35.552Z"
+  },
+  {
+    "id": "NOT-e36ceb15-48f3-4b25-99f1-86f80b12f7b4",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576416 erstellt",
+    "read": false,
+    "ts": "2025-11-10T15:59:49.137Z"
+  },
+  {
+    "id": "NOT-5a9371f3-ed1d-4ca5-8f4d-d2b321d1e4c8",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576416 aktualisiert",
+    "read": false,
+    "ts": "2025-11-10T15:59:55.353Z"
+  },
+  {
+    "id": "NOT-70d29aa5-7fc6-4dcd-9c1a-a9e150ac31cd",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500017",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576417 erstellt",
+    "read": false,
+    "ts": "2025-11-11T11:24:49.529Z"
+  },
+  {
+    "id": "NOT-b0faedc7-a354-406b-b554-78940b9f239b",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T07:45:10.522Z"
+  },
+  {
+    "id": "NOT-305cf1c8-21f5-4c49-a089-d89f26299e3d",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T07:45:12.339Z"
+  },
+  {
+    "id": "NOT-47f0a210-247c-4fc4-a081-0f265346aef5",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T07:45:22.257Z"
+  },
+  {
+    "id": "NOT-ba27a182-13e3-4fa7-a45a-291db454ef2c",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T07:45:26.016Z"
+  },
+  {
+    "id": "NOT-1904b00d-3feb-41b5-bb6d-33d06f08df49",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T07:46:14.254Z"
+  },
+  {
+    "id": "NOT-307c7ee2-8890-456d-9c71-5c388601f3aa",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T07:46:20.707Z"
+  },
+  {
+    "id": "NOT-35bbacef-cc85-47f6-96fe-623dcf64a39b",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T09:34:46.975Z"
+  },
+  {
+    "id": "NOT-d026d78b-15bb-4f69-98f3-fe1ac43e5b6e",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T09:35:03.096Z"
+  },
+  {
+    "id": "NOT-f17ffa22-2774-4f23-bae4-3e6bb5e6b714",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:35:09.828Z"
+  },
+  {
+    "id": "NOT-b3a2d631-9356-43d0-aec9-244a76b7bfc3",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:35:11.413Z"
+  },
+  {
+    "id": "NOT-b6678ba3-02f7-4f1d-9200-c63036158617",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:35:13.228Z"
+  },
+  {
+    "id": "NOT-5fb18667-8109-4809-9961-8823de122861",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:35:15.511Z"
+  },
+  {
+    "id": "NOT-16fd251b-25f9-4e72-b1d8-09f94445c03b",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:49:27.412Z"
+  },
+  {
+    "id": "NOT-3cfa41b6-5c89-48d6-b01d-540178af9d04",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:49:34.393Z"
+  },
+  {
+    "id": "NOT-d09aac3c-43c8-4607-9a88-be75e4de8a5e",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:49:37.542Z"
+  },
+  {
+    "id": "NOT-42af7ca0-8067-4646-a4d2-0aad50d97d85",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T09:54:41.219Z"
+  },
+  {
+    "id": "NOT-d4c7c781-b835-489e-b867-91b360f0c878",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T09:54:44.012Z"
+  },
+  {
+    "id": "NOT-1ff862f5-919d-4ae8-95f2-8e111f38afd4",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:54:48.346Z"
+  },
+  {
+    "id": "NOT-1804e669-5d23-4484-93f6-e6b5a9e92363",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:54:54.765Z"
+  },
+  {
+    "id": "NOT-e44f1e5e-6118-4e77-97c2-253f7202404b",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:56:31.251Z"
+  },
+  {
+    "id": "NOT-0cce4e22-4bd3-4632-b549-c76b42d70b50",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:56:33.102Z"
+  },
+  {
+    "id": "NOT-a5887d98-96d1-41d8-b938-568a123c87ca",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:57:17.070Z"
+  },
+  {
+    "id": "NOT-887c5d0a-4ac4-4ba3-b3dd-4cc62ff60121",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:57:18.516Z"
+  },
+  {
+    "id": "NOT-1f72ae0a-025f-43c8-8259-a79c96740a4f",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:57:23.486Z"
+  },
+  {
+    "id": "NOT-8c7fcf70-a494-4b76-ab4e-890584d166ef",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:57:37.652Z"
+  },
+  {
+    "id": "NOT-6be74257-8268-405f-81cf-c07c05fa5bb3",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T09:57:43.652Z"
+  },
+  {
+    "id": "NOT-c7a3e2a3-c555-49dc-9489-fd31af5c12c3",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576417 erstellt",
+    "read": false,
+    "ts": "2025-11-12T10:09:49.663Z"
+  },
+  {
+    "id": "NOT-5814d40e-b9ce-4004-8d11-a949e103e262",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576417 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:09:51.593Z"
+  },
+  {
+    "id": "NOT-0620b28d-2127-4d69-b4ef-c193ff38901a",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576418 erstellt",
+    "read": false,
+    "ts": "2025-11-12T10:09:54.040Z"
+  },
+  {
+    "id": "NOT-b86b45fa-c810-4809-8b5c-1104b6329d02",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576419 erstellt",
+    "read": false,
+    "ts": "2025-11-12T10:09:56.191Z"
+  },
+  {
+    "id": "NOT-43cde3d8-a053-49c5-9b35-7723977ad14e",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576417 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:10:13.843Z"
+  },
+  {
+    "id": "NOT-842bfdd3-a94c-4913-b999-5803e183c1a1",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576418 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:10:15.540Z"
+  },
+  {
+    "id": "NOT-5f3ed742-bb33-4a50-a852-870275b4d51f",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu 6a99epfd2m",
+    "read": false,
+    "ts": "2025-11-12T10:18:37.826Z"
+  },
+  {
+    "id": "NOT-29538ce6-49b4-4a16-8ffa-ed52921dd698",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Annotation entfernt für 6a99epfd2m",
+    "read": false,
+    "ts": "2025-11-12T10:18:43.482Z"
+  },
+  {
+    "id": "NOT-770010d3-59d4-4093-960c-92099ee5389b",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu 6a99epfd2m",
+    "read": false,
+    "ts": "2025-11-12T10:21:28.273Z"
+  },
+  {
+    "id": "NOT-751134eb-c400-4692-938a-b8322450ca37",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576417 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:21:36.897Z"
+  },
+  {
+    "id": "NOT-e62f25b3-82d4-4dc6-9279-23e9279cb0c4",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576419 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:21:38.432Z"
+  },
+  {
+    "id": "NOT-7be2144c-d09a-48ed-805f-a39e97352673",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:25:10.586Z"
+  },
+  {
+    "id": "NOT-03270435-5021-406b-9709-a8b00579ffaf",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:25:14.102Z"
+  },
+  {
+    "id": "NOT-65bd6604-f6db-4c80-86ff-ea743e5b9b7b",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:26:10.752Z"
+  },
+  {
+    "id": "NOT-d909bdb0-0ed0-4e65-a808-5d3f67e44fb3",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:26:13.307Z"
+  },
+  {
+    "id": "NOT-cb874f40-2ae2-4ddf-bd01-8feaa406d436",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:27:56.595Z"
+  },
+  {
+    "id": "NOT-8f6f6225-f9f5-4c7c-ab56-7caf9993b348",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:28:02.309Z"
+  },
+  {
+    "id": "NOT-c5322d74-078a-4454-950b-66a45756f113",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:28:04.691Z"
+  },
+  {
+    "id": "NOT-6c515cc4-dfd1-4f71-8a3a-b20117f950b9",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:28:06.292Z"
+  },
+  {
+    "id": "NOT-9e8626c8-d075-425c-917c-6b7384b349f6",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:27.980Z"
+  },
+  {
+    "id": "NOT-9293b8c5-865b-4a06-92d2-54d88da4cade",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:28.610Z"
+  },
+  {
+    "id": "NOT-6cf6358f-54d7-4efc-840f-86fe9bc4ce1a",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:32.120Z"
+  },
+  {
+    "id": "NOT-9b3d242a-c6ca-4704-a312-f3523124861f",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576420 erstellt",
+    "read": false,
+    "ts": "2025-11-12T10:37:34.461Z"
+  },
+  {
+    "id": "NOT-6fdae4cd-5308-4ee8-b67b-7c101efbbd40",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576420 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:37:37.835Z"
+  },
+  {
+    "id": "NOT-62af6a69-e480-41a1-850e-025689fb726c",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:39.334Z"
+  },
+  {
+    "id": "NOT-3ab369f5-b765-4da3-8df4-04c167b83e43",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:40.105Z"
+  },
+  {
+    "id": "NOT-eeaa206a-486b-4b31-814a-2e48b304b662",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:42.159Z"
+  },
+  {
+    "id": "NOT-41ec1251-c4b1-480e-b1cd-6275b3f4f11a",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:42.495Z"
+  },
+  {
+    "id": "NOT-26190d7e-2a24-4b35-9e56-efa73043a7f5",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für v84j1l4mtp",
+    "read": false,
+    "ts": "2025-11-12T10:37:47.442Z"
+  },
+  {
+    "id": "NOT-622ea1ce-2d79-4a9c-8adb-0e6e22a64bad",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T10:56:32.272Z"
+  },
+  {
+    "id": "NOT-648fafb4-e1c2-485b-bdea-cb4a4fcfb237",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:56:34.085Z"
+  },
+  {
+    "id": "NOT-b5c3a5d9-e49b-4afa-9f21-f54efee640f0",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500007",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T10:56:35.503Z"
+  },
+  {
+    "id": "NOT-b503dc94-3d40-4b98-a3eb-52f024b55c56",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:01:53.207Z"
+  },
+  {
+    "id": "NOT-85771681-1b16-4336-b5d3-2ad1a1953d6e",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:01:57.690Z"
+  },
+  {
+    "id": "NOT-6bab11fc-438a-42d4-a30a-87225ef8bdb2",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:01:59.473Z"
+  },
+  {
+    "id": "NOT-c889ff0d-f155-4ec0-bfc2-73142c4b2cfe",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:02:02.255Z"
+  },
+  {
+    "id": "NOT-5df366f1-7fd2-4641-870a-2bf0841a6c6c",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:02:04.042Z"
+  },
+  {
+    "id": "NOT-0d78ebeb-b33c-4df0-bf84-786429fe07bc",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:02:05.324Z"
+  },
+  {
+    "id": "NOT-9be5a8e0-e930-497f-ac9b-0783af3a9047",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:03:13.175Z"
+  },
+  {
+    "id": "NOT-729a66b4-5804-4de7-a6b3-b9525b30d16f",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:03:14.374Z"
+  },
+  {
+    "id": "NOT-ffc7a5f6-8c68-4963-9b9f-e2430714dc46",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:03:15.941Z"
+  },
+  {
+    "id": "NOT-d8620a8f-b233-4b8b-9dd4-512231edd7e8",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:03:17.741Z"
+  },
+  {
+    "id": "NOT-3301cc06-60bc-4f84-b1dc-4e5143744ba5",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:03:19.424Z"
+  },
+  {
+    "id": "NOT-7f8dd0f5-3769-4ef9-a900-77bdf3f5d458",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:03:59.342Z"
+  },
+  {
+    "id": "NOT-c8b5c805-2181-4ab0-a296-c197f06ee033",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:04:00.844Z"
+  },
+  {
+    "id": "NOT-f61a25d3-6ca9-4bf6-9364-314ab731e85f",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:04:02.210Z"
+  },
+  {
+    "id": "NOT-e7be53dd-4cf9-460a-a6ca-1a990b5c35e3",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:17.511Z"
+  },
+  {
+    "id": "NOT-1a3fb94d-82b7-4b30-8bae-9dd878231668",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:19.645Z"
+  },
+  {
+    "id": "NOT-4558aad5-61b9-4427-b8cc-32979e1d9174",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:20.813Z"
+  },
+  {
+    "id": "NOT-1ecd37b0-a68b-4ed4-9a05-5c64d6a4d181",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:42.328Z"
+  },
+  {
+    "id": "NOT-689e7508-fa00-4883-b007-b96e5c51a0b3",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:44.878Z"
+  },
+  {
+    "id": "NOT-3eaf92a6-0999-438c-aaab-e66bc2411222",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:53.294Z"
+  },
+  {
+    "id": "NOT-6da9e216-a7bd-486c-8b29-27fe7512a522",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500013",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:05:57.459Z"
+  },
+  {
+    "id": "NOT-70265c9a-1e08-4be0-9ba4-2bad0e302d8d",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T11:34:24.598Z"
+  },
+  {
+    "id": "NOT-741b6997-5561-4135-a6a9-e32bdf67bc72",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 erstellt",
+    "read": false,
+    "ts": "2025-11-12T11:34:26.856Z"
+  },
+  {
+    "id": "NOT-26c191c7-9657-4dcd-bb55-008405dd4137",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:34:33.293Z"
+  },
+  {
+    "id": "NOT-0bf7464d-7d0d-4515-9a6f-1e06b6dfaee8",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576421 erstellt",
+    "read": false,
+    "ts": "2025-11-12T11:57:15.131Z"
+  },
+  {
+    "id": "NOT-963e30d3-cff4-4cda-87ef-4ac7833bd005",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576421 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T11:57:23.125Z"
+  },
+  {
+    "id": "NOT-3b1a7279-1719-464b-ae6f-3b49e7df932e",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für hrus4h26ei",
+    "read": false,
+    "ts": "2025-11-12T11:57:31.403Z"
+  },
+  {
+    "id": "NOT-708f0176-653d-46c8-bb60-3efdd26c51ec",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:07:58.966Z"
+  },
+  {
+    "id": "NOT-4a813379-5e21-4764-a854-db646640165b",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:00.565Z"
+  },
+  {
+    "id": "NOT-e9e983e0-7325-432a-b166-5fc8ac29fdde",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:02.031Z"
+  },
+  {
+    "id": "NOT-f39dfd59-682e-4b2e-8085-ae5219678bcb",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:03.383Z"
+  },
+  {
+    "id": "NOT-0edf4937-22a2-4037-bf13-2599c258a8d9",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:04.714Z"
+  },
+  {
+    "id": "NOT-819018b4-3706-46df-9a2b-7c11f82f09bc",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500003",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:07.715Z"
+  },
+  {
+    "id": "NOT-c66a6fe0-0b42-47c2-ad44-29ca2cc4498f",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:15.833Z"
+  },
+  {
+    "id": "NOT-9062316d-c18b-4545-b6dc-323219e5e48c",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-BE-202529435 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T12:08:17.047Z"
+  },
+  {
+    "id": "NOT-67b8a0c6-e683-4b89-aee1-0257a1708141",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu hrus4h26ei",
+    "read": false,
+    "ts": "2025-11-12T15:25:21.751Z"
+  },
+  {
+    "id": "NOT-f5cbda79-82d7-4eec-be9d-d01d823d4aa9",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576422 erstellt",
+    "read": false,
+    "ts": "2025-11-12T15:25:27.084Z"
+  },
+  {
+    "id": "NOT-0664502d-13e0-4ff4-9f5f-2ac7b8fd4718",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu hrus4h26ei",
+    "read": false,
+    "ts": "2025-11-12T15:28:58.903Z"
+  },
+  {
+    "id": "NOT-f17d1a6c-2e98-46bb-88b3-bf2da2cc3d5a",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Neue Annotation zu hrus4h26ei",
+    "read": false,
+    "ts": "2025-11-12T15:29:00.670Z"
+  },
+  {
+    "id": "NOT-91dec41b-821f-449e-a005-7e91718af5a7",
+    "type": "TICKET_CREATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576423 erstellt",
+    "read": false,
+    "ts": "2025-11-12T15:29:13.820Z"
+  },
+  {
+    "id": "NOT-10657b33-a29a-478e-8078-62c001077dce",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576423 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T15:29:39.286Z"
+  },
+  {
+    "id": "NOT-c4501b79-1e7f-421f-8305-066abf922cdd",
+    "type": "TICKET_UPDATED",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Ticket TIC-TE-202576422 aktualisiert",
+    "read": false,
+    "ts": "2025-11-12T15:29:41.521Z"
+  },
+  {
+    "id": "NOT-f9f4fe0d-02d1-4c2b-8f20-d64629cb4724",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für hrus4h26ei",
+    "read": false,
+    "ts": "2025-11-12T15:29:44.815Z"
+  },
+  {
+    "id": "NOT-71f754f4-34d9-4bcf-b50d-475f3fd90e2b",
+    "type": "SPEC_COMMENT",
+    "order_id": "BT-B2500015",
+    "user_id": "u-supp-1",
+    "message": "Status aktualisiert für hrus4h26ei",
+    "read": false,
+    "ts": "2025-11-12T15:29:45.879Z"
   }
 ]

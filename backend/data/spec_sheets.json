@@ -253,7 +253,7 @@
           "label": "Seitenansicht",
           "filename": "WhatsApp Image 2025-10-31 at 15.28.43.jpeg",
           "view_key": "side",
-          "status": "OPEN",
+          "status": "OK",
           "url": "/uploads/orders/BT-B2500016/positions/585idf0ke5/whatsapp_image_2025-10-31_at_15.28.43-1762698866981-5de22771-de46-4cd6-8c72-877b4ec46a55.jpeg"
         }
       ]
@@ -268,7 +268,7 @@
       }
     ],
     "last_actor": "anna.bate@example.com",
-    "updated_at": "2025-11-09T14:34:26.992Z"
+    "updated_at": "2025-11-09T20:31:17.014Z"
   },
   {
     "order_id": "BT-B2500003",
@@ -280,8 +280,200 @@
       "kommentare": [],
       "medien": []
     },
+    "files": [
+      {
+        "id": "file-f99e4e09-0733-48aa-a724-7234574250a6",
+        "filename": "0002-1762790362405-e9117cbe-1fbd-4ec6-9427-96342d8bbc19.webp",
+        "version": 1,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-10T15:59:22.411Z"
+      }
+    ],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T07:15:00.127Z",
+    "annotations": []
+  },
+  {
+    "order_id": "BT-B2500007",
+    "position_id": "lqmp3n1psk",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
     "files": [],
     "last_actor": null,
-    "updated_at": "2025-11-09T16:02:44.632Z"
+    "updated_at": "2025-11-09T20:45:56.220Z"
+  },
+  {
+    "order_id": "BT-B2500017",
+    "position_id": "51qpnbsltd",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-11T10:19:05.841Z"
+  },
+  {
+    "order_id": "BT-B2500014",
+    "position_id": "0dslpsu30k",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-12T09:40:20.022Z"
+  },
+  {
+    "order_id": "BT-B2500003",
+    "position_id": "d99gerpo54",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-12T09:58:28.151Z"
+  },
+  {
+    "order_id": "BT-B2500015",
+    "position_id": "hrus4h26ei",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "placeholder-side",
+          "label": "Seitenansicht · Platzhalter",
+          "filename": "Seitenansicht · Platzhalter",
+          "view_key": "side",
+          "status": "OK",
+          "url": "/images/techpack-placeholders/side.png",
+          "is_placeholder": true
+        }
+      ]
+    },
+    "files": [],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T15:29:45.875Z",
+    "annotations": [
+      {
+        "id": "ann-950d293f-a901-42cf-9105-9bcfe0986196",
+        "media_id": "placeholder-side",
+        "x": 0.2904761904761905,
+        "y": 0.48340773809523807,
+        "note": "Kahve B712",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T15:25:21.746Z"
+      },
+      {
+        "id": "ann-92b0437f-9e8c-45ae-bb0e-3dfa9c6b5782",
+        "media_id": "placeholder-side",
+        "x": 0.6523809523809524,
+        "y": 0.5476934523809524,
+        "note": "kejlkwejlkr",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T15:28:58.900Z"
+      },
+      {
+        "id": "ann-bf2ed3b7-86c9-47dc-88ad-b6b6d97dfeba",
+        "media_id": "placeholder-side",
+        "x": 0.39285714285714285,
+        "y": 0.5429315476190476,
+        "note": "kolkj",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T15:29:00.667Z"
+      }
+    ]
+  },
+  {
+    "order_id": "BT-B2500013",
+    "position_id": "j8tvu78jbd",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-12T10:02:15.145Z"
+  },
+  {
+    "order_id": "BT-B2500013",
+    "position_id": "6a99epfd2m",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T10:21:28.270Z",
+    "annotations": [
+      {
+        "id": "ann-c6212d7d-4117-4f18-93e5-49816c119974",
+        "media_id": "placeholder-side",
+        "x": 0.5285714285714286,
+        "y": 0.5000372023809524,
+        "note": "Logo hier hin",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T10:21:28.270Z"
+      }
+    ]
+  },
+  {
+    "order_id": "BT-B2500015",
+    "position_id": "v84j1l4mtp",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "placeholder-side",
+          "label": "Seitenansicht · Platzhalter",
+          "filename": "Seitenansicht · Platzhalter",
+          "view_key": "side",
+          "status": "OK",
+          "url": "/images/techpack-placeholders/side.png",
+          "is_placeholder": true
+        }
+      ]
+    },
+    "files": [],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T10:37:47.439Z",
+    "annotations": [
+      {
+        "id": "ann-d46010dc-7bc1-4478-ba57-c6d3f1e61df2",
+        "media_id": "placeholder-side",
+        "x": 0.5428571428571428,
+        "y": 0.47265625,
+        "note": "fgdfg",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T10:37:32.118Z"
+      }
+    ]
   }
 ]

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Muster Proforma bearbeiten | BATE Supplier Portal</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-musterrechnung-detail" data-page="musterrechnung-detail">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h2>Muster Proforma</h2>
+            </div>
+            <div class="section-head-actions">
+              <a class="ghost" href="/musterrechnung.html">← Zur Übersicht</a>
+              <span id="proformaNumberBadge" class="badge proforma-number-badge">Neu</span>
+            </div>
+          </div>
+          <form id="proformaForm" class="proforma-form">
+            <div class="proforma-section">
+              <h4>Absender</h4>
+              <div class="preset-actions">
+                <button type="button" class="ghost small" data-apply-preset="seller:bate-tr">BATE Ayakkabı übernehmen</button>
+              </div>
+              <div class="proforma-grid">
+                <label>
+                  <span>Firma</span>
+                  <input type="text" data-bind="seller.name" placeholder="BATE" />
+                </label>
+                <label>
+                  <span>Adresse &amp; Hausnr.</span>
+                  <input type="text" data-bind="seller.street" placeholder="Straße 1" />
+                </label>
+                <label>
+                  <span>PLZ</span>
+                  <input type="text" data-bind="seller.postalCode" placeholder="12345" />
+                </label>
+                <label>
+                  <span>Ort</span>
+                  <input type="text" data-bind="seller.city" placeholder="Istanbul" />
+                </label>
+                <label>
+                  <span>Land</span>
+                  <input type="text" data-bind="seller.country" placeholder="Türkiye" />
+                </label>
+                <label>
+                  <span>E-Mail</span>
+                  <input type="email" data-bind="seller.email" placeholder="contact@example.com" />
+                </label>
+                <label>
+                  <span>Website</span>
+                  <input type="text" data-bind="seller.website" placeholder="www.example.com" />
+                </label>
+                <label>
+                  <span>Steuernummer</span>
+                  <input type="text" data-bind="seller.taxId" placeholder="DE123456789" />
+                </label>
+                <label>
+                  <span>Amtsgericht</span>
+                  <input type="text" data-bind="seller.court" placeholder="Amtsgericht Musterstadt" />
+                </label>
+                <label>
+                  <span>Geschäftsführer</span>
+                  <input type="text" data-bind="seller.ceo" placeholder="Max Mustermann" />
+                </label>
+              </div>
+            </div>
+
+            <div class="proforma-section">
+              <h4>Empfänger</h4>
+              <div class="preset-actions">
+                <button type="button" class="ghost small" data-apply-preset="buyer:bate-de">BATE GmbH übernehmen</button>
+              </div>
+              <div class="proforma-grid">
+                <label>
+                  <span>Firma</span>
+                  <input type="text" data-bind="buyer.name" placeholder="Kunde" />
+                </label>
+                <label>
+                  <span>Adresse &amp; Hausnr.</span>
+                  <input type="text" data-bind="buyer.street" placeholder="Straße 1" />
+                </label>
+                <label>
+                  <span>PLZ</span>
+                  <input type="text" data-bind="buyer.postalCode" placeholder="12345" />
+                </label>
+                <label>
+                  <span>Ort</span>
+                  <input type="text" data-bind="buyer.city" placeholder="Pforzheim" />
+                </label>
+                <label>
+                  <span>Land</span>
+                  <input type="text" data-bind="buyer.country" placeholder="Deutschland" />
+                </label>
+                <label>
+                  <span>E-Mail</span>
+                  <input type="email" data-bind="buyer.email" placeholder="kontakt@example.com" />
+                </label>
+                <label>
+                  <span>Website</span>
+                  <input type="text" data-bind="buyer.website" placeholder="www.example.com" />
+                </label>
+                <label>
+                  <span>Steuernummer</span>
+                  <input type="text" data-bind="buyer.taxId" placeholder="DE987654321" />
+                </label>
+                <label>
+                  <span>Amtsgericht</span>
+                  <input type="text" data-bind="buyer.court" placeholder="Amtsgericht Musterstadt" />
+                </label>
+                <label>
+                  <span>Geschäftsführer</span>
+                  <input type="text" data-bind="buyer.ceo" placeholder="Max Mustermann" />
+                </label>
+              </div>
+            </div>
+
+            <div class="proforma-section">
+              <h4>Versand & Angaben für PDF</h4>
+              <div class="proforma-grid">
+                <label>
+                  <span>Währung</span>
+                  <select data-bind="document.currency">
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="TRY">TRY</option>
+                  </select>
+                </label>
+                <label class="span-2">
+                  <span>Transportiert durch</span>
+                  <textarea rows="2" data-bind="shipping.transportedBy" placeholder="Ilhami Yildiz (Passport No. ...)"></textarea>
+                </label>
+                <label class="span-2">
+                  <span>Versandart / Shipment</span>
+                  <input type="text" data-bind="shipping.shipmentInfo" placeholder="Flugreise am 13.10.2025 / IST 12:10" />
+                </label>
+                <label>
+                  <span>Datum</span>
+                  <input type="date" data-bind="document.date" />
+                </label>
+                <label>
+                  <span>Ort / Place</span>
+                  <input type="text" data-bind="shipping.place" placeholder="Istanbul, Türkiye" />
+                </label>
+              </div>
+            </div>
+
+            <div class="proforma-section">
+              <div class="section-head compact">
+                <div>
+                  <h4>Positionen</h4>
+                </div>
+              </div>
+              <div id="proformaItemsBody" class="proforma-item-cards"></div>
+              <div class="proforma-items-actions">
+                <button type="button" class="ghost" data-action="add-item">+ Position hinzufügen</button>
+              </div>
+              <div class="proforma-totals">
+                <div>
+                  <span>Rechnungsbetrag</span>
+                  <strong id="proformaGross">0,00 €</strong>
+                </div>
+                <div>
+                  <span>Deklarierter Wert</span>
+                  <strong id="proformaDeclared">0,00 €</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="proforma-submit">
+              <button type="button" class="ghost danger" id="proformaDelete" disabled>Löschen</button>
+              <button type="button" class="ghost" id="toggleEdit" aria-pressed="false">Bearbeiten</button>
+              <button type="button" class="btn" id="proformaSave">Speichern</button>
+              <button type="button" class="ghost" id="proformaPdfBtn" disabled>PDF</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
