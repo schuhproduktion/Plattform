@@ -28,6 +28,7 @@ const TECHPACK_PLACEHOLDER_IMAGES = {
   tongue: '/images/techpack-placeholders/Zunge.png'
 };
 const PLACEHOLDER_MEDIA_PREFIX = 'placeholder-';
+const VIEWER_GALLERY_FRAMES = ['0001', '0010', '0019', '0028'];
 const ORDER_TICKET_KEY_SEPARATOR = '::';
 
 const ORDER_SERIES_OPTIONS = ['BT-B.YY.#####', 'PZ-B.YY.#####'];
@@ -349,22 +350,50 @@ const App = (() => {
     return media?.view_key || null;
   }
 
-  function getTechpackPreviewPlaceholder(view) {
-    const meta = view || TECHPACK_VIEWS[0];
-    if (!meta) return '<span class="techpack-preview placeholder">–</span>';
-    const { baseSrc, customSrc } = getTechpackPlaceholderSources(meta);
-    const label = meta?.label ? `Platzhalter für ${meta.label}` : 'Platzhalter';
+function getTechpackPreviewPlaceholder(view) {
+  const meta = view || TECHPACK_VIEWS[0];
+  if (!meta) return '<span class="techpack-preview placeholder">–</span>';
+  const { baseSrc, customSrc } = getTechpackPlaceholderSources(meta);
+  const label = meta?.label ? `Platzhalter für ${meta.label}` : 'Platzhalter';
     if (!baseSrc) return '<span class="techpack-preview placeholder">–</span>';
     const srcsetAttr = customSrc ? ` srcset="${customSrc} 1x"` : '';
-    return baseSrc
-      ? `<img src="${baseSrc}"${srcsetAttr} alt="${escapeHtml(label)}" class="techpack-preview techpack-preview-placeholder" loading="lazy" />`
-      : '<span class="techpack-preview placeholder">–</span>';
-  }
+  return baseSrc
+    ? `<img src="${baseSrc}"${srcsetAttr} alt="${escapeHtml(label)}" class="techpack-preview techpack-preview-placeholder" loading="lazy" />`
+    : '<span class="techpack-preview placeholder">–</span>';
+}
 
-  function ensureTechpackActiveMedia(spec) {
-    const media = spec?.flags?.medien || [];
-    const requested = state.techpackRequestedView?.toLowerCase();
-    const previousView = extractViewKeyFromMediaId(state.techpackActiveMedia);
+function normalizeViewerGalleryBase(raw) {
+  if (!raw) return null;
+  const trimmed = raw.toString().trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/\/+$/, '');
+  if (normalized.endsWith('/images')) return normalized;
+  return `${normalized}/images`;
+}
+
+function resolveViewerGalleryBase(item, heroImage) {
+  const viewerLink = normalizeViewerGalleryBase(item?.links?.viewer3d || item?.viewer3d);
+  if (viewerLink) return viewerLink;
+  if (typeof heroImage === 'string') {
+    const match = heroImage.match(/^(.*\/images)\//);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function buildViewerGallery(item, heroImage) {
+  const base = resolveViewerGalleryBase(item, heroImage);
+  if (!base) return [];
+  return VIEWER_GALLERY_FRAMES.map((frame, idx) => ({
+    id: `${item?.item_code || 'viewer'}-${frame}-${idx}`,
+    url: `${base}/${frame}.webp`
+  }));
+}
+
+function ensureTechpackActiveMedia(spec) {
+  const media = spec?.flags?.medien || [];
+  const requested = state.techpackRequestedView?.toLowerCase();
+  const previousView = extractViewKeyFromMediaId(state.techpackActiveMedia);
     const defaultView = media[0]?.view_key || TECHPACK_VIEWS[0]?.key || null;
     const nextView = requested || previousView || defaultView;
     if (!nextView) {
@@ -7224,7 +7253,10 @@ function populateOrderCreateSelects(draft) {
       .join('');
     const galleryImages = Array.isArray(item.media?.gallery) ? item.media.gallery : [];
     const heroImage = item.media?.hero || galleryImages[0]?.url || null;
-    const gallerySelection = galleryImages.filter((media) => media.url !== heroImage).slice(0, 4);
+    const viewerGallery = buildViewerGallery(item, heroImage);
+    const gallerySelection = viewerGallery?.length
+      ? viewerGallery
+      : galleryImages.filter((media) => media.url !== heroImage).slice(0, 4);
     const galleryThumbs = `<section class="artikel-gallery">
         <h4>${escapeHtml(t('Bilder'))}</h4>
         <div class="item-gallery item-gallery-fixed">
