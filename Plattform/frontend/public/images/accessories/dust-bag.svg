@@ -1,8 +1,0 @@
-<svg width="240" height="160" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg">
-  <rect x="60" y="24" width="120" height="112" rx="32" fill="#fef3c7" stroke="#f59e0b" stroke-width="3" />
-  <path d="M80 40 Q120 12, 160 40" stroke="#b45309" stroke-width="4" fill="none" stroke-linecap="round" />
-  <circle cx="120" cy="92" r="36" fill="rgba(255,255,255,0.7)" stroke="#f59e0b" stroke-width="2" />
-  <text x="120" y="100" text-anchor="middle" font-family="'SF Pro Display', sans-serif" font-size="20" fill="#b45309">
-    Stoffbeutel
-  </text>
-</svg>

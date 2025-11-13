@@ -1,8 +1,0 @@
-{
-  "watch": ["backend"],
-  "ext": "js",
-  "ignore": [
-    "backend/data/**/*",
-    "uploads/**/*"
-  ]
-}

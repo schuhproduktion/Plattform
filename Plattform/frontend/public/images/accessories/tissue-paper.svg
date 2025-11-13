@@ -1,8 +1,0 @@
-<svg width="240" height="160" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg">
-  <rect x="16" y="32" width="208" height="96" rx="22" fill="#f3f4f6" stroke="#d1d5db" stroke-width="2" />
-  <path d="M32 80 C72 52, 168 108, 208 80" stroke="#9ca3af" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.5" />
-  <path d="M32 96 C72 68, 168 124, 208 96" stroke="#d1d5db" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.35" />
-  <text x="120" y="108" text-anchor="middle" font-family="'SF Pro Display', sans-serif" font-size="20" fill="#4b5563">
-    Seidenpapier
-  </text>
-</svg>

@@ -76,14 +76,14 @@ export const NAV_LINKS = [
   { href: '/dashboard.html', label: 'Dashboard', page: 'dashboard' },
   { href: '/bestellungen.html', label: 'Bestellungen', page: 'bestellungen' },
   { href: '/artikel.html', label: 'Artikel', page: 'artikel' },
-  { href: '/kunden.html', label: 'Kunden', page: 'kunden' },
+  { href: '/kunden.html', label: 'Kunden', page: 'kunden', className: 'bate-only' },
   { href: '/tickets.html', label: 'Tickets', page: 'tickets' },
   { href: '/prozessstatus.html', label: 'Prozessstatus', page: 'prozessstatus' },
   { href: '/lieferanten-guide.html', label: 'Lieferanten-Anleitung', page: 'lieferanten-guide' },
   { href: '/musterrechnung.html', label: 'Muster Proforma', page: 'musterrechnung' },
   { href: '/translations.html', label: 'Übersetzungen', page: 'translations', className: 'bate-only' },
   { href: '/autosync.html', label: 'AutoSync', page: 'autosync', className: 'bate-only' },
-  { href: '/diagnostics.html', label: 'Systemstatus', page: 'diagnostics' }
+  { href: '/diagnostics.html', label: 'Systemstatus', page: 'diagnostics', className: 'bate-only' }
 ];
 
 export const STATUS_LABELS = {
