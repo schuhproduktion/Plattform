@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Bestellung anlegen</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-bestellung" data-page="bestellung-neu" data-breadcrumb="Bestellung anlegen">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="bestellungNeu">
+        <div class="card back-card">
+          <button type="button" id="backToList" data-i18n-key="← Zurück zu Bestellungen">← Zurück zu Bestellungen</button>
+          <div class="back-card-actions">
+            <button type="button" class="ghost small" id="discardOrderDraft">Entwurf verwerfen</button>
+          </div>
+        </div>
+
+        <form class="card order-master-card order-create-form" id="orderCreateForm" novalidate>
+          <div class="order-summary-grid">
+            <div class="summary-card summary-card-lg">
+              <p class="summary-label" data-i18n-key="Bestellnummer">Bestellnummer</p>
+              <input
+                id="orderNumberInput"
+                name="order_number"
+                type="text"
+                class="summary-value order-id"
+                placeholder="Automatisch vergeben"
+                data-i18n-key="Automatisch vergeben"
+                data-i18n-attr="placeholder"
+              />
+            </div>
+            <div class="summary-card">
+              <p class="summary-label" data-i18n-key="Bestellart">Bestellart</p>
+              <div class="order-type-control">
+                <span id="orderTypeBadge" class="badge warning order-type-badge">-</span>
+                <select id="orderTypeInput" name="order_type" required>
+                  <option value="" data-i18n-key="Bitte wählen">Bitte wählen</option>
+                  <option value="MUSTER" data-i18n-key="Muster">Muster</option>
+                  <option value="SMS" data-i18n-key="SMS">SMS</option>
+                  <option value="PPS" data-i18n-key="PPS">PPS</option>
+                  <option value="BESTELLUNG" data-i18n-key="Bestellung">Bestellung</option>
+                </select>
+              </div>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label" data-i18n-key="Lieferdatum">Lieferdatum</p>
+              <input id="orderDeliveryInput" name="requested_delivery" type="date" class="summary-value" required />
+            </div>
+            <div class="summary-card">
+              <p class="summary-label" data-i18n-key="Summe (netto)">Summe (netto)</p>
+              <output id="orderTotalOutput" class="summary-value">0,00 €</output>
+            </div>
+            <div class="summary-card summary-card-center">
+              <p class="summary-label" data-i18n-key="Tickets">Tickets</p>
+              <span class="question-badge question-closed">
+                <span class="dot">✓</span>
+                <span class="count">0</span>
+              </span>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label" data-i18n-key="Status">Status</p>
+              <div class="status-control">
+                <select id="orderStatusInput" name="portal_status" required>
+                  <option value="ORDER_EINGEREICHT" data-i18n-key="🔵 Eingereicht">🔵 Eingereicht</option>
+                  <option value="ORDER_BESTAETIGT" data-i18n-key="🟡 Bestätigt">🟡 Bestätigt</option>
+                  <option value="RUECKFRAGEN_OFFEN" data-i18n-key="🟠 Rückfragen">🟠 Rückfragen</option>
+                  <option value="RUECKFRAGEN_GELOEST" data-i18n-key="🟠 Rückfragen geklärt">🟠 Rückfragen geklärt</option>
+                  <option value="PRODUKTION_LAEUFT" data-i18n-key="🟢 Produktion">🟢 Produktion</option>
+                  <option value="WARE_ABHOLBEREIT" data-i18n-key="🟣 Versandbereit">🟣 Versandbereit</option>
+                  <option value="UEBERGEBEN_AN_SPEDITION" data-i18n-key="⚪ Abgeschlossen">⚪ Abgeschlossen</option>
+                </select>
+              </div>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label" data-i18n-key="Nummernkreis">Nummernkreis</p>
+              <select id="orderSeriesSelect" name="naming_series" required>
+                <option value="" data-i18n-key="Bitte wählen">Bitte wählen</option>
+              </select>
+            </div>
+            <div class="summary-card">
+              <p class="summary-label" data-i18n-key="Unternehmen">Unternehmen</p>
+              <select id="orderCompanySelect" name="company" required>
+                <option value="" data-i18n-key="Bitte wählen">Bitte wählen</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="order-info-grid single-column">
+            <div class="info-card">
+              <p class="info-label" data-i18n-key="Kunde">Kunde</p>
+              <select id="customerSelect" name="customer_id" required>
+                <option value="" data-i18n-key="Kunden auswählen">Kunden auswählen</option>
+              </select>
+              <p class="info-line info-meta">
+                <span data-i18n-key="Steuernummer:">Steuernummer:</span>
+                <span id="customerTaxPreview">-</span>
+              </p>
+              <div class="stack">
+                <select id="billingAddressSelect" name="billing_address_id" required>
+                  <option value="" data-i18n-key="Rechnungsadresse auswählen">Rechnungsadresse auswählen</option>
+                </select>
+                <select id="contactSelect" name="contact_id">
+                  <option value="" data-i18n-key="Ansprechpartner (optional)">Ansprechpartner (optional)</option>
+                </select>
+              </div>
+            </div>
+            <div class="info-card">
+              <p class="info-label" data-i18n-key="Lieferadresse">Lieferadresse</p>
+              <select id="shippingAddressSelect" name="shipping_address_id" required>
+                <option value="" data-i18n-key="Lieferadresse auswählen">Lieferadresse auswählen</option>
+              </select>
+              <p class="info-line" id="deliveryStreetPreview">-</p>
+              <p class="info-line" id="deliveryCityPreview">-</p>
+              <p class="info-line muted" id="deliveryCountryPreview">-</p>
+            </div>
+          </div>
+
+          <div class="card info-card info-card-meta info-card-group">
+            <div class="info-card-section">
+              <p class="info-label" data-i18n-key="Kundenkontakte">Kundenkontakte</p>
+              <div class="info-meta-grid">
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Kundennummer">Kundennummer</p>
+                  <input
+                    type="text"
+                    id="customerNumberInput"
+                    name="customer_number"
+                    placeholder="z. B. KND-1001"
+                    data-i18n-key="z. B. KND-1001"
+                    data-i18n-attr="placeholder"
+                  />
+                </div>
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Ansprechpartner">Ansprechpartner</p>
+                  <input
+                    type="text"
+                    id="contactNameInput"
+                    name="contact_name"
+                    placeholder="Name"
+                    data-i18n-key="Name"
+                    data-i18n-attr="placeholder"
+                  />
+                </div>
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="E-Mail">E-Mail</p>
+                  <input
+                    type="email"
+                    id="contactEmailInput"
+                    name="contact_email"
+                    placeholder="name@example.com"
+                    data-i18n-key="name@example.com"
+                    data-i18n-attr="placeholder"
+                  />
+                </div>
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Telefon">Telefon</p>
+                  <input
+                    type="tel"
+                    id="contactPhoneInput"
+                    name="contact_phone"
+                    placeholder="+49 ..."
+                    data-i18n-key="+49 ..."
+                    data-i18n-attr="placeholder"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="info-card-section divider">
+              <p class="info-label" data-i18n-key="Versanddetails">Versanddetails</p>
+              <div class="info-meta-grid">
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Versand bezahlt von">Versand bezahlt von</p>
+                  <select id="shippingPayerSelect" name="shipping_payer" required>
+                    <option value="BATE" data-i18n-key="BATE">BATE</option>
+                    <option value="KUNDE" data-i18n-key="Kunde">Kunde</option>
+                  </select>
+                </div>
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Transportart">Transportart</p>
+                  <input
+                    type="text"
+                    id="shippingMethodInput"
+                    name="shipping_method"
+                    placeholder="z. B. Spedition"
+                    required
+                    data-i18n-key="z. B. Spedition"
+                    data-i18n-attr="placeholder"
+                  />
+                </div>
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Verpackung">Verpackung</p>
+                  <input
+                    type="text"
+                    id="shippingPackagingInput"
+                    name="shipping_packaging"
+                    placeholder="Palette, Kartons ..."
+                    data-i18n-key="Palette, Kartons ..."
+                    data-i18n-attr="placeholder"
+                  />
+                </div>
+                <div class="meta-block">
+                  <p class="meta-label" data-i18n-key="Abholung">Abholung</p>
+                  <label class="switch">
+                    <input type="checkbox" id="shippingPickupInput" name="shipping_pickup" />
+                    <span data-i18n-key="Abholung durch Kunden">Abholung durch Kunden</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <div class="card positions-card">
+          <div class="section-head">
+            <h4 data-i18n-key="Artikelpositionen">Artikelpositionen</h4>
+            <div class="section-actions">
+              <button type="button" class="ghost" id="importPositionsBtn" data-i18n-key="Aus Template laden">
+                Aus Template laden
+              </button>
+              <button type="button" class="btn" id="addPositionBtn" data-i18n-key="Position hinzufügen">Position hinzufügen</button>
+            </div>
+          </div>
+          <div id="positionsEditor" class="positions-list">
+            <p class="muted" data-i18n-key="Noch keine Positionen angelegt.">Noch keine Positionen angelegt.</p>
+          </div>
+        </div>
+
+        <div class="card accessories-card">
+          <div class="section-head">
+            <h4 data-i18n-key="Zubehör">Zubehör</h4>
+            <p class="muted" id="accessoriesSubtitle">Optionales Verpackungs-Set</p>
+          </div>
+          <div id="accessoriesEditor" class="accessories-placeholder">
+            <p class="muted" data-i18n-key="Noch keine Daten. Diese Sektion wird in einem späteren Schritt befüllt.">
+              Noch keine Daten. Diese Sektion wird in einem späteren Schritt befüllt.
+            </p>
+          </div>
+        </div>
+
+        <div class="card totals-card">
+          <table class="totals-table">
+            <tbody>
+              <tr>
+                <td data-i18n-key="Nettopreis">Nettopreis</td>
+                <td id="netAmountOutput">0,00 €</td>
+              </tr>
+              <tr>
+                <td data-i18n-key="zzgl. 19 % USt.">zzgl. 19 % USt.</td>
+                <td id="taxAmountOutput">0,00 €</td>
+              </tr>
+              <tr class="totals-table-total">
+                <td data-i18n-key="Rechnungsbetrag">Rechnungsbetrag</td>
+                <td id="grossAmountOutput">0,00 €</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card actions-card">
+          <div class="actions-row">
+            <button type="button" class="ghost" id="cancelCreateOrder" data-i18n-key="Abbrechen">Abbrechen</button>
+            <div class="actions-right">
+              <button type="button" class="ghost" id="saveDraftOrder" data-i18n-key="Entwurf speichern">Entwurf speichern</button>
+              <button type="button" class="btn" id="submitOrderCreate" data-i18n-key="Bestellung speichern">Bestellung speichern</button>
+            </div>
+          </div>
+          <p class="muted small" data-i18n-key="Die Bestellung wird nach dem Speichern sofort in ERPNext angelegt und anschließend im Portal angezeigt.">
+            Die Bestellung wird nach dem Speichern sofort in ERPNext angelegt und anschließend im Portal angezeigt.
+          </p>
+        </div>
+      </section>
+    </main>
+    <datalist id="itemCodeSuggestions"></datalist>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -32,6 +32,8 @@ const VIEWER_GALLERY_FRAMES = ['0001', '0010', '0019', '0028'];
 const ORDER_TICKET_KEY_SEPARATOR = '::';
 
 const ORDER_SERIES_OPTIONS = ['BT-B.YY.#####', 'PZ-B.YY.#####'];
+const CUSTOMER_ORDER_PROFILE_TYPES = ['SMS', 'PPS'];
+const FAVICON_URL = 'https://360.schuhproduktion.com/Unterlagen/Favicon-Schuhproduktion.png';
 const COMPANY_CONFIG = [
   {
     value: 'BATE GmbH',
@@ -507,6 +509,18 @@ function ensureTechpackActiveMedia(spec) {
     }
   }
 
+  function formatDateTime(value) {
+    if (!value) return '-';
+    try {
+      return new Date(value).toLocaleString('de-DE', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      });
+    } catch {
+      return value;
+    }
+  }
+
   function formatMoney(amount, currency = 'EUR') {
     if (typeof amount !== 'number' || Number.isNaN(amount)) return '-';
     try {
@@ -517,6 +531,21 @@ function ensureTechpackActiveMedia(spec) {
     } catch {
       return `${amount} ${currency}`;
     }
+  }
+
+  function ensureFavicon() {
+    if (typeof document === 'undefined') return;
+    const targets = ['icon', 'shortcut icon'];
+    targets.forEach((rel) => {
+      let link = document.querySelector(`link[rel="${rel}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        link.type = 'image/png';
+        document.head?.appendChild(link);
+      }
+      link.href = FAVICON_URL;
+    });
   }
 
   function escapeHtml(value) {
@@ -2031,12 +2060,15 @@ function deriveSizeList(order) {
   async function loadSession() {
     const data = await request('/api/session');
     state.user = data.user;
+    const label = document.getElementById('userLabel');
+    if (label) {
+      const displayName = state.user.username || state.user.email || '-';
+      label.textContent = displayName;
+    }
     if (state.user?.locale && state.user.locale !== state.locale) {
       await changeLocale(state.user.locale, { syncServer: false });
       return;
     }
-    const label = document.getElementById('userLabel');
-    if (label) label.textContent = `${state.user.email} (${state.user.role})`;
     applyRoleVisibility();
     updateLanguageSwitcherState();
     const logoutBtn = document.getElementById('logoutBtn');
@@ -2236,6 +2268,340 @@ function deriveSizeList(order) {
       renderAccessoriesPlaceholder(err.message || 'Zubehör konnte nicht geladen werden.', containerId);
       setAccessoriesSubtitle(customerId, [], subtitleId);
       throw err;
+    }
+  }
+
+  function ensureCustomerOrderProfileDrafts(customerId) {
+    if (!customerId) return {};
+    if (!state.customerOrderProfileDrafts[customerId]) {
+      state.customerOrderProfileDrafts[customerId] = {};
+    }
+    CUSTOMER_ORDER_PROFILE_TYPES.forEach((type) => {
+      if (!Array.isArray(state.customerOrderProfileDrafts[customerId][type])) {
+        state.customerOrderProfileDrafts[customerId][type] = [];
+      }
+    });
+    if (!state.customerOrderProfiles[customerId]) {
+      state.customerOrderProfiles[customerId] = {};
+    }
+    if (typeof state.customerOrderProfileEditing[customerId] !== 'boolean') {
+      state.customerOrderProfileEditing[customerId] = false;
+    }
+    return state.customerOrderProfileDrafts[customerId];
+  }
+
+  function resetCustomerOrderProfileDrafts(customerId, types = null) {
+    if (!customerId) return;
+    const profileMap = state.customerOrderProfiles?.[customerId] || {};
+    const targetTypes = Array.isArray(types) && types.length ? types : CUSTOMER_ORDER_PROFILE_TYPES;
+    ensureCustomerOrderProfileDrafts(customerId);
+    targetTypes.forEach((type) => {
+      const rows = Array.isArray(profileMap?.[type]?.sizes) ? profileMap[type].sizes : [];
+      state.customerOrderProfileDrafts[customerId][type] = cloneOrderProfileRows(rows, type);
+    });
+  }
+
+  function isCustomerOrderProfileEditing(customerId) {
+    return Boolean(state.customerOrderProfileEditing?.[customerId]);
+  }
+
+  function setCustomerOrderProfileEditing(customerId, value) {
+    if (!customerId) return;
+    state.customerOrderProfileEditing[customerId] = Boolean(value);
+  }
+
+  function cloneOrderProfileRows(rows = [], orderType = 'SMS') {
+    const timestamp = Date.now().toString(36);
+    return rows.map((row, idx) => ({
+      id: row.id || `${orderType}-${idx}-${timestamp}-${Math.random().toString(16).slice(2, 6)}`,
+      size: row.size || '',
+      quantity: Math.max(0, Math.floor(Number(row.quantity) || 0))
+    }));
+  }
+
+  function sumOrderProfileRows(rows = []) {
+    return rows.reduce((acc, row) => acc + Math.max(0, Math.floor(Number(row?.quantity) || 0)), 0);
+  }
+
+  function generateOrderProfileRowId(orderType) {
+    return `${orderType}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`;
+  }
+
+  function toggleCustomerOrderProfileEditing(customerId) {
+    if (!customerId) return;
+    ensureCustomerOrderProfileDrafts(customerId);
+    const currentlyEditing = isCustomerOrderProfileEditing(customerId);
+    if (currentlyEditing) {
+      resetCustomerOrderProfileDrafts(customerId);
+    }
+    setCustomerOrderProfileEditing(customerId, !currentlyEditing);
+    renderCustomerOrderProfiles(customerId);
+  }
+
+  async function refreshCustomerOrderProfiles(customerId) {
+    if (!customerId) return null;
+    const container = document.getElementById('customerOrderProfiles');
+    if (!container) return null;
+    container.innerHTML = `<p class="muted">${escapeHtml(translateTemplate('Lade Daten …'))}</p>`;
+    try {
+      const payload = await request(`/api/customers/${encodeURIComponent(customerId)}/order-profiles`);
+      const profiles = payload?.profiles || {};
+      state.customerOrderProfiles[customerId] = profiles;
+      ensureCustomerOrderProfileDrafts(customerId);
+      resetCustomerOrderProfileDrafts(customerId);
+      setCustomerOrderProfileEditing(customerId, false);
+      renderCustomerOrderProfiles(customerId);
+      return profiles;
+    } catch (err) {
+      console.warn('Order profile fetch failed', err);
+      container.innerHTML = `<p class="error">${escapeHtml(err.message || translateTemplate('Daten konnten nicht geladen werden.'))}</p>`;
+      showToast(err.message);
+      throw err;
+    }
+  }
+
+  function renderCustomerOrderProfiles(customerId) {
+    const container = document.getElementById('customerOrderProfiles');
+    if (!container || !customerId) return;
+    const drafts = state.customerOrderProfileDrafts?.[customerId];
+    const t = (key, replacements) => translateTemplate(key, replacements);
+    const editing = isCustomerOrderProfileEditing(customerId);
+    const toggleBtn = document.querySelector('[data-action="toggle-order-profile-edit"]');
+    if (toggleBtn) {
+      toggleBtn.dataset.customerId = customerId;
+      const label = editing ? t('Bearbeitung beenden') : t('Bearbeiten');
+      toggleBtn.textContent = label;
+      toggleBtn.disabled = !state.customerOrderProfiles[customerId];
+      if (toggleBtn.dataset.bound !== '1') {
+        toggleBtn.addEventListener('click', () => {
+          const targetCustomerId = toggleBtn.dataset.customerId;
+          toggleCustomerOrderProfileEditing(targetCustomerId);
+        });
+        toggleBtn.dataset.bound = '1';
+      }
+    }
+    if (!drafts) {
+      container.innerHTML = `<p class="muted">${escapeHtml(t('Keine Daten geladen.'))}</p>`;
+      return;
+    }
+    const profileTypes = CUSTOMER_ORDER_PROFILE_TYPES;
+    const meta = state.customerOrderProfiles?.[customerId] || {};
+    container.innerHTML = profileTypes
+      .map((type) => buildCustomerOrderProfileCard(customerId, type, drafts[type] || [], meta[type] || null, t, editing))
+      .join('');
+    if (editing) {
+      profileTypes.forEach((type) => bindCustomerOrderProfileCard(customerId, type));
+    }
+  }
+
+  function buildCustomerOrderProfileCard(customerId, orderType, rows = [], meta = null, t = (key) => key, isEditing = false) {
+    const total = sumOrderProfileRows(rows);
+    const sizePlaceholder = t('Größe');
+    const qtyPlaceholder = t('Menge');
+    const addLabel = t('Zeile hinzufügen');
+    const saveLabel = t('Speichern');
+    const removeLabel = t('Größe entfernen');
+    const emptyColumns = isEditing ? 3 : 2;
+    const noData = `<tr><td colspan="${emptyColumns}" class="muted">${escapeHtml(t('Keine Größen hinterlegt.'))}</td></tr>`;
+    const rowsHtml = rows.length
+      ? rows
+          .map((row) => {
+            const sizeValue = escapeHtml(row.size || '');
+            const quantityRaw = row.quantity;
+            const quantityInputValue =
+              quantityRaw === null || quantityRaw === undefined ? '' : Number.isFinite(quantityRaw) ? quantityRaw : quantityRaw;
+            const quantityDisplay =
+              quantityRaw === null || quantityRaw === undefined || quantityRaw === '' ? 0 : quantityRaw;
+            if (!isEditing) {
+              return `<tr data-row-id="${row.id}">
+                <td>${sizeValue || '-'}</td>
+                <td>${escapeHtml(quantityDisplay.toString())}</td>
+              </tr>`;
+            }
+            return `
+        <tr data-row-id="${row.id}">
+          <td>
+            <input
+              type="text"
+              class="order-profile-size-input"
+              data-row-id="${row.id}"
+              value="${escapeHtml(row.size || '')}"
+              list="customerOrderProfileSizeOptions"
+              placeholder="${escapeHtml(sizePlaceholder)}"
+            />
+          </td>
+          <td>
+            <input
+              type="number"
+              min="0"
+              class="order-profile-quantity-input"
+              data-row-id="${row.id}"
+              value="${escapeHtml(quantityInputValue.toString())}"
+              placeholder="${escapeHtml(qtyPlaceholder)}"
+            />
+          </td>
+          <td class="order-profile-remove-cell">
+            <button
+              type="button"
+              class="ghost icon-only order-profile-remove"
+              data-remove-row="${row.id}"
+              aria-label="${escapeHtml(removeLabel)}"
+              title="${escapeHtml(removeLabel)}"
+            >
+              ${TRASH_ICON_SVG}
+            </button>
+          </td>
+        </tr>`;
+          })
+          .join('')
+      : noData;
+    const totalLabel = t('Summe: {{count}} Paar', { count: total });
+    const actionColumnHeader = isEditing ? '<th></th>' : '';
+    const actionFooter = isEditing
+      ? `<div class="order-profile-actions">
+          <button type="button" class="ghost small" data-action="add-order-profile-row">${escapeHtml(addLabel)}</button>
+          <span class="order-profile-total" data-profile-total>${escapeHtml(totalLabel)}</span>
+          <button type="button" class="primary small" data-action="save-order-profile">${escapeHtml(saveLabel)}</button>
+        </div>`
+      : `<div class="order-profile-footer">
+          <span class="order-profile-total">${escapeHtml(totalLabel)}</span>
+        </div>`;
+    const cardModeClass = isEditing ? 'editing' : 'readonly';
+    return `
+      <article class="order-profile-card ${cardModeClass}" data-order-type="${orderType}">
+        <header class="order-profile-card-head">
+          <div>
+            <p class="muted">${escapeHtml(orderType)}</p>
+            <h5>${escapeHtml(t('Standardgrößen {{type}}', { type: orderType }))}</h5>
+          </div>
+        </header>
+        <table class="order-profile-table">
+          <thead>
+            <tr>
+              <th>${escapeHtml(sizePlaceholder)}</th>
+              <th>${escapeHtml(qtyPlaceholder)}</th>
+              ${actionColumnHeader}
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+        ${actionFooter}
+      </article>
+    `;
+  }
+
+  function bindCustomerOrderProfileCard(customerId, orderType) {
+    const card = document.querySelector(`.order-profile-card[data-order-type="${orderType}"]`);
+    if (!card) return;
+    const addBtn = card.querySelector('[data-action="add-order-profile-row"]');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => addOrderProfileRow(customerId, orderType));
+    }
+    const saveBtn = card.querySelector('[data-action="save-order-profile"]');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => saveCustomerOrderProfile(customerId, orderType));
+    }
+    card.querySelectorAll('.order-profile-size-input').forEach((input) => {
+      input.addEventListener('input', (event) =>
+        handleOrderProfileInputChange(customerId, orderType, input.dataset.rowId, 'size', event.target.value)
+      );
+    });
+    card.querySelectorAll('.order-profile-quantity-input').forEach((input) => {
+      input.addEventListener('input', (event) =>
+        handleOrderProfileInputChange(customerId, orderType, input.dataset.rowId, 'quantity', event.target.value)
+      );
+      input.addEventListener('blur', (event) =>
+        normalizeOrderProfileQuantityInput(customerId, orderType, input.dataset.rowId, event.target)
+      );
+    });
+    card.querySelectorAll('[data-remove-row]').forEach((button) => {
+      button.addEventListener('click', () => removeOrderProfileRow(customerId, orderType, button.dataset.removeRow));
+    });
+  }
+
+  function handleOrderProfileInputChange(customerId, orderType, rowId, field, value) {
+    const drafts = state.customerOrderProfileDrafts?.[customerId];
+    if (!drafts || !drafts[orderType]) return;
+    const row = drafts[orderType].find((entry) => entry.id === rowId);
+    if (!row) return;
+    if (field === 'size') {
+      row.size = value?.toString().trim();
+    } else if (field === 'quantity') {
+      const numeric = Math.max(0, Math.floor(Number(value) || 0));
+      row.quantity = numeric;
+      updateOrderProfileTotalBadge(customerId, orderType);
+    }
+  }
+
+  function normalizeOrderProfileQuantityInput(customerId, orderType, rowId, inputEl) {
+    if (!inputEl) return;
+    const drafts = state.customerOrderProfileDrafts?.[customerId];
+    if (!drafts || !drafts[orderType]) return;
+    const row = drafts[orderType].find((entry) => entry.id === rowId);
+    if (!row) return;
+    inputEl.value = row.quantity ? String(row.quantity) : '';
+  }
+
+  function updateOrderProfileTotalBadge(customerId, orderType) {
+    const card = document.querySelector(`.order-profile-card[data-order-type="${orderType}"]`);
+    if (!card) return;
+    const rows = state.customerOrderProfileDrafts?.[customerId]?.[orderType] || [];
+    const total = sumOrderProfileRows(rows);
+    const label = translateTemplate('Summe: {{count}} Paar', { count: total });
+    const target = card.querySelector('[data-profile-total]');
+    if (target) {
+      target.textContent = label;
+    }
+  }
+
+  function addOrderProfileRow(customerId, orderType) {
+    ensureCustomerOrderProfileDrafts(customerId);
+    state.customerOrderProfileDrafts[customerId][orderType].push({
+      id: generateOrderProfileRowId(orderType),
+      size: '',
+      quantity: 0
+    });
+    renderCustomerOrderProfiles(customerId);
+  }
+
+  function removeOrderProfileRow(customerId, orderType, rowId) {
+    if (!rowId) return;
+    ensureCustomerOrderProfileDrafts(customerId);
+    const rows = state.customerOrderProfileDrafts[customerId][orderType];
+    const idx = rows.findIndex((row) => row.id === rowId);
+    if (idx === -1) return;
+    rows.splice(idx, 1);
+    renderCustomerOrderProfiles(customerId);
+  }
+
+  async function saveCustomerOrderProfile(customerId, orderType) {
+    if (!customerId || !orderType) return;
+    ensureCustomerOrderProfileDrafts(customerId);
+    const rows = state.customerOrderProfileDrafts[customerId][orderType];
+    const payload = rows
+      .map((row) => ({
+        size: row.size?.toString().trim(),
+        quantity: Math.max(0, Math.floor(Number(row.quantity) || 0))
+      }))
+      .filter((row) => row.size);
+    try {
+      const encodedType = encodeURIComponent(orderType);
+      const response = await request(
+        `/api/customers/${encodeURIComponent(customerId)}/order-profiles/${encodedType}`,
+        {
+          method: 'POST',
+          body: { sizes: payload }
+        }
+      );
+      state.customerOrderProfiles[customerId] = state.customerOrderProfiles[customerId] || {};
+      state.customerOrderProfiles[customerId][orderType] = response;
+      state.customerOrderProfileDrafts[customerId][orderType] = cloneOrderProfileRows(response?.sizes || [], orderType);
+      renderCustomerOrderProfiles(customerId);
+      showToast(translateTemplate('Profil gespeichert'));
+    } catch (err) {
+      showToast(err.message);
     }
   }
 
@@ -6980,6 +7346,7 @@ function populateOrderCreateSelects(draft) {
       const typeLabel = addr?.type ? t(addr.type) : t('Adresse');
       addressCards.push(buildCustomerAddressCard(`${typeLabel} ${idx + 1}`, addr));
     });
+    const sizeOptions = SIZE_COLUMNS.map((size) => `<option value="${escapeHtml(size)}"></option>`).join('');
     setBreadcrumbLabel(t('Kunden · {{name}}', { name: customer.name }));
     container.innerHTML = `
       <div class="customer-profile-head">
@@ -7015,12 +7382,36 @@ function populateOrderCreateSelects(draft) {
           <p class="muted">${escapeHtml(t('Keine Daten geladen.'))}</p>
         </div>
       </section>
+      <section class="customer-order-profiles customer-accessories">
+        <div class="customer-accessories-head customer-order-profiles-head">
+          <div>
+            <h4>${escapeHtml(t('Bestellprofile'))}</h4>
+            <p class="muted">${escapeHtml(t('Standardgrößen für SMS und PPS'))}</p>
+          </div>
+          <button type="button" class="ghost" data-action="toggle-order-profile-edit" data-customer-id="${escapeHtml(customer.id)}">
+            ${escapeHtml(t('Bearbeiten'))}
+          </button>
+        </div>
+        <div class="order-profiles-panel">
+          <div id="customerOrderProfiles" class="order-profiles-grid" data-customer-id="${escapeHtml(customer.id)}">
+            <p class="muted">${escapeHtml(t('Keine Daten geladen.'))}</p>
+          </div>
+        </div>
+        <datalist id="customerOrderProfileSizeOptions">
+          ${sizeOptions}
+        </datalist>
+      </section>
     `;
+    const orderProfileToggle = container.querySelector('[data-action="toggle-order-profile-edit"]');
+    if (orderProfileToggle) {
+      orderProfileToggle.disabled = true;
+    }
     refreshCustomerAccessories(customer.id, {
       force: true,
       containerId: 'customerAccessories',
       subtitleId: 'customerAccessoriesSubtitle'
     }).catch((err) => console.warn('Accessory load failed for customer', err));
+    refreshCustomerOrderProfiles(customer.id).catch((err) => console.warn('Order profile load failed', err));
   }
 
   function resolvePositionHeroImage(position, item) {
@@ -7870,6 +8261,7 @@ function populateOrderCreateSelects(draft) {
   document.addEventListener('DOMContentLoaded', async () => {
     const page = document.body?.dataset?.page;
     if (!page) return;
+    ensureFavicon();
     renderSharedLayout(page);
     await initLocalization();
     if (page === 'login') {

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Systemstatus</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-diagnostics" data-page="diagnostics">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="diagnostics">
+        <div class="grid kpis" id="diagnosticsSummary"></div>
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Alert-Monitor</h3>
+              <button class="ghost" id="diagnosticsRefresh">Neu laden</button>
+            </header>
+            <ul class="alert-list" id="diagnosticsAlerts"></ul>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Dienste &amp; Sync</h3>
+            </header>
+            <div id="diagnosticsJobs" class="status-list"></div>
+            <div id="diagnosticsServerMeta" class="system-meta"></div>
+            <div class="autosync-panel" id="autosyncPanel">
+              <div class="autosync-panel-header">
+                <div>
+                  <h4>AutoSync</h4>
+                  <p class="muted" id="autosyncStatus">–</p>
+                </div>
+                <div class="autosync-actions">
+                  <button class="ghost small" id="autosyncReload" data-allow-offline="true">Status aktualisieren</button>
+                </div>
+              </div>
+              <form id="autosyncRunForm" class="autosync-form">
+                <label>
+                  <span>SKU *</span>
+                  <input type="text" name="sku" id="autosyncSku" required />
+                </label>
+                <label>
+                  <span>Bereich</span>
+                  <input type="text" name="bereich" placeholder="z. B. BATE" />
+                </label>
+                <label>
+                  <span>Einkauf Override (€)</span>
+                  <input type="number" step="0.01" name="einkauf" />
+                </label>
+                <label>
+                  <span>Verkauf Override (€)</span>
+                  <input type="number" step="0.01" name="verkauf" />
+                </label>
+                <button type="submit" class="primary autosync-run-btn">AutoSync starten</button>
+              </form>
+              <details id="autosyncManualToggle">
+                <summary>Manuell synchronisieren</summary>
+                <form id="autosyncManualForm" class="autosync-form autosync-form-advanced">
+                  <label>
+                    <span>SKU *</span>
+                    <input type="text" name="sku" required />
+                  </label>
+                  <label>
+                    <span>Name *</span>
+                    <input type="text" name="name" required />
+                  </label>
+                  <label>
+                    <span>Gruppe *</span>
+                    <input type="text" name="gruppe" required />
+                  </label>
+                  <label>
+                    <span>Bereich *</span>
+                    <input type="text" name="bereich" value="BATE" required />
+                  </label>
+                  <label>
+                    <span>Viewer-Link *</span>
+                    <input type="url" name="viewer" required />
+                  </label>
+                  <label>
+                    <span>Größen (CSV)</span>
+                    <input type="text" name="sizes" placeholder="36,37,38" required />
+                  </label>
+                  <label>
+                    <span>Einkauf (€) *</span>
+                    <input type="number" step="0.01" name="einkauf" required />
+                  </label>
+                  <label>
+                    <span>Verkauf (€) *</span>
+                    <input type="number" step="0.01" name="verkauf" required />
+                  </label>
+                  <label>
+                    <span>Kollektion</span>
+                    <input type="text" name="kollektion" />
+                  </label>
+                  <label>
+                    <span>Außenmaterial</span>
+                    <input type="text" name="aussenmaterial" />
+                  </label>
+                  <label>
+                    <span>Innenmaterial</span>
+                    <input type="text" name="innenmaterial" />
+                  </label>
+                  <label>
+                    <span>Sohle</span>
+                    <input type="text" name="sohle" />
+                  </label>
+                  <label>
+                    <span>Farbcode</span>
+                    <input type="text" name="farbcode" />
+                  </label>
+                  <button type="submit" class="ghost autosync-run-btn">Manuell ausführen</button>
+                </form>
+              </details>
+              <form id="autosyncDeleteForm" class="autosync-form autosync-form-inline">
+                <label>
+                  <span>WooCommerce SKU löschen</span>
+                  <input type="text" name="sku" required />
+                </label>
+                <button type="submit" class="danger small">Produkt löschen</button>
+              </form>
+              <form id="autosyncLogsForm" class="autosync-form autosync-form-inline" data-allow-offline="true">
+                <label>
+                  <span>Logs für SKU</span>
+                  <input type="text" name="sku" placeholder="optional" />
+                </label>
+                <label>
+                  <span>Limit</span>
+                  <input type="number" name="limit" value="20" min="1" max="200" />
+                </label>
+                <button type="submit" class="ghost small">Logs laden</button>
+              </form>
+              <pre id="autosyncActionResult" class="autosync-result muted">Noch kein Lauf.</pre>
+              <div id="autosyncLogs" class="autosync-logs"></div>
+            </div>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Bestellungen</h3>
+            </header>
+            <div id="diagnosticsOrdersStatus"></div>
+            <div id="diagnosticsOrdersPhase" class="mt"></div>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Tickets &amp; Spezifikationen</h3>
+            </header>
+            <div id="diagnosticsTicketsStatus"></div>
+            <div id="diagnosticsTicketsPriority" class="mt"></div>
+            <div id="diagnosticsEscalated" class="mt"></div>
+            <div id="diagnosticsSpecs" class="mt"></div>
+          </article>
+        </div>
+        <div class="grid two">
+          <article class="card">
+            <header>
+              <h3>Kritische Bestellungen</h3>
+            </header>
+            <table class="status-table">
+              <thead>
+                <tr>
+                  <th>Bestellung</th>
+                  <th>Kunde</th>
+                  <th>Status</th>
+                  <th>Überfällig</th>
+                </tr>
+              </thead>
+              <tbody id="diagnosticsOverdue"></tbody>
+            </table>
+          </article>
+          <article class="card">
+            <header>
+              <h3>Aktivität</h3>
+            </header>
+            <div class="activity-grid">
+              <div>
+                <h4>Logs</h4>
+                <ul id="diagnosticsLogs" class="log-list"></ul>
+              </div>
+              <div>
+                <h4>Kalender</h4>
+                <ul id="diagnosticsEvents" class="log-list"></ul>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

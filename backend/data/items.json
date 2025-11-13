@@ -8585,6 +8585,12 @@
         "type": "Verkauf",
         "currency": "EUR",
         "amount": 63
+      },
+      {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 53
       }
     ],
     "uoms": [

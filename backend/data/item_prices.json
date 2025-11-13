@@ -2214,6 +2214,15 @@
     "buying": 1
   },
   {
+    "name": "i8q7og0tch",
+    "item_code": "5872",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 53,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "im0qdu8kcu",
     "item_code": "29286",
     "price_list": "Standard-Vertrieb",

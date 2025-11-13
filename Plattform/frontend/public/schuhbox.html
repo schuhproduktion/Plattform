@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Schuhbox</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-schuhbox" data-page="schuhbox">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="schuhbox">
+        <div class="card back-card shoebox-actions">
+          <button type="button" id="backToBestellung" class="ghost">← Zurück zur Bestellung</button>
+          <div class="header-actions">
+            <span class="badge" id="shoeboxOrderNumber">-</span>
+            <button type="button" class="ghost" id="printShoeboxLabels">Drucken</button>
+          </div>
+          <div class="shoebox-meta">
+            <label>
+              <span>Saison</span>
+              <select id="shoeboxSeasonSelect">
+                <option value="FS">FS</option>
+                <option value="HW">HW</option>
+              </select>
+            </label>
+            <label>
+              <span>Jahr</span>
+              <input type="number" id="shoeboxYearInput" min="2020" max="2099" />
+            </label>
+          </div>
+        </div>
+        <div class="card">
+          <div class="shoebox-table-head">
+            <div>
+              <h3>Schuhbox-Etiketten</h3>
+              <p class="muted">Mengen bei Bedarf anpassen, bevor die PDF erstellt wird.</p>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="shoebox-table">
+              <thead>
+                <tr>
+                  <th>Artikelnummer</th>
+                  <th>Vorschaubild</th>
+                  <th>Artikelname</th>
+                  <th>Farbcode</th>
+                  <th>Schuhgröße</th>
+                  <th>Menge</th>
+                </tr>
+              </thead>
+              <tbody id="shoeboxTable">
+                <tr>
+                  <td colspan="6" class="muted">Keine Daten geladen.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

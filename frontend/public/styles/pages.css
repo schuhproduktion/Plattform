@@ -809,6 +809,128 @@
   margin-bottom: 1rem;
 }
 
+.customer-order-profiles {
+  margin-top: 1.75rem;
+}
+
+.customer-order-profiles-head {
+  align-items: center;
+  gap: 1rem;
+}
+
+.order-profiles-panel {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1.5rem;
+  background: #f9fafb;
+  padding: 1rem;
+}
+
+.order-profiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.order-profile-card {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.order-profile-card.readonly {
+  box-shadow: none;
+}
+
+.order-profile-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.order-profile-card-head h5 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.order-profile-card-head p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.order-profile-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-profile-table th,
+.order-profile-table td {
+  text-align: left;
+  padding: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.order-profile-table th {
+  font-weight: 600;
+  color: #475569;
+}
+
+.order-profile-table tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.order-profile-table input {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.order-profile-remove-cell {
+  width: 48px;
+  text-align: right;
+}
+
+.order-profile-remove {
+  color: #ef4444;
+  display: inline-flex;
+  padding: 0.25rem;
+}
+
+.order-profile-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+.order-profile-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.order-profile-total {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.order-profile-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-top: 0.25rem;
+}
+
 .shoebox-actions .header-actions {
   display: flex;
   gap: 0.75rem;
@@ -2455,6 +2577,7 @@
   object-fit: cover;
   border-radius: 0.75rem;
   border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #f7f5f4;
 }
 
 .techpack-preview-placeholder {

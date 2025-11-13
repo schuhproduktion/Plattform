@@ -1,0 +1,530 @@
+[
+  {
+    "order_id": "PO-1001",
+    "position_id": "POS-1001-1",
+    "flags": {
+      "verstanden": true,
+      "fertig": false,
+      "rueckfragen": 3,
+      "kommentare": [
+        {
+          "id": "sc-1",
+          "author": "supplier.meyer@example.com",
+          "message": "Bitte Farbcode RAL bestätigen.",
+          "ts": "2024-05-10T11:15:00.000Z"
+        }
+      ],
+      "medien": [
+        {
+          "id": "media-hero-1",
+          "label": "Seitenansicht",
+          "filename": "0001 (1).webp",
+          "view_key": "side",
+          "status": "OK",
+          "url": "/uploads/orders/PO-1001/positions/POS-1001-1/0001_1_-1762539200374-723795d8-db8c-476f-9321-537bff73e490.webp"
+        },
+        {
+          "id": "file-dbc14208-d6c8-4ad5-b2d3-64f480f53442",
+          "label": "Hinteransicht",
+          "filename": "0028.webp",
+          "view_key": "rear",
+          "status": "OK",
+          "url": "/uploads/orders/PO-1001/positions/POS-1001-1/0028-1762539252465-2f307f17-69bf-4476-aa96-798b81fe377f.webp"
+        },
+        {
+          "id": "file-861c5e35-4491-4164-87c3-7e4ede4e5968",
+          "label": "Vorderansicht",
+          "filename": "0010.webp",
+          "view_key": "front",
+          "status": "OK",
+          "url": "/uploads/orders/PO-1001/positions/POS-1001-1/0010-1762539207618-e4d0ad93-06fb-4472-a0b2-358efd425b0f.webp"
+        },
+        {
+          "id": "file-48c4d092-a23d-4156-a195-a2a6cd8be4ff",
+          "label": "Innenansicht",
+          "filename": "0019.webp",
+          "view_key": "inner",
+          "status": "OPEN",
+          "url": "/uploads/orders/PO-1001/positions/POS-1001-1/0019-1762539223299-1187126d-dddb-4cfe-b5f6-c7677c52d658.webp"
+        },
+        {
+          "id": "file-f0ad698a-9d9e-45a3-85d7-f96f039a7a83",
+          "label": "Draufsicht",
+          "filename": "00XY.png",
+          "view_key": "top",
+          "status": "OPEN",
+          "url": "/uploads/orders/PO-1001/positions/POS-1001-1/00xy-1762551888520-02a2795c-8ca1-40df-9946-363cdccfa754.png"
+        },
+        {
+          "id": "file-9b72ba56-a79d-4c12-a83b-a6380dec3555",
+          "label": "Unteransicht",
+          "filename": "00XZ.png",
+          "view_key": "bottom",
+          "status": "OPEN",
+          "url": "/uploads/orders/PO-1001/positions/POS-1001-1/00xz-1762551901244-ec13fe10-c537-47d2-b702-1b1546a8a52c.png"
+        }
+      ]
+    },
+    "files": [
+      {
+        "id": "file-1001",
+        "filename": "farbkarte-pos1.pdf",
+        "version": 1,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2024-05-07T07:10:00.000Z"
+      },
+      {
+        "id": "file-33624075-bdcf-41a1-b329-cf752af0ae70",
+        "filename": "0001-495-1762529691407-14357261-6e90-4415-8b5f-8100e8b876a4.webp",
+        "version": 2,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T15:34:51.411Z"
+      },
+      {
+        "id": "file-758fc391-d8c9-41ec-b169-06d2d507e53a",
+        "filename": "van-beirendonck-m-atm-f25-016-wh8gwjvn-2025-07-07-1762536314551-8779179f-fea6-49b6-b038-c302f9eaec56.png",
+        "version": 3,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T17:25:14.560Z"
+      },
+      {
+        "id": "file-193c1db7-7773-4bb5-a879-4e114b81a72f",
+        "filename": "dc295899c644559a328f8268073919c1-1762536563048-d92c8ee8-6bcd-455d-b081-93d21abf7437.jpg",
+        "version": 4,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T17:29:23.051Z"
+      },
+      {
+        "id": "file-7ea74b63-d567-47ae-ae5a-6b25e1af2695",
+        "filename": "f519f4a171fc18dbbaca6b3dc10d155e-1762537099194-6b5fe07e-fbfe-4057-b867-8420acc24714.jpg",
+        "version": 5,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T17:38:19.197Z"
+      },
+      {
+        "id": "file-dbc14208-d6c8-4ad5-b2d3-64f480f53442",
+        "filename": "0001_1_-1762539122701-3cebe540-44c8-431e-b36d-f12cfa625dd7.webp",
+        "version": 6,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:12:02.705Z"
+      },
+      {
+        "id": "file-967bc5ce-9385-404c-9db4-6326d3c43503",
+        "filename": "0010-1762539183969-7c0cef8d-ce01-4aa8-a761-6647c409ae7e.webp",
+        "version": 7,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:13:03.972Z"
+      },
+      {
+        "id": "file-7d64301e-2792-4dc0-abdb-a1a5473169f2",
+        "filename": "0001_1_-1762539200374-723795d8-db8c-476f-9321-537bff73e490.webp",
+        "version": 8,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:13:20.384Z"
+      },
+      {
+        "id": "file-861c5e35-4491-4164-87c3-7e4ede4e5968",
+        "filename": "0010-1762539207618-e4d0ad93-06fb-4472-a0b2-358efd425b0f.webp",
+        "version": 9,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:13:27.624Z"
+      },
+      {
+        "id": "file-48c4d092-a23d-4156-a195-a2a6cd8be4ff",
+        "filename": "0019-1762539223299-1187126d-dddb-4cfe-b5f6-c7677c52d658.webp",
+        "version": 10,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:13:43.300Z"
+      },
+      {
+        "id": "file-5f9bffc1-ed50-46c1-9c89-3c7b566cd802",
+        "filename": "0028-1762539252465-2f307f17-69bf-4476-aa96-798b81fe377f.webp",
+        "version": 11,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:14:12.466Z"
+      },
+      {
+        "id": "file-f0ad698a-9d9e-45a3-85d7-f96f039a7a83",
+        "filename": "1d1bc1a9b0b91ef9c633e3dfc4c59d52-1762550617578-a2069e52-c096-47fa-a0c8-52066c964c22.jpg",
+        "version": 12,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T21:23:37.582Z"
+      },
+      {
+        "id": "file-2c361e1b-1f63-4f55-8c81-e552ccdfeee6",
+        "filename": "00xy-1762551888520-02a2795c-8ca1-40df-9946-363cdccfa754.png",
+        "version": 13,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T21:44:48.525Z"
+      },
+      {
+        "id": "file-9b72ba56-a79d-4c12-a83b-a6380dec3555",
+        "filename": "00xz-1762551901244-ec13fe10-c537-47d2-b702-1b1546a8a52c.png",
+        "version": 14,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T21:45:01.249Z"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "ann-6b6aafae-c50a-4108-bb60-7811c2d4b9b3",
+        "media_id": "file-861c5e35-4491-4164-87c3-7e4ede4e5968",
+        "x": 0.4880952380952381,
+        "y": 0.5491071428571429,
+        "note": "B576",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-07T21:21:39.124Z"
+      }
+    ],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-08T00:22:30.166Z"
+  },
+  {
+    "order_id": "PO-1001",
+    "position_id": "POS-1001-2",
+    "flags": {
+      "verstanden": true,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [
+      {
+        "id": "file-d2524fba-2af3-4908-affc-96a129e8059f",
+        "filename": "ban2-1762530008148-dae1f28b-6be5-4066-8069-8e9faec46d96.png",
+        "version": 1,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T15:40:08.157Z"
+      }
+    ],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-07T18:14:43.474Z",
+    "annotations": []
+  },
+  {
+    "order_id": "PO-1002",
+    "position_id": "POS-1002-1",
+    "flags": {
+      "verstanden": true,
+      "fertig": true,
+      "rueckfragen": 2,
+      "kommentare": [
+        {
+          "id": "sc-2",
+          "author": "anna.bate@example.com",
+          "message": "Bitte finalen QS-Report hochladen.",
+          "ts": "2024-05-16T13:00:00.000Z"
+        }
+      ],
+      "medien": []
+    },
+    "files": [
+      {
+        "id": "file-2001",
+        "filename": "laufsohle-v3.dxf",
+        "version": 3,
+        "uploaded_by": "supplier.meyer@example.com",
+        "ts": "2024-05-15T15:40:00.000Z"
+      },
+      {
+        "id": "file-ddbcf260-c46f-4230-b8b3-c3d2163c9af1",
+        "filename": "0001_1_-1762538996648-705354a2-3591-4de7-adb4-4b6af952d507.webp",
+        "version": 2,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-07T18:09:56.650Z"
+      }
+    ],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-07T21:32:30.367Z",
+    "annotations": []
+  },
+  {
+    "order_id": "BT-B2500016",
+    "position_id": "585idf0ke5",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "file-7bd4ee4e-0079-4221-a05f-075b6f010a89",
+          "label": "Seitenansicht",
+          "filename": "WhatsApp Image 2025-10-31 at 15.28.43.jpeg",
+          "view_key": "side",
+          "status": "OK",
+          "url": "/uploads/orders/BT-B2500016/positions/585idf0ke5/whatsapp_image_2025-10-31_at_15.28.43-1762698866981-5de22771-de46-4cd6-8c72-877b4ec46a55.jpeg"
+        }
+      ]
+    },
+    "files": [
+      {
+        "id": "file-7bd4ee4e-0079-4221-a05f-075b6f010a89",
+        "filename": "whatsapp_image_2025-10-31_at_15.28.43-1762698866981-5de22771-de46-4cd6-8c72-877b4ec46a55.jpeg",
+        "version": 1,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-09T14:34:26.992Z"
+      }
+    ],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-09T20:31:17.014Z"
+  },
+  {
+    "order_id": "BT-B2500003",
+    "position_id": "15uv3tiq1q",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [
+      {
+        "id": "file-f99e4e09-0733-48aa-a724-7234574250a6",
+        "filename": "0002-1762790362405-e9117cbe-1fbd-4ec6-9427-96342d8bbc19.webp",
+        "version": 1,
+        "uploaded_by": "anna.bate@example.com",
+        "ts": "2025-11-10T15:59:22.411Z"
+      }
+    ],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T07:15:00.127Z",
+    "annotations": []
+  },
+  {
+    "order_id": "BT-B2500007",
+    "position_id": "lqmp3n1psk",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-09T20:45:56.220Z"
+  },
+  {
+    "order_id": "BT-B2500017",
+    "position_id": "51qpnbsltd",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-11T10:19:05.841Z"
+  },
+  {
+    "order_id": "BT-B2500014",
+    "position_id": "0dslpsu30k",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-12T09:40:20.022Z"
+  },
+  {
+    "order_id": "BT-B2500003",
+    "position_id": "d99gerpo54",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-12T09:58:28.151Z"
+  },
+  {
+    "order_id": "BT-B2500015",
+    "position_id": "hrus4h26ei",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "placeholder-side",
+          "label": "Seitenansicht · Platzhalter",
+          "filename": "Seitenansicht · Platzhalter",
+          "view_key": "side",
+          "status": "OK",
+          "url": "/images/techpack-placeholders/side.png",
+          "is_placeholder": true
+        }
+      ]
+    },
+    "files": [],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T15:29:45.875Z",
+    "annotations": [
+      {
+        "id": "ann-950d293f-a901-42cf-9105-9bcfe0986196",
+        "media_id": "placeholder-side",
+        "x": 0.2904761904761905,
+        "y": 0.48340773809523807,
+        "note": "Kahve B712",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T15:25:21.746Z"
+      },
+      {
+        "id": "ann-92b0437f-9e8c-45ae-bb0e-3dfa9c6b5782",
+        "media_id": "placeholder-side",
+        "x": 0.6523809523809524,
+        "y": 0.5476934523809524,
+        "note": "kejlkwejlkr",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T15:28:58.900Z"
+      },
+      {
+        "id": "ann-bf2ed3b7-86c9-47dc-88ad-b6b6d97dfeba",
+        "media_id": "placeholder-side",
+        "x": 0.39285714285714285,
+        "y": 0.5429315476190476,
+        "note": "kolkj",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T15:29:00.667Z"
+      }
+    ]
+  },
+  {
+    "order_id": "BT-B2500013",
+    "position_id": "j8tvu78jbd",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-12T10:02:15.145Z"
+  },
+  {
+    "order_id": "BT-B2500013",
+    "position_id": "6a99epfd2m",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": []
+    },
+    "files": [],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T10:21:28.270Z",
+    "annotations": [
+      {
+        "id": "ann-c6212d7d-4117-4f18-93e5-49816c119974",
+        "media_id": "placeholder-side",
+        "x": 0.5285714285714286,
+        "y": 0.5000372023809524,
+        "note": "Logo hier hin",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T10:21:28.270Z"
+      }
+    ]
+  },
+  {
+    "order_id": "BT-B2500015",
+    "position_id": "v84j1l4mtp",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "placeholder-side",
+          "label": "Seitenansicht · Platzhalter",
+          "filename": "Seitenansicht · Platzhalter",
+          "view_key": "side",
+          "status": "OK",
+          "url": "/images/techpack-placeholders/side.png",
+          "is_placeholder": true
+        }
+      ]
+    },
+    "files": [],
+    "last_actor": "anna.bate@example.com",
+    "updated_at": "2025-11-12T10:37:47.439Z",
+    "annotations": [
+      {
+        "id": "ann-d46010dc-7bc1-4478-ba57-c6d3f1e61df2",
+        "media_id": "placeholder-side",
+        "x": 0.5428571428571428,
+        "y": 0.47265625,
+        "note": "fgdfg",
+        "author": "anna.bate@example.com",
+        "ts": "2025-11-12T10:37:32.118Z"
+      }
+    ]
+  },
+  {
+    "order_id": "BT-B2500017",
+    "position_id": "i7p964o316",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "viewer-i7p964o316-side",
+          "label": "Seitenansicht · 0001.webp",
+          "filename": "0001.webp",
+          "view_key": "side",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0001.webp",
+          "auto_generated": true
+        },
+        {
+          "id": "viewer-i7p964o316-front",
+          "label": "Vorderansicht · 0010.webp",
+          "filename": "0010.webp",
+          "view_key": "front",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0010.webp",
+          "auto_generated": true
+        },
+        {
+          "id": "viewer-i7p964o316-inner",
+          "label": "Innenansicht · 0019.webp",
+          "filename": "0019.webp",
+          "view_key": "inner",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0019.webp",
+          "auto_generated": true
+        },
+        {
+          "id": "viewer-i7p964o316-rear",
+          "label": "Rückansicht · 0028.webp",
+          "filename": "0028.webp",
+          "view_key": "rear",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0028.webp",
+          "auto_generated": true
+        }
+      ]
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-13T08:24:36.745Z"
+  }
+]

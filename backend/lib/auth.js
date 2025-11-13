@@ -12,9 +12,16 @@ function sanitizeUser(user) {
   return safeUser;
 }
 
-async function authenticate(email, password) {
+async function authenticate(identifier, password) {
+  if (!identifier || !password) return null;
+  const normalized = identifier.toString().trim().toLowerCase();
+  if (!normalized) return null;
   const users = await loadUsers();
-  const user = users.find((u) => u.email === email);
+  const user = users.find((u) => {
+    const email = u.email ? u.email.toString().trim().toLowerCase() : '';
+    const username = u.username ? u.username.toString().trim().toLowerCase() : '';
+    return email === normalized || username === normalized;
+  });
   if (!user) return null;
   const matches = await bcrypt.compare(password, user.password_hash);
   if (!matches) return null;

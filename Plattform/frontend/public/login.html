@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Anmeldung</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-login" data-page="login">
+    <div class="language-switcher login-language-switcher">
+      <label for="languageSelect" class="sr-only">Sprache wählen</label>
+      <select id="languageSelect">
+        <option value="de">Deutsch</option>
+        <option value="tr">Türkçe</option>
+      </select>
+    </div>
+    <section class="login-hero">
+      <div class="login-panel glass">
+        <div class="login-brand">
+          <img
+            src="https://360.schuhproduktion.com/Unterlagen/Logo.png"
+            alt="ERPNext Logo"
+            class="login-logo"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+
+        <form id="loginForm" class="card">
+          <label for="email">E-Mail</label>
+          <input type="email" id="email" name="email" placeholder="anna.bate@example.com" required />
+          <label for="password">Passwort</label>
+          <input type="password" id="password" name="password" placeholder="••••••" required />
+          <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+        <footer>
+          <small>DE aktiv · EN/TR vorbereitet</small>
+        </footer>
+      </div>
+      <div class="login-spotlight"></div>
+    </section>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+[
+  {
+    "customer_id": "BA-12475",
+    "order_type": "SMS",
+    "sizes": [],
+    "total_pairs": 0,
+    "updated_at": "2025-11-13T09:26:12.251Z",
+    "updated_by": "anna.bate@example.com"
+  },
+  {
+    "customer_id": "BA-12476",
+    "order_type": "SMS",
+    "sizes": [
+      {
+        "size": "37",
+        "quantity": 1
+      },
+      {
+        "size": "39",
+        "quantity": 1
+      },
+      {
+        "size": "40",
+        "quantity": 16
+      },
+      {
+        "size": "41",
+        "quantity": 2
+      }
+    ],
+    "total_pairs": 20,
+    "updated_at": "2025-11-13T09:16:54.619Z",
+    "updated_by": "anna.bate@example.com"
+  },
+  {
+    "customer_id": "BA-12476",
+    "order_type": "PPS",
+    "sizes": [
+      {
+        "size": "41",
+        "quantity": 1
+      }
+    ],
+    "total_pairs": 1,
+    "updated_at": "2025-11-13T09:16:55.490Z",
+    "updated_by": "anna.bate@example.com"
+  }
+]

@@ -96,6 +96,7 @@ const ORDER_TYPE_LABELS = {
   PPS: 'PPS',
   BESTELLUNG: 'Bestellung'
 };
+const CUSTOMER_ORDER_PROFILE_TYPES = new Set(['SMS', 'PPS']);
 const PACKAGING_TYPES = new Set(['carton', 'shoebox']);
 const CM_TO_PT = 28.3464567;
 const SHOEBOX_LABEL_SIZE = [CM_TO_PT * 8.5, CM_TO_PT * 6];
@@ -499,6 +500,56 @@ async function saveCustomerPackagingData(entries) {
 
 function findCustomerPackagingEntry(store, customerId, type) {
   return store.find((entry) => entry.customer_id === customerId && entry.type === type);
+}
+
+async function loadCustomerOrderProfilesData() {
+  return (await readJson('customer_order_profiles.json', [])) || [];
+}
+
+async function saveCustomerOrderProfilesData(entries) {
+  return writeJson('customer_order_profiles.json', entries);
+}
+
+function findCustomerOrderProfileEntry(store, customerId, orderType) {
+  return store.find((entry) => entry.customer_id === customerId && entry.order_type === orderType);
+}
+
+function sanitizeOrderProfileRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  const normalized = [];
+  const indexMap = new Map();
+  rows.forEach((row) => {
+    const rawSize = row?.size ?? row?.label ?? row?.name ?? '';
+    const size = sanitizeText(rawSize);
+    if (!size) return;
+    const quantity = Math.max(0, Math.floor(Number(row?.quantity) || 0));
+    if (!indexMap.has(size)) {
+      indexMap.set(size, normalized.length);
+      normalized.push({ size, quantity });
+      return;
+    }
+    const idx = indexMap.get(size);
+    normalized[idx].quantity += quantity;
+  });
+  return normalized;
+}
+
+function sumOrderProfileRows(rows) {
+  return rows.reduce((acc, row) => acc + Math.max(0, Math.floor(Number(row?.quantity) || 0)), 0);
+}
+
+function normalizeOrderProfileResponse(entry) {
+  if (!entry) return null;
+  const sizes = sanitizeOrderProfileRows(entry.sizes || []);
+  const totalPairs = Number.isFinite(Number(entry.total_pairs)) ? Number(entry.total_pairs) : sumOrderProfileRows(sizes);
+  return {
+    customer_id: entry.customer_id,
+    order_type: entry.order_type,
+    sizes,
+    total_pairs: totalPairs,
+    updated_at: entry.updated_at || null,
+    updated_by: entry.updated_by || null
+  };
 }
 
 async function appendOrderTimelineEntry(orderId, entry, logAction = null, actorId = null) {
@@ -2339,12 +2390,13 @@ async function ensureOrderAccess(orderId, user) {
 
 // Auth routes
 app.post('/api/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return respondError(res, 400, 'E-Mail und Passwort erforderlich');
+  const identifier = req.body?.identifier || req.body?.email || req.body?.username || '';
+  const password = req.body?.password;
+  if (!identifier || !password) {
+    return respondError(res, 400, 'Benutzername/E-Mail und Passwort erforderlich');
   }
   try {
-    const user = await authenticate(email, password);
+    const user = await authenticate(identifier, password);
     if (!user) {
       return respondError(res, 401, 'Ungültige Anmeldedaten');
     }
@@ -2565,6 +2617,64 @@ app.post('/api/customers/:id/packaging/:type', requireAuth(), async (req, res) =
   entry.updated_by = req.session.user?.email || req.session.user?.id || 'system';
   await saveCustomerPackagingData(store);
   res.json(entry);
+});
+
+app.get('/api/customers/:id/order-profiles', requireAuth(), async (req, res) => {
+  const customerId = req.params.id;
+  const customers = await loadCustomersData();
+  const exists = customers.some((customer) => customer.id === customerId);
+  if (!exists) {
+    return respondError(res, 404, 'Kunde nicht gefunden');
+  }
+  const store = await loadCustomerOrderProfilesData();
+  const profiles = {};
+  CUSTOMER_ORDER_PROFILE_TYPES.forEach((type) => {
+    const entry = findCustomerOrderProfileEntry(store, customerId, type);
+    profiles[type] = entry ? normalizeOrderProfileResponse(entry) : null;
+  });
+  res.json({
+    customer_id: customerId,
+    profiles,
+    order_types: Array.from(CUSTOMER_ORDER_PROFILE_TYPES)
+  });
+});
+
+app.post('/api/customers/:id/order-profiles/:type', requireAuth(), async (req, res) => {
+  const customerId = req.params.id;
+  const rawType = req.params.type || '';
+  const normalizedType = rawType.toString().trim().toUpperCase();
+  if (!CUSTOMER_ORDER_PROFILE_TYPES.has(normalizedType)) {
+    return respondError(res, 400, 'Ungültige Bestellart');
+  }
+  const customers = await loadCustomersData();
+  const exists = customers.some((customer) => customer.id === customerId);
+  if (!exists) {
+    return respondError(res, 404, 'Kunde nicht gefunden');
+  }
+  if (!Array.isArray(req.body?.sizes)) {
+    return respondError(res, 400, 'Größenliste erforderlich');
+  }
+  const sizes = sanitizeOrderProfileRows(req.body.sizes);
+  const totalPairs = sumOrderProfileRows(sizes);
+  const store = await loadCustomerOrderProfilesData();
+  let entry = findCustomerOrderProfileEntry(store, customerId, normalizedType);
+  if (!entry) {
+    entry = {
+      customer_id: customerId,
+      order_type: normalizedType,
+      sizes: [],
+      total_pairs: 0,
+      updated_at: null,
+      updated_by: null
+    };
+    store.push(entry);
+  }
+  entry.sizes = sizes;
+  entry.total_pairs = totalPairs;
+  entry.updated_at = new Date().toISOString();
+  entry.updated_by = req.session.user?.email || req.session.user?.id || 'system';
+  await saveCustomerOrderProfilesData(store);
+  res.json(normalizeOrderProfileResponse(entry));
 });
 
 app.post('/api/orders/:id/shoebox-labels/pdf', requireAuth(), async (req, res) => {

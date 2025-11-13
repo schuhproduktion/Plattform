@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Artikelspezifikation</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-techpack" data-page="techpack">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="techpack">
+        <div class="card back-card">
+          <button type="button" id="backToBestellung">← Zurück zu Artikelspezifikationen</button>
+          <div class="header-actions">
+            <span class="badge" id="techpackOrderNumber">-</span>
+            <span class="badge ghost" id="techpackPosition">-</span>
+          </div>
+        </div>
+        <div class="card techpack-card">
+          <div class="techpack-controls">
+            <div class="techpack-status-control">
+              <span class="label">Status</span>
+              <span class="badge warning" id="techpackStatusBadge">Offen</span>
+              <button type="button" class="ghost" id="techpackStatusToggle">Status auf OK setzen</button>
+            </div>
+            <div class="control-actions">
+              <button type="button" id="uploadTechpackBtn">Bild hochladen</button>
+              <button type="button" class="ghost hidden" id="replaceTechpackBtn">Bild ersetzen</button>
+              <button type="button" class="ghost danger hidden" id="deleteTechpackBtn">Bild löschen</button>
+              <input type="file" id="techpackUploadInput" accept="image/*" hidden />
+              <input type="file" id="techpackReplaceInput" accept="image/*" hidden />
+            </div>
+          </div>
+          <div class="techpack-media-layout">
+            <div class="techpack-media-stage" id="techpackMediaStage">
+              <img id="techpackMainImage" alt="Artikelspezifikation" />
+              <div class="techpack-annotation-layer" id="techpackAnnotationLayer"></div>
+              <div class="techpack-overlay-hint">Klicke ins Bild, um einen Pin zu setzen</div>
+            </div>
+            <div class="techpack-annotation-panel">
+              <h4>Annotationen</h4>
+              <p class="muted">Jeder Punkt erhält eine Nummer und einen Kommentar.</p>
+              <ul id="techpackAnnotationList" class="list"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="card tickets-card">
+          <div class="tickets-header">
+            <h4>Tickets</h4>
+            <span class="badge ghost" id="ticketsCountBadge">0</span>
+          </div>
+          <div id="techpackTickets" class="tickets-list">
+            <p class="muted">Noch keine Tickets.</p>
+          </div>
+          <form id="techpackTicketForm" class="ticket-form">
+            <input type="text" id="ticketTitle" name="title" placeholder="Neue Rückfrage eingeben" required />
+            <div class="ticket-form-actions">
+              <select id="ticketPriority" name="priority">
+                <option value="mittel">Priorität: Mittel</option>
+                <option value="hoch">Priorität: Hoch</option>
+                <option value="niedrig">Priorität: Niedrig</option>
+              </select>
+              <button type="submit">Rückfrage speichern</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

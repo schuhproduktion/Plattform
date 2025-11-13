@@ -1,17 +1,36 @@
 [
   {
-    "id": "u-bate-1",
-    "email": "anna.bate@example.com",
-    "password_hash": "$2a$10$xQzZvaznlwQbRDVUcHx1IupWKSCtF9NKiP5FNISORor.4SgNuMF6O",
+    "id": "user-admin",
+    "username": "Admin",
+    "email": "o.yildiz@schuhproduktion.com",
+    "password_hash": "$2a$10$dlEBeLzcNeSqV2elFzS..eI7WtT8Lh61koEvpwpIAu9GRClMyKpKi",
     "role": "BATE",
     "locale": "de"
   },
   {
-    "id": "u-supp-1",
-    "email": "supplier.meyer@example.com",
-    "password_hash": "$2a$10$egTtvwSwQadofo4imQvISuresNR6u2Rd9eOtE93VHG8cZhMyIqcwm",
+    "id": "user-schuhproduktion",
+    "username": "Schuhproduktion",
+    "email": "info@schuhproduktion.com",
+    "password_hash": "$2a$10$dlEBeLzcNeSqV2elFzS..eI7WtT8Lh61koEvpwpIAu9GRClMyKpKi",
+    "role": "BATE",
+    "locale": "de"
+  },
+  {
+    "id": "user-bate-supplier",
+    "username": "Bate",
+    "email": "bateayakkabi@hotmail.com",
+    "password_hash": "$2a$10$R5phu7NgBrZD8r9afNwvqOE.NFKgl6KA3xZ614calXy/Fw6sp.5FC",
     "role": "SUPPLIER",
     "supplier_id": "BATE AYAKKABI İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ",
-    "locale": "de"
+    "locale": "tr"
+  },
+  {
+    "id": "user-pazia",
+    "username": "Pazia",
+    "email": "ozsanshoes@gmail.com",
+    "password_hash": "$2a$10$Y9ahZIeUzXr4AqyX2GacCONEnef4QJAihBeCjlho8y1F7puz7Pkxe",
+    "role": "SUPPLIER",
+    "supplier_id": "PAZİA TREND AYAKKABICILIK DERİ VE TEKSTİL SANAYİ VE TİCARET LİMİTED ŞİRKETİ",
+    "locale": "tr"
   }
 ]

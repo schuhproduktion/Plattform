@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kunden</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-kunden" data-page="kunden">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="kunden">
+        <div class="customer-layout">
+          <article class="card customer-list-card" id="customerListView">
+            <header class="customer-list-head">
+              <div class="customer-filters">
+                <input type="search" id="customerSearch" placeholder="Nach Name suchen" />
+                <input type="search" id="customerNumberSearch" placeholder="Kundennummer" />
+              </div>
+            </header>
+            <div class="table-scroll">
+              <table class="customer-table">
+                <thead>
+                  <tr>
+                    <th>Kundennummer</th>
+                    <th>Kundenname</th>
+                    <th>Rechnungsadresse (Stadt)</th>
+                  </tr>
+                </thead>
+                <tbody id="customerTable"></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="card customer-detail-card hidden" id="customerDetailView">
+            <button type="button" class="ghost customer-back-button" id="backToCustomerList">← Zurück zur Übersicht</button>
+            <div id="customerDetail"><p class="muted">Bitte einen Kunden auswählen.</p></div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
