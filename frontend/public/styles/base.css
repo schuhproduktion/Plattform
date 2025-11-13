@@ -52,6 +52,12 @@ body {
   align-items: center;
 }
 
+.top-nav-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+}
+
 .language-switcher {
   display: flex;
   align-items: center;
@@ -131,4 +137,3 @@ body {
   flex-direction: column;
   gap: 1.75rem;
 }
-

@@ -123,6 +123,12 @@
     ],
     "prices": [
       {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 61
+      },
+      {
         "label": "Private Label Premium - Verkauf",
         "type": "Verkauf",
         "currency": "EUR",
@@ -7418,6 +7424,12 @@
         "type": "Verkauf",
         "currency": "EUR",
         "amount": 50
+      },
+      {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 48
       }
     ],
     "uoms": [

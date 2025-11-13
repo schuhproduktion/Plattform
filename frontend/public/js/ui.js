@@ -22,6 +22,13 @@ export function renderTopNav() {
       <span id="breadcrumb">${escapeHtml(rawBreadcrumb)}</span>
     </div>
     <div class="nav-actions">
+      <img
+        src="https://erp.schuhproduktion.com/files/ERPNEXTLogo.png"
+        alt="ERPNext Logo"
+        class="top-nav-logo"
+        loading="lazy"
+        decoding="async"
+      />
       <button class="ghost" id="notificationBell"><span id="notificationCount">0</span></button>
       <span id="userLabel">-</span>
       <button id="logoutBtn">Logout</button>

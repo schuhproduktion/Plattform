@@ -477,6 +477,15 @@
     "buying": 0
   },
   {
+    "name": "3lqckikja5",
+    "item_code": "052-25",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 61,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "3ndcq5jfsk",
     "item_code": "159005",
     "price_list": "Private Label Premium - Einkauf",
@@ -2194,6 +2203,15 @@
     "currency": "EUR",
     "selling": 1,
     "buying": 0
+  },
+  {
+    "name": "i7qb6ijuui",
+    "item_code": "34030",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 48,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
   },
   {
     "name": "im0qdu8kcu",
