@@ -475,5 +475,56 @@
         "ts": "2025-11-12T10:37:32.118Z"
       }
     ]
+  },
+  {
+    "order_id": "BT-B2500017",
+    "position_id": "i7p964o316",
+    "flags": {
+      "verstanden": false,
+      "fertig": false,
+      "rueckfragen": 0,
+      "kommentare": [],
+      "medien": [
+        {
+          "id": "viewer-i7p964o316-side",
+          "label": "Seitenansicht · 0001.webp",
+          "filename": "0001.webp",
+          "view_key": "side",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0001.webp",
+          "auto_generated": true
+        },
+        {
+          "id": "viewer-i7p964o316-front",
+          "label": "Vorderansicht · 0010.webp",
+          "filename": "0010.webp",
+          "view_key": "front",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0010.webp",
+          "auto_generated": true
+        },
+        {
+          "id": "viewer-i7p964o316-inner",
+          "label": "Innenansicht · 0019.webp",
+          "filename": "0019.webp",
+          "view_key": "inner",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0019.webp",
+          "auto_generated": true
+        },
+        {
+          "id": "viewer-i7p964o316-rear",
+          "label": "Rückansicht · 0028.webp",
+          "filename": "0028.webp",
+          "view_key": "rear",
+          "status": "OPEN",
+          "url": "https://360.schuhproduktion.com/360viewer/34030/webp/images/0028.webp",
+          "auto_generated": true
+        }
+      ]
+    },
+    "files": [],
+    "last_actor": null,
+    "updated_at": "2025-11-13T08:24:36.745Z"
   }
 ]

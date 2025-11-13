@@ -1,6 +1,5 @@
 const { randomUUID } = require('crypto');
 const { readJson, writeJson, appendToArray } = require('./dataStore');
-const { createNotification } = require('./notify');
 const { updatePortalStatus } = require('./erpClient');
 
 const STATUS_FLOW = [
@@ -73,7 +72,7 @@ function normalizePortalOrder(order) {
   };
 }
 
-async function updateOrderWorkflow({ orderId, nextStatus, actor, notifyUsers = [] }) {
+async function updateOrderWorkflow({ orderId, nextStatus, actor }) {
   const orders = (await readJson('purchase_orders.json', [])) || [];
   const index = orders.findIndex((o) => o.id === orderId);
   if (index === -1) {
@@ -112,17 +111,6 @@ async function updateOrderWorkflow({ orderId, nextStatus, actor, notifyUsers = [
     actor: actor || 'system',
     ts: now
   });
-
-  await Promise.all(
-    notifyUsers.map((userId) =>
-      createNotification({
-        type: 'ORDER_STATUS_CHANGED',
-        orderId,
-        userId,
-        message: `Status von ${orderId} ist jetzt ${getStatusLabel(nextStatus)}`
-      })
-    )
-  );
 
   try {
     await updatePortalStatus(orderId, nextStatus);

@@ -232,35 +232,6 @@ const defaults = {
       end: '2024-05-22T10:00:00.000Z'
     }
   ],
-  'notifications.json': [
-    {
-      id: 'NOT-1',
-      type: 'ORDER_STATUS_CHANGED',
-      order_id: 'PO-1001',
-      user_id: 'u-supp-1',
-      message: 'Status von PO-1001 ist jetzt RUECKFRAGEN_OFFEN',
-      read: false,
-      ts: '2024-05-10T11:20:00.000Z'
-    },
-    {
-      id: 'NOT-2',
-      type: 'SPEC_COMMENT',
-      order_id: 'PO-1001',
-      user_id: 'u-bate-1',
-      message: 'Neuer Kommentar zur Position POS-1001-1',
-      read: false,
-      ts: '2024-05-10T11:22:00.000Z'
-    },
-    {
-      id: 'NOT-3',
-      type: 'TICKET_CREATED',
-      order_id: 'PO-1002',
-      user_id: 'u-bate-1',
-      message: 'Ticket TIC-5002 wurde erstellt',
-      read: true,
-      ts: '2024-05-15T08:35:00.000Z'
-    }
-  ],
   'status_logs.json': [
     {
       id: 'LOG-1',

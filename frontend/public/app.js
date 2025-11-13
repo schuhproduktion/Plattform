@@ -2046,28 +2046,6 @@ function deriveSizeList(order) {
         window.location.href = '/login.html';
       });
     }
-    const bell = document.getElementById('notificationBell');
-    if (bell) {
-      bell.addEventListener('click', async () => {
-        await markNotificationsAsRead();
-      });
-    }
-  }
-
-  async function markNotificationsAsRead() {
-    await refreshNotifications();
-    await Promise.all(
-      state.notifications.map((n) => request(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).catch(() => {}))
-    );
-    await refreshNotifications();
-  }
-
-  async function refreshNotifications() {
-    if (!state.user) return;
-    const notifications = await request('/api/notifications?unread=true');
-    state.notifications = notifications;
-    const badge = document.getElementById('notificationCount');
-    if (badge) badge.textContent = notifications.length;
   }
 
   function renderAccessoriesPlaceholder(message, containerId = 'accessoriesContent') {
@@ -6508,6 +6486,22 @@ function populateOrderCreateSelects(draft) {
       });
       select.dataset.bound = 'true';
     }
+    const confirmBtn = document.getElementById('orderConfirmBtn');
+    if (confirmBtn) {
+      if (!confirmBtn.dataset.defaultLabel) {
+        confirmBtn.dataset.defaultLabel = confirmBtn.textContent.trim();
+      }
+      const shouldShowConfirm = order.portal_status === 'ORDER_EINGEREICHT' && state.user?.role !== 'BATE';
+      confirmBtn.classList.toggle('hidden', !shouldShowConfirm);
+      confirmBtn.disabled = !shouldShowConfirm || state.orderStatusBusy;
+      if (!confirmBtn.dataset.bound) {
+        confirmBtn.addEventListener('click', handleSupplierConfirmation);
+        confirmBtn.dataset.bound = 'true';
+      }
+      if (!state.orderStatusBusy && confirmBtn.dataset.defaultLabel) {
+        confirmBtn.textContent = confirmBtn.dataset.defaultLabel;
+      }
+    }
     const typeSelect = document.getElementById('orderTypeSelect');
     if (typeSelect) {
       const nextValue = order.order_type || '';
@@ -6527,6 +6521,27 @@ function populateOrderCreateSelects(draft) {
       }
     } else {
       renderOrderTypeBadge(order.order_type);
+    }
+  }
+
+  async function handleSupplierConfirmation() {
+    if (!state.selectedOrder || state.orderStatusBusy) return;
+    const button = document.getElementById('orderConfirmBtn');
+    const defaultLabel = button?.dataset.defaultLabel || 'Bestätigung senden';
+    state.orderStatusBusy = true;
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Wird bestätigt...';
+    }
+    try {
+      await updateOrderStatus('ORDER_BESTAETIGT');
+    } finally {
+      state.orderStatusBusy = false;
+      if (button) {
+        button.disabled = false;
+        button.textContent = defaultLabel;
+      }
+      renderStatusControl(state.selectedOrder || {});
     }
   }
 
@@ -7776,7 +7791,6 @@ function populateOrderCreateSelects(draft) {
   async function initPage(pageId) {
     try {
       await loadSession();
-      await refreshNotifications();
     } catch (err) {
       console.warn(err);
       return;

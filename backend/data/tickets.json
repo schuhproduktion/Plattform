@@ -57,19 +57,6 @@
     "created_at": "2025-11-09T14:34:29.879Z"
   },
   {
-    "id": "TIC-TE-202576414",
-    "order_id": "BT-B2500003",
-    "position_id": "15uv3tiq1q",
-    "title": "mkm",
-    "status": "OPEN",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": "side",
-    "comments": [],
-    "created_at": "2025-11-09T20:42:06.736Z"
-  },
-  {
     "id": "TIC-TE-202576415",
     "order_id": "BT-B2500003",
     "position_id": "15uv3tiq1q",
@@ -81,19 +68,6 @@
     "view_key": "front",
     "comments": [],
     "created_at": "2025-11-10T15:57:27.532Z"
-  },
-  {
-    "id": "TIC-TE-202576416",
-    "order_id": "BT-B2500003",
-    "position_id": "15uv3tiq1q",
-    "title": "onur gfhfdfv sghdddgf. ddhv",
-    "status": "CLOSED",
-    "priority": "mittel",
-    "owner": "u-bate-1",
-    "watchers": [],
-    "view_key": "side",
-    "comments": [],
-    "created_at": "2025-11-10T15:59:49.136Z"
   },
   {
     "id": "TIC-TE-202576417",

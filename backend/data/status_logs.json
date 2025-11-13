@@ -1198,5 +1198,23 @@
       "media_id": "placeholder-side",
       "status": "OK"
     }
+  },
+  {
+    "id": "LOG-d1281a87-9248-4f91-a135-cd0cf5f15415",
+    "order_id": "BT-B2500017",
+    "action": "STATUS_CHANGE",
+    "from": "ORDER_EINGEREICHT",
+    "to": "ORDER_BESTAETIGT",
+    "actor": "anna.bate@example.com",
+    "ts": "2025-11-13T08:39:51.674Z"
+  },
+  {
+    "id": "LOG-548e0b39-a4d9-4e64-a89b-34c580af3d23",
+    "order_id": "BT-B2500017",
+    "action": "STATUS_CHANGE",
+    "from": "ORDER_BESTAETIGT",
+    "to": "ORDER_EINGEREICHT",
+    "actor": "anna.bate@example.com",
+    "ts": "2025-11-13T08:39:53.808Z"
   }
 ]

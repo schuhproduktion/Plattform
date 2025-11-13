@@ -1136,6 +1136,12 @@
   width: 100%;
 }
 
+.summary-card .status-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
 .summary-card .status-control select {
   width: 100%;
   border-radius: 7px;
@@ -1143,6 +1149,30 @@
   padding: 0.25rem 0.6rem;
   background: #fff;
   font-size: 0.95rem;
+}
+
+.order-confirm-button {
+  border-radius: 7px;
+  border: none;
+  background: #111827;
+  color: #fff;
+  font-weight: 600;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.order-confirm-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.order-confirm-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 15px 30px rgba(17, 24, 39, 0.18);
 }
 
 .summary-card .order-type-control {
@@ -2289,7 +2319,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #fff;
+  background: #f7f5f4;
   border-radius: 1rem;
   padding: 0.5rem;
 }

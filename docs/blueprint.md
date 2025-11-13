@@ -77,7 +77,7 @@ Node/Express Backend → JSON Persistenz, Multer Uploads, Cron Sync, REST APIs
         ↓
 Statisches Frontend (HTML/CSS/JS) mit i18n-Stub, Role-based Access
 ```
-Persistenz (`backend/data`): `customers`, `orders`, `spec_sheets`, `tickets`, `calendar`, `notifications`, `status_logs`, `last_sync`.
+Persistenz (`backend/data`): `customers`, `orders`, `spec_sheets`, `tickets`, `calendar`, `status_logs`, `last_sync`.
 
 ## 12. Best Practices
 | Unternehmen | System | Learning |

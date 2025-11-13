@@ -11645,7 +11645,7 @@
     "name": "BT-B2500017",
     "owner": "Administrator",
     "creation": "2025-11-12 23:46:29.671244",
-    "modified": "2025-11-13 00:11:20.931906",
+    "modified": "2025-11-13 09:39:53.957803",
     "modified_by": "Administrator",
     "docstatus": 0,
     "idx": 0,
@@ -11731,7 +11731,7 @@
         "name": "i7ps84e0p3",
         "owner": "Administrator",
         "creation": "2025-11-12 23:46:29.671244",
-        "modified": "2025-11-13 00:11:20.931906",
+        "modified": "2025-11-13 09:39:53.957803",
         "modified_by": "Administrator",
         "docstatus": 0,
         "idx": 1,
@@ -11806,7 +11806,7 @@
         "name": "i7p964o316",
         "owner": "Administrator",
         "creation": "2025-11-12 23:46:29.671244",
-        "modified": "2025-11-13 00:11:20.931906",
+        "modified": "2025-11-13 09:39:53.957803",
         "modified_by": "Administrator",
         "docstatus": 0,
         "idx": 2,
@@ -11879,7 +11879,7 @@
         "name": "3lsu542c65",
         "owner": "Administrator",
         "creation": "2025-11-12 23:46:30.040180",
-        "modified": "2025-11-13 00:11:20.931906",
+        "modified": "2025-11-13 09:39:53.957803",
         "modified_by": "Administrator",
         "docstatus": 0,
         "idx": 1,
@@ -12099,7 +12099,24 @@
       }
     },
     "created_at": "2025-11-12T22:46:29.671Z",
-    "last_updated": "2025-11-12T23:11:20.931Z",
-    "timeline": []
+    "last_updated": "2025-11-13T08:39:53.957Z",
+    "timeline": [
+      {
+        "id": "tl-bc0dc430-dba4-4550-8c7a-8446dc5be1da",
+        "type": "STATUS",
+        "status": "ORDER_BESTAETIGT",
+        "message": "Status auf Bestellung bestätigt gesetzt",
+        "actor": "anna.bate@example.com",
+        "created_at": "2025-11-13T08:39:51.674Z"
+      },
+      {
+        "id": "tl-de4ba420-c278-40f4-8a5c-180e2f67ad55",
+        "type": "STATUS",
+        "status": "ORDER_EINGEREICHT",
+        "message": "Status auf Bestellung eingereicht gesetzt",
+        "actor": "anna.bate@example.com",
+        "created_at": "2025-11-13T08:39:53.808Z"
+      }
+    ]
   }
 ]

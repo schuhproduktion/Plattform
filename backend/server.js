@@ -13,9 +13,8 @@ const ExcelJS = require('exceljs');
 const multer = require('multer');
 const axios = require('axios');
 
-const { authenticate, requireAuth, requireBate, loadUsers } = require('./lib/auth');
+const { authenticate, requireAuth, requireBate } = require('./lib/auth');
 const { upload, UPLOAD_ROOT } = require('./lib/files');
-const { listNotifications, markAsRead, createNotification } = require('./lib/notify');
 const { getWorkflowDefinition, normalizePortalOrder, updateOrderWorkflow, getStatusLabel } = require('./lib/workflows');
 const { syncERPData } = require('./lib/sync');
 const {
@@ -89,6 +88,7 @@ const ERP_STATUS_LABEL_MAP = {
   WARE_ABHOLBEREIT: 'Versandbereit',
   UEBERGEBEN_AN_SPEDITION: 'Abgeschlossen'
 };
+const SUPPLIER_DISCUSSION_STATUSES = new Set(['ORDER_BESTAETIGT', 'RUECKFRAGEN_OFFEN']);
 const ORDER_TYPE_CHOICES = new Set(['MUSTER', 'SMS', 'PPS', 'BESTELLUNG']);
 const ORDER_TYPE_LABELS = {
   MUSTER: 'Muster',
@@ -1700,6 +1700,33 @@ async function loadTicketsData() {
   return (await readJson('tickets.json', [])) || [];
 }
 
+async function syncOrderStatusWithTickets(orderId, actorEmail = 'system') {
+  if (!orderId) return null;
+  const [orders, tickets] = await Promise.all([loadOrders(), loadTicketsData()]);
+  const order = orders.find((entry) => entry.id === orderId);
+  if (!order) return null;
+  const currentStatus = order.portal_status || 'ORDER_EINGEREICHT';
+  if (!SUPPLIER_DISCUSSION_STATUSES.has(currentStatus)) {
+    return order;
+  }
+  const hasOpenTickets = tickets.some((ticket) => ticket.order_id === orderId && ticket.status !== 'CLOSED');
+  if (hasOpenTickets && currentStatus !== 'RUECKFRAGEN_OFFEN') {
+    return updateOrderWorkflow({
+      orderId,
+      nextStatus: 'RUECKFRAGEN_OFFEN',
+      actor: actorEmail || 'system'
+    });
+  }
+  if (!hasOpenTickets && currentStatus === 'RUECKFRAGEN_OFFEN') {
+    return updateOrderWorkflow({
+      orderId,
+      nextStatus: 'ORDER_BESTAETIGT',
+      actor: actorEmail || 'system'
+    });
+  }
+  return order;
+}
+
 function resolveTechpackViewKey(requested, existingMedias = []) {
   const normalized = (requested || '').toString().trim().toLowerCase();
   if (TECHPACK_VIEW_KEYS.has(normalized)) {
@@ -2127,11 +2154,10 @@ async function translateText(text, source, target) {
 
 async function collectDiagnostics(currentUserId) {
   const now = Date.now();
-  const [orders, tickets, specs, notifications, lastSync, calendar, statusLogs, autosyncSnapshot] = await Promise.all([
+  const [orders, tickets, specs, lastSync, calendar, statusLogs, autosyncSnapshot] = await Promise.all([
     loadOrders(),
     readJson('tickets.json', []),
     loadSpecs(),
-    readJson('notifications.json', []),
     readJson('last_sync.json', { last_run: null, source: null }),
     readJson('calendar.json', []),
     readJson('status_logs.json', []),
@@ -2191,8 +2217,6 @@ async function collectDiagnostics(currentUserId) {
     }))
     .sort((a, b) => (normalizeDate(b.updated_at) || 0) - (normalizeDate(a.updated_at) || 0))
     .slice(0, 6);
-
-  const unreadNotifications = notifications.filter((notification) => !notification.read && (!currentUserId || notification.user_id === currentUserId));
 
   const upcomingEvents = (calendar || [])
     .filter((event) => {
@@ -2281,10 +2305,6 @@ async function collectDiagnostics(currentUserId) {
       total: specs.length,
       pending_review: pendingSpecs
     },
-    notifications: {
-      total: notifications.length,
-      unread_for_user: unreadNotifications.length
-    },
     calendar: {
       upcoming: upcomingEvents
     },
@@ -2315,14 +2335,6 @@ async function ensureOrderAccess(orderId, user) {
     throw err;
   }
   return order;
-}
-
-async function resolveOrderStakeholders(order, actorId) {
-  const users = await loadUsers();
-  return users
-    .filter((user) => user.id !== actorId)
-    .filter((user) => user.role === 'BATE' || (order.supplier_id && user.supplier_id === order.supplier_id))
-    .map((user) => user.id);
 }
 
 // Auth routes
@@ -2633,11 +2645,10 @@ app.get('/api/orders', requireAuth(), async (req, res) => {
 });
 
 app.get('/api/orders/:id', requireAuth(), async (req, res) => {
-  const [orders, specs, tickets, notifications, logs] = await Promise.all([
+  const [orders, specs, tickets, logs] = await Promise.all([
     loadOrders(),
     loadSpecs(),
     readJson('tickets.json', []),
-    readJson('notifications.json', []),
     readJson('status_logs.json', [])
   ]);
   const order = orders.find((o) => o.id === req.params.id);
@@ -2662,13 +2673,11 @@ app.get('/api/orders/:id', requireAuth(), async (req, res) => {
   }
   const orderTickets = tickets.filter((ticket) => ticket.order_id === order.id);
   const timelineLogs = logs.filter((log) => log.order_id === order.id);
-  const orderNotifications = notifications.filter((n) => n.order_id === order.id && n.user_id === req.session.user.id);
   res.json({
     ...order,
     specs: orderSpecs,
     tickets: orderTickets,
-    audit: timelineLogs,
-    notifications: orderNotifications
+    audit: timelineLogs
   });
 });
 
@@ -3286,12 +3295,10 @@ app.patch('/api/orders/:id', requireAuth(), async (req, res, next) => {
       }
     }
     if (nextStatus) {
-      const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
       const updated = await updateOrderWorkflow({
         orderId: order.id,
         nextStatus,
-        actor: req.session.user.email,
-        notifyUsers: stakeholders
+        actor: req.session.user.email
       });
       return res.json(updated);
     }
@@ -3350,17 +3357,6 @@ app.post('/api/orders/:id/comments', requireAuth(), async (req, res) => {
     actor: req.session.user.id,
     ts: entry.created_at
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'ORDER_STATUS_CHANGED',
-        orderId: order.id,
-        userId,
-        message: `Neuer Kommentar zu ${order.id}`
-      })
-    )
-  );
   res.status(201).json(entry);
 });
 
@@ -3396,17 +3392,6 @@ app.post('/api/orders/:id/upload', requireAuth(), upload.single('file'), async (
     actor: req.session.user.id,
     ts: fileEntry.created_at
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'ORDER_STATUS_CHANGED',
-        orderId: order.id,
-        userId,
-        message: `Neue Datei für ${order.id}`
-      })
-    )
-  );
   res.status(201).json(fileEntry);
 });
 
@@ -3491,17 +3476,6 @@ app.post('/api/specs/:orderId/:positionId/comment', requireAuth(), async (req, r
     actor: req.session.user.id,
     ts: comment.ts
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_COMMENT',
-        orderId,
-        userId,
-        message: `Neuer Kommentar zu ${positionId}`
-      })
-    )
-  );
   res.status(201).json(comment);
 });
 
@@ -3550,17 +3524,6 @@ app.post('/api/specs/:orderId/:positionId/upload', requireAuth(), upload.single(
     actor: req.session.user.id,
     ts: fileEntry.ts
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_UPLOAD',
-        orderId,
-        userId,
-        message: `Neue Datei zu ${positionId}`
-      })
-    )
-  );
   res.status(201).json(fileEntry);
 });
 
@@ -3612,17 +3575,6 @@ app.post('/api/specs/:orderId/:positionId/media/:mediaId/replace', requireAuth()
     const absolutePath = path.join(UPLOAD_ROOT, relative);
     await fs.unlink(absolutePath).catch(() => null);
   }
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_UPLOAD',
-        orderId,
-        userId,
-        message: `Bild ersetzt für ${positionId}`
-      })
-    )
-  );
   res.json({
     id: mediaEntry.id,
     label: mediaEntry.label,
@@ -3663,17 +3615,6 @@ app.delete('/api/specs/:orderId/:positionId/media/:mediaId', requireAuth(), asyn
     const absolutePath = path.join(UPLOAD_ROOT, relative);
     await fs.unlink(absolutePath).catch(() => null);
   }
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_COMMENT',
-        orderId,
-        userId,
-        message: `Bild entfernt für ${positionId}`
-      })
-    )
-  );
   res.status(204).end();
 });
 
@@ -3701,17 +3642,6 @@ app.patch('/api/specs/:orderId/:positionId/flags', requireAuth(), async (req, re
     actor: req.session.user.id,
     ts: spec.updated_at
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_COMMENT',
-        orderId,
-        userId,
-        message: `Flags aktualisiert für ${positionId}`
-      })
-    )
-  );
   res.json(spec);
 });
 
@@ -3753,17 +3683,6 @@ app.post('/api/specs/:orderId/:positionId/annotations', requireAuth(), async (re
     actor: req.session.user.id,
     ts: entry.ts
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_COMMENT',
-        orderId,
-        userId,
-        message: `Neue Annotation zu ${positionId}`
-      })
-    )
-  );
   res.status(201).json(entry);
 });
 
@@ -3795,17 +3714,6 @@ app.delete('/api/specs/:orderId/:positionId/annotations/:annotationId', requireA
     ts: spec.updated_at,
     data: { annotation_id: annotationId }
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_COMMENT',
-        orderId,
-        userId,
-        message: `Annotation entfernt für ${positionId}`
-      })
-    )
-  );
   res.json({ ok: true });
 });
 
@@ -3864,17 +3772,6 @@ app.patch('/api/specs/:orderId/:positionId/media/:mediaId/status', requireAuth()
       status
     }
   });
-  const stakeholders = await resolveOrderStakeholders(order, req.session.user.id);
-  await Promise.all(
-    stakeholders.map((userId) =>
-      createNotification({
-        type: 'SPEC_COMMENT',
-        orderId,
-        userId,
-        message: `Status aktualisiert für ${positionId}`
-      })
-    )
-  );
   res.json({ id: mediaId, status });
 });
 
@@ -4052,12 +3949,9 @@ app.post('/api/tickets', requireAuth(), async (req, res) => {
   };
   tickets.push(ticket);
   await writeJson('tickets.json', tickets);
-  await createNotification({
-    type: 'TICKET_CREATED',
-    orderId: order_id,
-    userId: req.session.user.role === 'BATE' ? 'u-supp-1' : 'u-bate-1',
-    message: `Ticket ${ticket.id} erstellt`
-  });
+  if (order_id) {
+    await syncOrderStatusWithTickets(order_id, req.session.user?.email);
+  }
   res.status(201).json(ticket);
 });
 
@@ -4086,12 +3980,9 @@ app.patch('/api/tickets/:id', requireAuth(), async (req, res) => {
   const idx = tickets.findIndex((entry) => entry === ticket);
   tickets[idx] = ticket;
   await writeJson('tickets.json', tickets);
-  await createNotification({
-    type: 'TICKET_UPDATED',
-    orderId: ticket.order_id,
-    userId: req.session.user.role === 'BATE' ? 'u-supp-1' : 'u-bate-1',
-    message: `Ticket ${ticket.id} aktualisiert`
-  });
+  if (ticket.order_id) {
+    await syncOrderStatusWithTickets(ticket.order_id, req.session.user?.email);
+  }
   res.json(ticket);
 });
 
@@ -4106,6 +3997,9 @@ app.delete('/api/tickets/:id', requireAuth(), async (req, res) => {
   const idx = tickets.findIndex((entry) => entry === ticket);
   tickets.splice(idx, 1);
   await writeJson('tickets.json', tickets);
+  if (ticket.order_id) {
+    await syncOrderStatusWithTickets(ticket.order_id, req.session.user?.email);
+  }
   res.json({ ok: true });
 });
 
@@ -4204,18 +4098,6 @@ app.delete('/api/calendar/:id', requireBate(), async (req, res) => {
 });
 
 // Notifications
-app.get('/api/notifications', requireAuth(), async (req, res) => {
-  const unreadOnly = req.query.unread === 'true';
-  const data = await listNotifications(req.session.user.id, { unreadOnly });
-  res.json(data);
-});
-
-app.patch('/api/notifications/:id/read', requireAuth(), async (req, res) => {
-  const notification = await markAsRead(req.params.id, req.session.user.id);
-  if (!notification) return respondError(res, 404, 'Notification nicht gefunden');
-  res.json(notification);
-});
-
 // Audit
 app.get('/api/audit', requireBate(), async (req, res) => {
   const logs = (await readJson('status_logs.json', [])) || [];

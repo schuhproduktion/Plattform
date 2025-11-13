@@ -1,6 +1,5 @@
 export const state = {
   user: null,
-  notifications: [],
   tickets: [],
   orderTickets: [],
   orders: [],
@@ -61,7 +60,8 @@ export const state = {
     locales: ['tr'],
     entries: {},
     filter: ''
-  }
+  },
+  orderStatusBusy: false
 };
 
 export const SUPPORTED_LOCALES = [
