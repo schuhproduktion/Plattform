@@ -23,7 +23,7 @@ export function renderTopNav() {
     </div>
     <div class="nav-actions">
       <img
-        src="https://erp.schuhproduktion.com/files/ERPNEXTLogo.png"
+        src="https://360.schuhproduktion.com/Unterlagen/Logo.png"
         alt="ERPNext Logo"
         class="top-nav-logo"
         loading="lazy"
