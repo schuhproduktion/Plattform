@@ -2593,6 +2593,7 @@ function deriveSizeList(order) {
     const refreshBtn = document.querySelector('[data-action="refresh-orders"]');
 
     async function loadDashboard(forceSync = false) {
+      const COMPLETED_STATUS = 'UEBERGEBEN_AN_SPEDITION';
       const setKpiValue = (id, value) => {
         const target = document.getElementById(id);
         if (target) target.textContent = value;
@@ -2605,6 +2606,9 @@ function deriveSizeList(order) {
       state.orders = orders;
       state.tickets = tickets;
       await localizeTicketTitlesForSupplier(tickets);
+
+      const activeOrders = orders.filter((order) => order.portal_status !== COMPLETED_STATUS);
+      setKpiValue('kpiActiveOrders', activeOrders.length);
 
       const productionTable = document.getElementById('productionTable');
       const pendingOrders = orders.filter((order) => order.portal_status === 'ORDER_EINGEREICHT');
@@ -2677,6 +2681,60 @@ function deriveSizeList(order) {
     const filters = document.getElementById('orderFilters');
     if (!filters) return;
     const table = document.getElementById('orderTable');
+    const bulkDeleteButton = document.querySelector('[data-action="delete-selected-orders"]');
+    const selectionHeader = document.querySelector('[data-order-selection-column]');
+    const selectAllCheckbox = document.querySelector('[data-order-select-all]');
+    const selectedOrders = new Set();
+    const bulkDeleteEnabled = Boolean(bulkDeleteButton) && isInternalRole(state.user?.role);
+    if (!bulkDeleteEnabled) {
+      if (bulkDeleteButton) bulkDeleteButton.remove();
+      if (selectionHeader) selectionHeader.remove();
+    }
+    const updateBulkDeleteButtonState = () => {
+      if (!bulkDeleteEnabled || !bulkDeleteButton) return;
+      const count = selectedOrders.size;
+      bulkDeleteButton.disabled = count === 0;
+      bulkDeleteButton.classList.toggle('hidden', count === 0);
+      bulkDeleteButton.textContent = count > 1 ? `Löschen (${count})` : 'Löschen';
+    };
+    const updateSelectAllState = () => {
+      if (!bulkDeleteEnabled || !selectAllCheckbox) return;
+      const displayedCheckboxes = table.querySelectorAll('input[data-order-select]');
+      if (!displayedCheckboxes.length) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+        return;
+      }
+      const displayedIds = Array.from(displayedCheckboxes).map((checkbox) => checkbox.value);
+      const selectedCount = displayedIds.filter((id) => selectedOrders.has(id)).length;
+      selectAllCheckbox.checked = selectedCount > 0 && selectedCount === displayedIds.length;
+      selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < displayedIds.length;
+    };
+    const setOrderSelection = (orderId, selected) => {
+      if (!bulkDeleteEnabled || !orderId) return;
+      if (selected) {
+        selectedOrders.add(orderId);
+      } else {
+        selectedOrders.delete(orderId);
+      }
+      updateBulkDeleteButtonState();
+      updateSelectAllState();
+    };
+    const pruneMissingSelections = (orders) => {
+      if (!bulkDeleteEnabled || !Array.isArray(orders)) return;
+      const available = new Set(orders.map((order) => order.id));
+      let mutated = false;
+      selectedOrders.forEach((orderId) => {
+        if (!available.has(orderId)) {
+          selectedOrders.delete(orderId);
+          mutated = true;
+        }
+      });
+      if (mutated) {
+        updateBulkDeleteButtonState();
+        updateSelectAllState();
+      }
+    };
     let filterDebounce;
     const COMPLETED_STATUS = 'UEBERGEBEN_AN_SPEDITION';
 
@@ -2708,12 +2766,19 @@ function deriveSizeList(order) {
           new Date(b.creation || b.modified || b.transaction_date || b.requested_delivery || 0).getTime() || 0;
         return dateB - dateA;
       });
+      pruneMissingSelections(sorted);
       table.innerHTML = sorted
         .map(
           (order) => {
             const totalQuantity = deriveOrderQuantity(order);
+            const selectionCell = bulkDeleteEnabled
+              ? `<td class="order-select-cell"><input type="checkbox" data-order-select value="${escapeHtml(order.id)}"${
+                  selectedOrders.has(order.id) ? ' checked' : ''
+                } /></td>`
+              : '';
             return `
         <tr data-order-id="${order.id}">
+          ${selectionCell}
           <td>${order.order_number}</td>
           <td><span class="badge">${formatStatus(order.portal_status)}</span></td>
           <td>${order.customer_name || order.customer_id}</td>
@@ -2725,10 +2790,22 @@ function deriveSizeList(order) {
         )
         .join('');
       table.querySelectorAll('tr').forEach((row) => {
-        row.addEventListener('click', () => {
+        row.addEventListener('click', (event) => {
+          if (bulkDeleteEnabled && event.target.closest('[data-order-select]')) {
+            return;
+          }
           window.location.href = `/bestellung.html?order=${encodeURIComponent(row.dataset.orderId)}`;
         });
       });
+      if (bulkDeleteEnabled) {
+        table.querySelectorAll('input[data-order-select]').forEach((checkbox) => {
+          checkbox.addEventListener('click', (event) => event.stopPropagation());
+          checkbox.addEventListener('change', () => {
+            setOrderSelection(checkbox.value, checkbox.checked);
+          });
+        });
+        updateSelectAllState();
+      }
     };
 
     filters.addEventListener('submit', (event) => {
@@ -2742,6 +2819,46 @@ function deriveSizeList(order) {
     const refreshButton = document.querySelector('[data-action="poll-orders"]');
     if (refreshButton) {
       refreshButton.addEventListener('click', loadOrders);
+    }
+    if (bulkDeleteEnabled && selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', () => {
+        const shouldSelect = selectAllCheckbox.checked;
+        table.querySelectorAll('input[data-order-select]').forEach((checkbox) => {
+          checkbox.checked = shouldSelect;
+          setOrderSelection(checkbox.value, shouldSelect);
+        });
+      });
+    }
+    if (bulkDeleteEnabled && bulkDeleteButton) {
+      bulkDeleteButton.addEventListener('click', async () => {
+        if (!selectedOrders.size) return;
+        const confirmLabel =
+          selectedOrders.size > 1
+            ? `Ausgewählte ${selectedOrders.size} Bestellungen löschen?`
+            : 'Ausgewählte Bestellung löschen?';
+        if (!window.confirm(confirmLabel)) return;
+        bulkDeleteButton.disabled = true;
+        const ids = Array.from(selectedOrders);
+        const failures = [];
+        for (const orderId of ids) {
+          try {
+            await request(`/api/orders/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+            selectedOrders.delete(orderId);
+          } catch (err) {
+            failures.push(`${orderId}: ${err.message}`);
+          }
+        }
+        bulkDeleteButton.disabled = false;
+        updateBulkDeleteButtonState();
+        updateSelectAllState();
+        if (failures.length) {
+          showToast(`Fehler beim Löschen (${failures.length}): ${failures.join(', ')}`);
+        } else {
+          showToast('Bestellungen gelöscht');
+        }
+        await loadOrders();
+      });
+      updateBulkDeleteButtonState();
     }
     await loadOrders();
   }

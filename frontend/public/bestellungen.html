@@ -37,14 +37,18 @@
             <div class="filter-actions">
               <button type="submit">Filtern</button>
               <button type="button" class="ghost" data-action="poll-orders">Neu laden</button>
+              <button type="button" class="ghost danger hidden" data-action="delete-selected-orders" disabled>Löschen</button>
+              <a class="btn primary" href="/bestellung-neu.html?fresh=1" data-role="new-order-btn">+ Neue Bestellung</a>
             </div>
-            <a class="btn primary" href="/bestellung-neu.html?fresh=1" data-role="new-order-btn">+ Neue Bestellung</a>
           </form>
         </div>
         <article class="card order-list">
           <table class="order-table">
             <thead>
             <tr>
+              <th class="order-select-column" data-order-selection-column>
+                <input type="checkbox" data-order-select-all />
+              </th>
               <th>Bestellnummer</th>
               <th>Status</th>
               <th>Kunde</th>

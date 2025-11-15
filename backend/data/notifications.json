@@ -838,5 +838,26 @@
     },
     "created_at": "2025-11-15T10:43:27.563Z",
     "read_at": null
+  },
+  {
+    "id": "NTF-f9443b05-5b75-4963-81a9-5e4cc41effe2",
+    "type": "order.created",
+    "title": "Neue Bestellung eingereicht",
+    "message": "Bestellung BT-B2500017 wurde eingereicht.",
+    "recipient_id": "user-bate-supplier",
+    "order_id": "BT-B2500017",
+    "ticket_id": null,
+    "position_id": null,
+    "actor_id": "user-admin",
+    "actor_name": "Admin",
+    "metadata": {
+      "supplier_name": "BATE AYAKKABI İMALAT İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ",
+      "order_number": "BT-B2500017",
+      "order_type": "MUSTER",
+      "requested_delivery": "2025-11-27",
+      "total_qty": 1
+    },
+    "created_at": "2025-11-15T19:47:17.803Z",
+    "read_at": null
   }
 ]

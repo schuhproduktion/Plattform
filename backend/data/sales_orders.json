@@ -79,37 +79,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "bi1glqbd8l",
-        "owner": "l.buechner@bateofficial.de",
-        "creation": "2024-11-15 08:38:19.235686",
-        "modified": "2024-11-20 15:26:05.522012",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 346.56,
-        "total": 2170.56,
-        "tax_amount_after_discount_amount": 346.56,
-        "base_tax_amount": 346.56,
-        "base_total": 2170.56,
-        "base_tax_amount_after_discount_amount": 346.56,
-        "item_wise_tax_detail": "{\"579230-9558\":[19.0,169.67000000000002],\"579240-9558\":[19.0,176.89000000000001]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2412476",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "bi1hi5q9e1",
@@ -138,7 +110,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "bi1gie15re",
@@ -393,8 +364,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "bi1glqbd8l",
+        "owner": "l.buechner@bateofficial.de",
+        "creation": "2024-11-15 08:38:19.235686",
+        "modified": "2024-11-20 15:26:05.522012",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 346.56,
+        "total": 2170.56,
+        "tax_amount_after_discount_amount": 346.56,
+        "base_tax_amount": 346.56,
+        "base_total": 2170.56,
+        "base_tax_amount_after_discount_amount": 346.56,
+        "item_wise_tax_detail": "{\"579230-9558\":[19.0,169.67000000000002],\"579240-9558\":[19.0,176.89000000000001]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2412476",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2412476",
     "order_number": "BT-AB2412476",
@@ -616,8 +616,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2024-11-15T07:38:19.235Z",
-    "last_updated": "2024-11-25T11:42:47.668Z",
+    "created_at": "2024-11-15T08:38:19.235Z",
+    "last_updated": "2024-11-25T12:42:47.668Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -702,37 +702,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "8gttgs1d7p",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-01-13 12:17:13.370662",
-        "modified": "2025-03-26 16:31:25.882511",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 4376.08,
-        "total": 27408.08,
-        "tax_amount_after_discount_amount": 4376.08,
-        "base_tax_amount": 4376.08,
-        "base_total": 27408.08,
-        "base_tax_amount_after_discount_amount": 4376.08,
-        "item_wise_tax_detail": "{\"579230-9558\":[19.0,1450.08],\"579240-9558\":[19.0,2926.0]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553564",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "45etk9uglj",
@@ -761,7 +733,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "s9j16uiauc",
@@ -936,8 +907,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "8gttgs1d7p",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-01-13 12:17:13.370662",
+        "modified": "2025-03-26 16:31:25.882511",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 4376.08,
+        "total": 27408.08,
+        "tax_amount_after_discount_amount": 4376.08,
+        "base_tax_amount": 4376.08,
+        "base_total": 27408.08,
+        "base_tax_amount_after_discount_amount": 4376.08,
+        "item_wise_tax_detail": "{\"579230-9558\":[19.0,1450.08],\"579240-9558\":[19.0,2926.0]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553564",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553564",
     "order_number": "BT-AB2553564",
@@ -1140,8 +1140,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-01-13T11:17:13.370Z",
-    "last_updated": "2025-05-07T13:04:04.563Z",
+    "created_at": "2025-01-13T12:17:13.370Z",
+    "last_updated": "2025-05-07T15:04:04.563Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -1226,37 +1226,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "pm5dhi604m",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-03-26 16:36:39.395312",
-        "modified": "2025-03-28 09:54:18.216284",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 182.4,
-        "total": 1142.4,
-        "tax_amount_after_discount_amount": 182.4,
-        "base_tax_amount": 182.4,
-        "base_total": 1142.4,
-        "base_tax_amount_after_discount_amount": 182.4,
-        "item_wise_tax_detail": "{\"29714\":[19.0,182.4]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553566",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "khvmvuv18k",
@@ -1285,7 +1257,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "11cbp66rmp",
@@ -1368,8 +1339,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "pm5dhi604m",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-03-26 16:36:39.395312",
+        "modified": "2025-03-28 09:54:18.216284",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 182.4,
+        "total": 1142.4,
+        "tax_amount_after_discount_amount": 182.4,
+        "base_tax_amount": 182.4,
+        "base_total": 1142.4,
+        "base_tax_amount_after_discount_amount": 182.4,
+        "item_wise_tax_detail": "{\"29714\":[19.0,182.4]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553566",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553566",
     "order_number": "BT-AB2553566",
@@ -1543,8 +1543,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-03-26T15:36:39.395Z",
-    "last_updated": "2025-05-07T13:07:09.862Z",
+    "created_at": "2025-03-26T16:36:39.395Z",
+    "last_updated": "2025-05-07T15:07:09.862Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -1627,37 +1627,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "868roso747",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-06-24 17:07:37.937161",
-        "modified": "2025-06-24 17:08:19.578491",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 568.73,
-        "total": 3562.07,
-        "tax_amount_after_discount_amount": 568.73,
-        "base_tax_amount": 568.73,
-        "base_total": 3562.07,
-        "base_tax_amount_after_discount_amount": 568.73,
-        "item_wise_tax_detail": "{\"579230-9558\":[19.0,8.93],\"579240-9558\":[19.0,9.31],\"1064\":[19.0,159.6],\"29714\":[19.0,8.93],\"29642\":[19.0,231.8],\"1453\":[19.0,150.1646]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553573",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "ormq81ksof",
@@ -1686,7 +1658,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "8nc4i3ff0i",
@@ -2180,8 +2151,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "868roso747",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-06-24 17:07:37.937161",
+        "modified": "2025-06-24 17:08:19.578491",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 568.73,
+        "total": 3562.07,
+        "tax_amount_after_discount_amount": 568.73,
+        "base_tax_amount": 568.73,
+        "base_total": 3562.07,
+        "base_tax_amount_after_discount_amount": 568.73,
+        "item_wise_tax_detail": "{\"579230-9558\":[19.0,8.93],\"579240-9558\":[19.0,9.31],\"1064\":[19.0,159.6],\"29714\":[19.0,8.93],\"29642\":[19.0,231.8],\"1453\":[19.0,150.1646]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553573",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553573",
     "order_number": "BT-AB2553573",
@@ -2474,8 +2474,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-06-24T15:07:37.937Z",
-    "last_updated": "2025-06-25T08:44:01.877Z",
+    "created_at": "2025-06-24T17:07:37.937Z",
+    "last_updated": "2025-06-25T10:44:01.877Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -2558,37 +2558,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "tcg4p82sd4",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-03-07 08:56:14.382924",
-        "modified": "2025-03-26 16:23:57.918919",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 1730.71,
-        "total": 10839.71,
-        "tax_amount_after_discount_amount": 1730.71,
-        "base_tax_amount": 1730.71,
-        "base_total": 10839.71,
-        "base_tax_amount_after_discount_amount": 1730.71,
-        "item_wise_tax_detail": "{\"579240-9558\":[19.0,627.0],\"589540-9558\":[19.0,514.71],\"589560\":[19.0,589.0]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553565",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "3gso047evj",
@@ -2617,7 +2589,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "096an6s23r",
@@ -2872,8 +2843,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "tcg4p82sd4",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-03-07 08:56:14.382924",
+        "modified": "2025-03-26 16:23:57.918919",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 1730.71,
+        "total": 10839.71,
+        "tax_amount_after_discount_amount": 1730.71,
+        "base_tax_amount": 1730.71,
+        "base_total": 10839.71,
+        "base_tax_amount_after_discount_amount": 1730.71,
+        "item_wise_tax_detail": "{\"579240-9558\":[19.0,627.0],\"589540-9558\":[19.0,514.71],\"589560\":[19.0,589.0]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553565",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553565",
     "order_number": "BT-AB2553565",
@@ -3098,8 +3098,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-03-07T07:56:14.382Z",
-    "last_updated": "2025-06-25T08:43:51.397Z",
+    "created_at": "2025-03-07T08:56:14.382Z",
+    "last_updated": "2025-06-25T10:43:51.397Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -3184,37 +3184,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "nj6q6icst4",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-04-16 11:54:01.850779",
-        "modified": "2025-05-07 16:20:25.820328",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 280.71,
-        "total": 1758.13,
-        "tax_amount_after_discount_amount": 280.71,
-        "base_tax_amount": 280.71,
-        "base_total": 1758.13,
-        "base_tax_amount_after_discount_amount": 280.71,
-        "item_wise_tax_detail": "{\"29714\":[19.0,45.6],\"579240-9558\":[19.0,178.6],\"1453\":[19.0,56.509800000000006]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553567",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "di1c74htob",
@@ -3243,7 +3215,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "8k4l2piepd",
@@ -3477,8 +3448,37 @@
         "__parsed_sizes": {}
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "nj6q6icst4",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-04-16 11:54:01.850779",
+        "modified": "2025-05-07 16:20:25.820328",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 280.71,
+        "total": 1758.13,
+        "tax_amount_after_discount_amount": 280.71,
+        "base_tax_amount": 280.71,
+        "base_total": 1758.13,
+        "base_tax_amount_after_discount_amount": 280.71,
+        "item_wise_tax_detail": "{\"29714\":[19.0,45.6],\"579240-9558\":[19.0,178.6],\"1453\":[19.0,56.509800000000006]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553567",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553567",
     "order_number": "BT-AB2553567",
@@ -3686,8 +3686,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-04-16T09:54:01.850Z",
-    "last_updated": "2025-06-13T07:50:10.801Z",
+    "created_at": "2025-04-16T11:54:01.850Z",
+    "last_updated": "2025-06-13T09:50:10.801Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -3772,37 +3772,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "aet8sjdouq",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-05-20 15:29:29.678913",
-        "modified": "2025-05-28 10:33:29.553639",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "5200 - Wareneingang - BG",
-        "description": "Wareneingang",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 0,
-        "account_currency": "EUR",
-        "tax_amount": 0,
-        "total": 24000,
-        "tax_amount_after_discount_amount": 0,
-        "base_tax_amount": 0,
-        "base_total": 24000,
-        "base_tax_amount_after_discount_amount": 0,
-        "item_wise_tax_detail": "{\"TURDAN-9\":[0.0,0.0],\"M-684\":[0.0,0.0],\"M-53\":[0.0,0.0],\"M-386\":[0.0,0.0],\"M-383\":[0.0,0.0]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553570",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "ifuliltm0l",
@@ -3831,7 +3803,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "6gacbf7ge8",
@@ -4654,8 +4625,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "aet8sjdouq",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-05-20 15:29:29.678913",
+        "modified": "2025-05-28 10:33:29.553639",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "5200 - Wareneingang - BG",
+        "description": "Wareneingang",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 0,
+        "account_currency": "EUR",
+        "tax_amount": 0,
+        "total": 24000,
+        "tax_amount_after_discount_amount": 0,
+        "base_tax_amount": 0,
+        "base_total": 24000,
+        "base_tax_amount_after_discount_amount": 0,
+        "item_wise_tax_detail": "{\"TURDAN-9\":[0.0,0.0],\"M-684\":[0.0,0.0],\"M-53\":[0.0,0.0],\"M-386\":[0.0,0.0],\"M-383\":[0.0,0.0]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553570",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553570",
     "order_number": "BT-AB2553570",
@@ -5022,8 +5022,8 @@
         "lng": 10.2832262
       }
     },
-    "created_at": "2025-05-20T13:29:29.678Z",
-    "last_updated": "2025-06-24T11:32:10.999Z",
+    "created_at": "2025-05-20T15:29:29.678Z",
+    "last_updated": "2025-06-24T13:32:10.999Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -5108,37 +5108,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "j8rd1vesdd",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-05-22 08:59:26.589323",
-        "modified": "2025-05-23 10:08:12.887773",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 86.05,
-        "total": 538.96,
-        "tax_amount_after_discount_amount": 86.05,
-        "base_tax_amount": 86.05,
-        "base_total": 538.96,
-        "base_tax_amount_after_discount_amount": 86.05,
-        "item_wise_tax_detail": "{\"TURDAN-9\":[19.0,18.240000000000002],\"M-684\":[19.0,12.16],\"M-53\":[19.0,12.16],\"M-386\":[19.0,12.16],\"M-383\":[19.0,6.08],\"1453\":[19.0,25.2529]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553571",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "np0ig8fcr8",
@@ -5167,7 +5139,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "d27evndcv8",
@@ -6053,8 +6024,37 @@
         "__parsed_sizes": {}
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "j8rd1vesdd",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-05-22 08:59:26.589323",
+        "modified": "2025-05-23 10:08:12.887773",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 86.05,
+        "total": 538.96,
+        "tax_amount_after_discount_amount": 86.05,
+        "base_tax_amount": 86.05,
+        "base_total": 538.96,
+        "base_tax_amount_after_discount_amount": 86.05,
+        "item_wise_tax_detail": "{\"TURDAN-9\":[19.0,18.240000000000002],\"M-684\":[19.0,12.16],\"M-53\":[19.0,12.16],\"M-386\":[19.0,12.16],\"M-383\":[19.0,6.08],\"1453\":[19.0,25.2529]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553571",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553571",
     "order_number": "BT-AB2553571",
@@ -6427,8 +6427,8 @@
         "lng": 10.2832262
       }
     },
-    "created_at": "2025-05-22T06:59:26.589Z",
-    "last_updated": "2025-06-13T07:47:04.223Z",
+    "created_at": "2025-05-22T08:59:26.589Z",
+    "last_updated": "2025-06-13T09:47:04.223Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -6512,37 +6512,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "slb7e4ld6g",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-05-20 11:29:35.424925",
-        "modified": "2025-07-14 11:12:21.089011",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 1586.88,
-        "total": 9938.88,
-        "tax_amount_after_discount_amount": 1586.88,
-        "base_tax_amount": 1586.88,
-        "base_total": 9938.88,
-        "base_tax_amount_after_discount_amount": 1586.88,
-        "item_wise_tax_detail": "{\"15972\":[19.0,711.36],\"15949\":[19.0,410.4],\"29286\":[19.0,465.12]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553569-1",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "24md4j20g6",
@@ -6572,7 +6544,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "is5thcis8s",
@@ -7245,8 +7216,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "slb7e4ld6g",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-05-20 11:29:35.424925",
+        "modified": "2025-07-14 11:12:21.089011",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 1586.88,
+        "total": 9938.88,
+        "tax_amount_after_discount_amount": 1586.88,
+        "base_tax_amount": 1586.88,
+        "base_total": 9938.88,
+        "base_tax_amount_after_discount_amount": 1586.88,
+        "item_wise_tax_detail": "{\"15972\":[19.0,711.36],\"15949\":[19.0,410.4],\"29286\":[19.0,465.12]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553569-1",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553569-1",
     "order_number": "BT-AB2553569-1",
@@ -7575,8 +7575,8 @@
         "lng": 10.2832262
       }
     },
-    "created_at": "2025-05-20T09:29:35.424Z",
-    "last_updated": "2025-07-14T09:12:21.089Z",
+    "created_at": "2025-05-20T11:29:35.424Z",
+    "last_updated": "2025-07-14T11:12:21.089Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -7660,37 +7660,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "4gs86thl8e",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-07-03 11:44:20.888446",
-        "modified": "2025-07-03 11:44:57.111553",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 189.95,
-        "total": 1189.7,
-        "tax_amount_after_discount_amount": 189.95,
-        "base_tax_amount": 189.95,
-        "base_total": 1189.7,
-        "base_tax_amount_after_discount_amount": 189.95,
-        "item_wise_tax_detail": "{\"15972\":[19.0,59.279999999999994],\"15949\":[19.0,34.2],\"29286\":[19.0,38.76],\"1453\":[19.0,57.7125]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553572-1",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "u487ei8c73",
@@ -7720,7 +7692,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "valc7mbbp7",
@@ -8419,8 +8390,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "4gs86thl8e",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-07-03 11:44:20.888446",
+        "modified": "2025-07-03 11:44:57.111553",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 189.95,
+        "total": 1189.7,
+        "tax_amount_after_discount_amount": 189.95,
+        "base_tax_amount": 189.95,
+        "base_total": 1189.7,
+        "base_tax_amount_after_discount_amount": 189.95,
+        "item_wise_tax_detail": "{\"15972\":[19.0,59.279999999999994],\"15949\":[19.0,34.2],\"29286\":[19.0,38.76],\"1453\":[19.0,57.7125]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553572-1",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553572-1",
     "order_number": "BT-AB2553572-1",
@@ -8724,8 +8724,8 @@
         "lng": 10.2832262
       }
     },
-    "created_at": "2025-07-03T09:44:20.888Z",
-    "last_updated": "2025-07-03T09:44:57.111Z",
+    "created_at": "2025-07-03T11:44:20.888Z",
+    "last_updated": "2025-07-03T11:44:57.111Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -8809,37 +8809,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "1r2l6vnofk",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-06-25 11:00:07.751807",
-        "modified": "2025-06-25 11:00:09.795230",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 163.4,
-        "total": 1023.4,
-        "tax_amount_after_discount_amount": 163.4,
-        "base_tax_amount": 163.4,
-        "base_total": 1023.4,
-        "base_tax_amount_after_discount_amount": 163.4,
-        "item_wise_tax_detail": "{\"15953\":[19.0,163.4]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553574-1",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "d1h3sckcc9",
@@ -8869,7 +8841,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "4ggi1o9hbl",
@@ -8953,8 +8924,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "1r2l6vnofk",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-06-25 11:00:07.751807",
+        "modified": "2025-06-25 11:00:09.795230",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 163.4,
+        "total": 1023.4,
+        "tax_amount_after_discount_amount": 163.4,
+        "base_tax_amount": 163.4,
+        "base_total": 1023.4,
+        "base_tax_amount_after_discount_amount": 163.4,
+        "item_wise_tax_detail": "{\"15953\":[19.0,163.4]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553574-1",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553574-1",
     "order_number": "BT-AB2553574-1",
@@ -9128,8 +9128,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-06-25T09:00:07.751Z",
-    "last_updated": "2025-06-25T09:00:09.795Z",
+    "created_at": "2025-06-25T11:00:07.751Z",
+    "last_updated": "2025-06-25T11:00:09.795Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -9210,37 +9210,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "va0sdpjuvq",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-07-17 12:28:35.725591",
-        "modified": "2025-07-17 13:40:54.575019",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 345.42,
-        "total": 2163.42,
-        "tax_amount_after_discount_amount": 345.42,
-        "base_tax_amount": 345.42,
-        "base_total": 2163.42,
-        "base_tax_amount_after_discount_amount": 345.42,
-        "item_wise_tax_detail": "{\"32003\":[19.0,345.42]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553575",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "gg6nvnl330",
@@ -9269,7 +9241,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "0pr7jvvb38",
@@ -9687,8 +9658,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "va0sdpjuvq",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-07-17 12:28:35.725591",
+        "modified": "2025-07-17 13:40:54.575019",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 345.42,
+        "total": 2163.42,
+        "tax_amount_after_discount_amount": 345.42,
+        "base_tax_amount": 345.42,
+        "base_total": 2163.42,
+        "base_tax_amount_after_discount_amount": 345.42,
+        "item_wise_tax_detail": "{\"32003\":[19.0,345.42]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553575",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553575",
     "order_number": "BT-AB2553575",
@@ -9935,8 +9935,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-07-17T10:28:35.725Z",
-    "last_updated": "2025-07-17T11:40:54.575Z",
+    "created_at": "2025-07-17T12:28:35.725Z",
+    "last_updated": "2025-07-17T13:40:54.575Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -10018,37 +10018,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "93avfadvc1",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-07-21 12:03:26.537206",
-        "modified": "2025-07-21 12:24:53.229588",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 602.68,
-        "total": 3774.68,
-        "tax_amount_after_discount_amount": 602.68,
-        "base_tax_amount": 602.68,
-        "base_total": 3774.68,
-        "base_tax_amount_after_discount_amount": 602.68,
-        "item_wise_tax_detail": "{\"32003\":[19.0,602.6800000000001]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553576",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "ho17v7qk1e",
@@ -10077,7 +10049,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "a2gmp31d2h",
@@ -10420,8 +10391,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "93avfadvc1",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-07-21 12:03:26.537206",
+        "modified": "2025-07-21 12:24:53.229588",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 602.68,
+        "total": 3774.68,
+        "tax_amount_after_discount_amount": 602.68,
+        "base_tax_amount": 602.68,
+        "base_total": 3774.68,
+        "base_tax_amount_after_discount_amount": 602.68,
+        "item_wise_tax_detail": "{\"32003\":[19.0,602.6800000000001]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553576",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553576",
     "order_number": "BT-AB2553576",
@@ -10654,8 +10654,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-07-21T10:03:26.537Z",
-    "last_updated": "2025-07-21T10:24:53.229Z",
+    "created_at": "2025-07-21T12:03:26.537Z",
+    "last_updated": "2025-07-21T12:24:53.229Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -10737,37 +10737,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "ml20vs7fks",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-07-21 13:04:23.036679",
-        "modified": "2025-07-21 13:20:37.076249",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 251.37,
-        "total": 1574.37,
-        "tax_amount_after_discount_amount": 251.37,
-        "base_tax_amount": 251.37,
-        "base_total": 1574.37,
-        "base_tax_amount_after_discount_amount": 251.37,
-        "item_wise_tax_detail": "{\"32003\":[19.0,251.37]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553577",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "kv90qgdlkr",
@@ -10796,7 +10768,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "9o6b303vc3",
@@ -11048,8 +11019,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "ml20vs7fks",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-07-21 13:04:23.036679",
+        "modified": "2025-07-21 13:20:37.076249",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 251.37,
+        "total": 1574.37,
+        "tax_amount_after_discount_amount": 251.37,
+        "base_tax_amount": 251.37,
+        "base_total": 1574.37,
+        "base_tax_amount_after_discount_amount": 251.37,
+        "item_wise_tax_detail": "{\"32003\":[19.0,251.37]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553577",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553577",
     "order_number": "BT-AB2553577",
@@ -11252,8 +11252,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-07-21T11:04:23.036Z",
-    "last_updated": "2025-07-21T11:20:37.076Z",
+    "created_at": "2025-07-21T13:04:23.036Z",
+    "last_updated": "2025-07-21T13:20:37.076Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -11340,37 +11340,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "7jnnm8kmhn",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-07-28 10:19:07.140857",
-        "modified": "2025-07-28 10:24:47.575758",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 134.52,
-        "total": 842.52,
-        "tax_amount_after_discount_amount": 134.52,
-        "base_tax_amount": 134.52,
-        "base_total": 842.52,
-        "base_tax_amount_after_discount_amount": 134.52,
-        "item_wise_tax_detail": "{\"32003\":[19.0,134.52]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553578",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "s496237stj",
@@ -11399,7 +11371,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "ko41qlie51",
@@ -11568,8 +11539,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "7jnnm8kmhn",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-07-28 10:19:07.140857",
+        "modified": "2025-07-28 10:24:47.575758",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 134.52,
+        "total": 842.52,
+        "tax_amount_after_discount_amount": 134.52,
+        "base_tax_amount": 134.52,
+        "base_total": 842.52,
+        "base_tax_amount_after_discount_amount": 134.52,
+        "item_wise_tax_detail": "{\"32003\":[19.0,134.52]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553578",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553578",
     "order_number": "BT-AB2553578",
@@ -11750,8 +11750,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-07-28T08:19:07.140Z",
-    "last_updated": "2025-07-28T08:24:47.575Z",
+    "created_at": "2025-07-28T10:19:07.140Z",
+    "last_updated": "2025-07-28T10:24:47.575Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -11832,37 +11832,9 @@
     "language": "de",
     "is_internal_customer": 0,
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "lbdd90keg2",
-        "owner": "Administrator",
-        "creation": "2025-08-26 10:54:22.188874",
-        "modified": "2025-08-26 10:54:24.622317",
-        "modified_by": "Administrator",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 9.12,
-        "total": 57.12,
-        "tax_amount_after_discount_amount": 9.12,
-        "base_tax_amount": 9.12,
-        "base_total": 57.12,
-        "base_tax_amount_after_discount_amount": 9.12,
-        "item_wise_tax_detail": "{\"579230-9558\":[19.0,9.120000000000001]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553579",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "1dtrc4kpp6",
@@ -11892,7 +11864,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "jjpsj2jk7h",
@@ -11970,8 +11941,37 @@
         "__parsed_sizes": {}
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "lbdd90keg2",
+        "owner": "Administrator",
+        "creation": "2025-08-26 10:54:22.188874",
+        "modified": "2025-08-26 10:54:24.622317",
+        "modified_by": "Administrator",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 9.12,
+        "total": 57.12,
+        "tax_amount_after_discount_amount": 9.12,
+        "base_tax_amount": 9.12,
+        "base_total": 57.12,
+        "base_tax_amount_after_discount_amount": 9.12,
+        "item_wise_tax_detail": "{\"579230-9558\":[19.0,9.120000000000001]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553579",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553579",
     "order_number": "BT-AB2553579",
@@ -12140,8 +12140,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-08-26T08:54:22.188Z",
-    "last_updated": "2025-08-26T08:54:24.622Z",
+    "created_at": "2025-08-26T10:54:22.188Z",
+    "last_updated": "2025-08-26T10:54:24.622Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -12223,37 +12223,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "f18rqudtus",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-08-29 15:54:57.294010",
-        "modified": "2025-10-30 11:23:58.222643",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 1,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 336.3,
-        "total": 2106.3,
-        "tax_amount_after_discount_amount": 336.3,
-        "base_tax_amount": 336.3,
-        "base_total": 2106.3,
-        "base_tax_amount_after_discount_amount": 336.3,
-        "item_wise_tax_detail": "{\"29727\":[19.0,336.29999999999995]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553580",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "vj3mdp17su",
@@ -12282,7 +12254,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "u52chp3tc6",
@@ -12537,8 +12508,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "f18rqudtus",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-08-29 15:54:57.294010",
+        "modified": "2025-10-30 11:23:58.222643",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 1,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 336.3,
+        "total": 2106.3,
+        "tax_amount_after_discount_amount": 336.3,
+        "base_tax_amount": 336.3,
+        "base_total": 2106.3,
+        "base_tax_amount_after_discount_amount": 336.3,
+        "item_wise_tax_detail": "{\"29727\":[19.0,336.29999999999995]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553580",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553580",
     "order_number": "BT-AB2553580",
@@ -12741,8 +12741,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-08-29T13:54:57.294Z",
-    "last_updated": "2025-10-30T13:01:08.266Z",
+    "created_at": "2025-08-29T15:54:57.294Z",
+    "last_updated": "2025-10-30T14:01:08.266Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -12825,37 +12825,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "mt93p25sog",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-08-29 16:08:15.373048",
-        "modified": "2025-08-29 16:14:07.457556",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 1781.06,
-        "total": 11155.06,
-        "tax_amount_after_discount_amount": 1781.06,
-        "base_tax_amount": 1781.06,
-        "base_total": 11155.06,
-        "base_tax_amount_after_discount_amount": 1781.06,
-        "item_wise_tax_detail": "{\"15953\":[19.0,1781.06]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553581",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "j4ofmrb5d8",
@@ -12884,7 +12856,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "6qv9l4g29r",
@@ -12972,8 +12943,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "mt93p25sog",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-08-29 16:08:15.373048",
+        "modified": "2025-08-29 16:14:07.457556",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 1781.06,
+        "total": 11155.06,
+        "tax_amount_after_discount_amount": 1781.06,
+        "base_tax_amount": 1781.06,
+        "base_total": 11155.06,
+        "base_tax_amount_after_discount_amount": 1781.06,
+        "item_wise_tax_detail": "{\"15953\":[19.0,1781.06]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553581",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553581",
     "order_number": "BT-AB2553581",
@@ -13151,8 +13151,8 @@
         "lng": 9.5076814
       }
     },
-    "created_at": "2025-08-29T14:08:15.373Z",
-    "last_updated": "2025-08-29T14:14:07.457Z",
+    "created_at": "2025-08-29T16:08:15.373Z",
+    "last_updated": "2025-08-29T16:14:07.457Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -13233,37 +13233,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "ed6n0df49k",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-09-02 08:46:51.892539",
-        "modified": "2025-09-02 09:08:52.631226",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 785.84,
-        "total": 4921.84,
-        "tax_amount_after_discount_amount": 785.84,
-        "base_tax_amount": 785.84,
-        "base_total": 4921.84,
-        "base_tax_amount_after_discount_amount": 785.84,
-        "item_wise_tax_detail": "{\"29640\":[19.0,100.32000000000001],\"29286\":[19.0,191.52],\"29290\":[19.0,83.6],\"29114\":[19.0,91.2],\"29121\":[19.0,83.6],\"29332\":[19.0,77.52],\"15972\":[19.0,82.08],\"15961\":[19.0,76.0]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553582",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "iurnjods16",
@@ -13292,7 +13264,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "7n1uh2d8o1",
@@ -14028,8 +13999,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "ed6n0df49k",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-09-02 08:46:51.892539",
+        "modified": "2025-09-02 09:08:52.631226",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 785.84,
+        "total": 4921.84,
+        "tax_amount_after_discount_amount": 785.84,
+        "base_tax_amount": 785.84,
+        "base_total": 4921.84,
+        "base_tax_amount_after_discount_amount": 785.84,
+        "item_wise_tax_detail": "{\"29640\":[19.0,100.32000000000001],\"29286\":[19.0,191.52],\"29290\":[19.0,83.6],\"29114\":[19.0,91.2],\"29121\":[19.0,83.6],\"29332\":[19.0,77.52],\"15972\":[19.0,82.08],\"15961\":[19.0,76.0]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553582",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553582",
     "order_number": "BT-AB2553582",
@@ -14364,8 +14364,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-09-02T06:46:51.892Z",
-    "last_updated": "2025-09-02T07:08:52.631Z",
+    "created_at": "2025-09-02T08:46:51.892Z",
+    "last_updated": "2025-09-02T09:08:52.631Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -14447,37 +14447,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "5hvvnfn2jn",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-09-05 08:58:18.470212",
-        "modified": "2025-10-05 17:36:16.442773",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 569.81,
-        "total": 3568.81,
-        "tax_amount_after_discount_amount": 569.81,
-        "base_tax_amount": 569.81,
-        "base_total": 3568.81,
-        "base_tax_amount_after_discount_amount": 569.81,
-        "item_wise_tax_detail": "{\"32003\":[19.0,100.89],\"29727\":[19.0,403.56],\"15950\":[19.0,65.36]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553583",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "lujhj1felo",
@@ -14506,7 +14478,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "83ri8ca8od",
@@ -15016,8 +14987,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "5hvvnfn2jn",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-09-05 08:58:18.470212",
+        "modified": "2025-10-05 17:36:16.442773",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 569.81,
+        "total": 3568.81,
+        "tax_amount_after_discount_amount": 569.81,
+        "base_tax_amount": 569.81,
+        "base_total": 3568.81,
+        "base_tax_amount_after_discount_amount": 569.81,
+        "item_wise_tax_detail": "{\"32003\":[19.0,100.89],\"29727\":[19.0,403.56],\"15950\":[19.0,65.36]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553583",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553583",
     "order_number": "BT-AB2553583",
@@ -15295,8 +15295,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-09-05T06:58:18.470Z",
-    "last_updated": "2025-10-05T15:36:16.442Z",
+    "created_at": "2025-09-05T08:58:18.470Z",
+    "last_updated": "2025-10-05T17:36:16.442Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -15378,37 +15378,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "ftej12kpeq",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-10-02 12:25:02.139789",
-        "modified": "2025-10-05 16:25:12.494889",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 1040.06,
-        "total": 6514.06,
-        "tax_amount_after_discount_amount": 1040.06,
-        "base_tax_amount": 1040.06,
-        "base_total": 6514.06,
-        "base_tax_amount_after_discount_amount": 1040.06,
-        "item_wise_tax_detail": "{\"29727\":[19.0,179.36],\"32003\":[19.0,95.76],\"15950\":[19.0,196.08],\"32002\":[19.0,340.86],\"15951-2\":[19.0,228.0]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553584",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "1vbb47j90n",
@@ -15437,7 +15409,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "huh5mpguj3",
@@ -16350,8 +16321,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "ftej12kpeq",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-10-02 12:25:02.139789",
+        "modified": "2025-10-05 16:25:12.494889",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 1040.06,
+        "total": 6514.06,
+        "tax_amount_after_discount_amount": 1040.06,
+        "base_tax_amount": 1040.06,
+        "base_total": 6514.06,
+        "base_tax_amount_after_discount_amount": 1040.06,
+        "item_wise_tax_detail": "{\"29727\":[19.0,179.36],\"32003\":[19.0,95.76],\"15950\":[19.0,196.08],\"32002\":[19.0,340.86],\"15951-2\":[19.0,228.0]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553584",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553584",
     "order_number": "BT-AB2553584",
@@ -16731,8 +16731,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-10-02T10:25:02.139Z",
-    "last_updated": "2025-10-05T14:25:12.494Z",
+    "created_at": "2025-10-02T12:25:02.139Z",
+    "last_updated": "2025-10-05T16:25:12.494Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -16814,37 +16814,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "cfqol3g922",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-10-02 16:39:36.348984",
-        "modified": "2025-10-05 14:15:17.191394",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 770.26,
-        "total": 4824.26,
-        "tax_amount_after_discount_amount": 770.26,
-        "base_tax_amount": 770.26,
-        "base_total": 4824.26,
-        "base_tax_amount_after_discount_amount": 770.26,
-        "item_wise_tax_detail": "{\"15951-2\":[19.0,256.5],\"29727\":[19.0,179.36],\"32005\":[19.0,334.4]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553585",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "ghih9mvrn6",
@@ -16873,7 +16845,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "2k69g6ecpq",
@@ -17544,8 +17515,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "cfqol3g922",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-10-02 16:39:36.348984",
+        "modified": "2025-10-05 14:15:17.191394",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 770.26,
+        "total": 4824.26,
+        "tax_amount_after_discount_amount": 770.26,
+        "base_tax_amount": 770.26,
+        "base_total": 4824.26,
+        "base_tax_amount_after_discount_amount": 770.26,
+        "item_wise_tax_detail": "{\"15951-2\":[19.0,256.5],\"29727\":[19.0,179.36],\"32005\":[19.0,334.4]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553585",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553585",
     "order_number": "BT-AB2553585",
@@ -17862,8 +17862,8 @@
         "lng": 8.658642
       }
     },
-    "created_at": "2025-10-02T14:39:36.348Z",
-    "last_updated": "2025-10-05T12:15:17.191Z",
+    "created_at": "2025-10-02T16:39:36.348Z",
+    "last_updated": "2025-10-05T14:15:17.191Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   },
@@ -17943,37 +17943,9 @@
     "is_internal_customer": 0,
     "party_account_currency": "EUR",
     "doctype": "Sales Order",
-    "taxes": [
-      {
-        "name": "kor920g7tt",
-        "owner": "o.yildiz@bateofficial.de",
-        "creation": "2025-10-03 17:35:19.819032",
-        "modified": "2025-10-03 18:00:43.382794",
-        "modified_by": "o.yildiz@bateofficial.de",
-        "docstatus": 0,
-        "idx": 1,
-        "charge_type": "On Net Total",
-        "account_head": "3800 - Umsatzsteuer - BG",
-        "description": "Umsatzsteuer",
-        "included_in_print_rate": 0,
-        "included_in_paid_amount": 0,
-        "cost_center": "Haupt - BG",
-        "rate": 19,
-        "account_currency": "EUR",
-        "tax_amount": 446.5,
-        "total": 2796.5,
-        "tax_amount_after_discount_amount": 446.5,
-        "base_tax_amount": 446.5,
-        "base_total": 2796.5,
-        "base_tax_amount_after_discount_amount": 446.5,
-        "item_wise_tax_detail": "{\"29280\":[19.0,446.5]}",
-        "dont_recompute_tax": 0,
-        "parent": "BT-AB2553586",
-        "parentfield": "taxes",
-        "parenttype": "Sales Order",
-        "doctype": "Sales Taxes and Charges"
-      }
-    ],
+    "pricing_rules": [],
+    "sales_team": [],
+    "packed_items": [],
     "payment_schedule": [
       {
         "name": "2tscttit2p",
@@ -18002,7 +17974,6 @@
         "doctype": "Payment Schedule"
       }
     ],
-    "packed_items": [],
     "items": [
       {
         "name": "tak05ohbkh",
@@ -18168,8 +18139,37 @@
         }
       }
     ],
-    "sales_team": [],
-    "pricing_rules": [],
+    "taxes": [
+      {
+        "name": "kor920g7tt",
+        "owner": "o.yildiz@bateofficial.de",
+        "creation": "2025-10-03 17:35:19.819032",
+        "modified": "2025-10-03 18:00:43.382794",
+        "modified_by": "o.yildiz@bateofficial.de",
+        "docstatus": 0,
+        "idx": 1,
+        "charge_type": "On Net Total",
+        "account_head": "3800 - Umsatzsteuer - BG",
+        "description": "Umsatzsteuer",
+        "included_in_print_rate": 0,
+        "included_in_paid_amount": 0,
+        "cost_center": "Haupt - BG",
+        "rate": 19,
+        "account_currency": "EUR",
+        "tax_amount": 446.5,
+        "total": 2796.5,
+        "tax_amount_after_discount_amount": 446.5,
+        "base_tax_amount": 446.5,
+        "base_total": 2796.5,
+        "base_tax_amount_after_discount_amount": 446.5,
+        "item_wise_tax_detail": "{\"29280\":[19.0,446.5]}",
+        "dont_recompute_tax": 0,
+        "parent": "BT-AB2553586",
+        "parentfield": "taxes",
+        "parenttype": "Sales Order",
+        "doctype": "Sales Taxes and Charges"
+      }
+    ],
     "__normalized_order": true,
     "id": "BT-AB2553586",
     "order_number": "BT-AB2553586",
@@ -18351,8 +18351,8 @@
         "lng": 8.7042473
       }
     },
-    "created_at": "2025-10-03T15:35:19.819Z",
-    "last_updated": "2025-10-03T16:00:43.382Z",
+    "created_at": "2025-10-03T17:35:19.819Z",
+    "last_updated": "2025-10-03T18:00:43.382Z",
     "timeline": [],
     "document_type": "SALES_ORDER"
   }

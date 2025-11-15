@@ -288,6 +288,7 @@ const defaults = {
         'Neu laden': 'Yenile',
         'Freigaben fällig': 'Onaylar bekleniyor',
         'Letzter Sync': 'Son senkronizasyon',
+        'Aktive Bestellungen': 'Aktif siparişler',
         'Neue Bestellungen': 'Yeni siparişler',
         'Offene Tickets': 'Açık biletler',
         'Noch keine Tickets.': 'Henüz bilet yok.',

@@ -306,6 +306,15 @@
     "buying": 1
   },
   {
+    "name": "218p9cbl57",
+    "item_code": "159002",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 64,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
     "name": "24vm25lde8",
     "item_code": "159133",
     "price_list": "Private Label Premium - Einkauf",
@@ -691,6 +700,15 @@
     "currency": "EUR",
     "selling": 1,
     "buying": 0
+  },
+  {
+    "name": "5buidi8dvq",
+    "item_code": "159133",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 30,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
   },
   {
     "name": "5cik18o46q",
@@ -1327,6 +1345,15 @@
     "item_code": "251043",
     "price_list": "Private Label Premium - Einkauf",
     "price_list_rate": 25,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
+  },
+  {
+    "name": "avtbrccgm4",
+    "item_code": "105-26",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 78,
     "currency": "EUR",
     "selling": 0,
     "buying": 1
@@ -2482,6 +2509,15 @@
     "currency": "EUR",
     "selling": 1,
     "buying": 0
+  },
+  {
+    "name": "vk0vd8p3at",
+    "item_code": "106-26",
+    "price_list": "Standard-Einkauf",
+    "price_list_rate": 88,
+    "currency": "EUR",
+    "selling": 0,
+    "buying": 1
   },
   {
     "name": "vs4idb4vir",

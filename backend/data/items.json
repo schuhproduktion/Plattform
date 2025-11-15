@@ -268,6 +268,12 @@
         "type": "Verkauf",
         "currency": "EUR",
         "amount": 91
+      },
+      {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 78
       }
     ],
     "uoms": [
@@ -405,6 +411,12 @@
         "type": "Einkauf",
         "currency": "EUR",
         "amount": 77
+      },
+      {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 88
       }
     ],
     "uoms": [
@@ -899,6 +911,12 @@
       {
         "label": "Private Label Premium - Verkauf",
         "type": "Verkauf",
+        "currency": "EUR",
+        "amount": 64
+      },
+      {
+        "label": "Standard-Einkauf",
+        "type": "Einkauf",
         "currency": "EUR",
         "amount": 64
       },
@@ -1402,6 +1420,12 @@
     "prices": [
       {
         "label": "Private Label Premium - Einkauf",
+        "type": "Einkauf",
+        "currency": "EUR",
+        "amount": 30
+      },
+      {
+        "label": "Standard-Einkauf",
         "type": "Einkauf",
         "currency": "EUR",
         "amount": 30

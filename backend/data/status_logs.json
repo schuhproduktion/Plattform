@@ -1446,5 +1446,12 @@
     "to": "ORDER_BESTAETIGT",
     "actor": "o.yildiz@schuhproduktion.com",
     "ts": "2025-11-14T18:59:41.190Z"
+  },
+  {
+    "id": "LOG-6092571d-1378-424c-83cc-31ec8733771f",
+    "order_id": "BT-B2500017",
+    "action": "ORDER_CREATED",
+    "actor": "user-admin",
+    "ts": "2025-11-15T19:47:17.780Z"
   }
 ]
