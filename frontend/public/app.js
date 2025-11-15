@@ -12,7 +12,10 @@ import {
   TECHPACK_VIEWS,
   TECHPACK_MEDIA_STATUS,
   TRANSLATABLE_ATTRIBUTES,
-  VAT_RATE
+  VAT_RATE,
+  isInternalRole,
+  isSupplierRole,
+  getForcedLocaleForRole
 } from './js/state.js';
 import { request, ensureFreshSnapshot } from './js/api.js';
 import { showToast, renderSharedLayout, applyRoleVisibility, setBreadcrumbLabel } from './js/ui.js';
@@ -233,6 +236,8 @@ const PROFORMA_ADDRESS_PRESETS = {
     }
   ]
 };
+
+const titleTranslationCache = new Map();
 
 const App = (() => {
   function resolveOrderTypeMeta(orderType) {
@@ -457,7 +462,6 @@ function ensureTechpackActiveMedia(spec) {
     const badge = document.getElementById('techpackStatusBadge');
     const button = document.getElementById('techpackStatusToggle');
     if (!badge || !button) return;
-    const isPlaceholder = Boolean(media?.isPlaceholder || media?.is_placeholder);
     if (!media) {
       badge.textContent = 'Keine Ansicht';
       badge.className = 'badge ghost';
@@ -504,18 +508,6 @@ function ensureTechpackActiveMedia(spec) {
     if (!value) return '-';
     try {
       return new Date(value).toLocaleDateString('de-DE');
-    } catch {
-      return value;
-    }
-  }
-
-  function formatDateTime(value) {
-    if (!value) return '-';
-    try {
-      return new Date(value).toLocaleString('de-DE', {
-        dateStyle: 'short',
-        timeStyle: 'short'
-      });
     } catch {
       return value;
     }
@@ -582,6 +574,323 @@ function ensureTechpackActiveMedia(spec) {
     return new Date(ts).toLocaleString('de-DE');
   }
 
+  function buildNotificationLink(entry) {
+    if (!entry) return null;
+    if (entry.ticket_id) {
+      const params = new URLSearchParams();
+      const ticketMeta = resolveTicketMeta(entry.ticket_id);
+      const orderId = entry.order_id || ticketMeta?.order_id;
+      const positionId = entry.position_id || ticketMeta?.position_id;
+      const viewKey = entry.metadata?.view_key || ticketMeta?.view_key || null;
+      if (orderId) params.set('order', orderId);
+      params.set('ticket', entry.ticket_id);
+      if (orderId && positionId) {
+        params.set('position', positionId);
+        if (viewKey) params.set('view', viewKey);
+        return `/techpack.html?${params.toString()}`;
+      }
+      return `/bestellung.html?${params.toString()}`;
+    }
+    if (entry.order_id) {
+      return `/bestellung.html?order=${encodeURIComponent(entry.order_id)}`;
+    }
+    return null;
+  }
+
+  function resolveTicketMeta(ticketId) {
+    if (!ticketId) return null;
+    const sources = [
+      state.orderTickets || [],
+      state.tickets || [],
+      state.selectedOrder?.tickets || []
+    ];
+    for (const source of sources) {
+      if (!Array.isArray(source)) continue;
+      const match = source.find((ticket) => ticket.id === ticketId);
+      if (match) return match;
+    }
+    return null;
+  }
+
+  function renderNotificationItem(entry) {
+    const classes = ['notification-item'];
+    if (!entry.read_at) classes.push('unread');
+    const subtitleParts = [];
+    if (entry.metadata?.order_number || entry.order_id) {
+      subtitleParts.push(entry.metadata?.order_number || entry.order_id);
+    }
+    subtitleParts.push(formatRelativeTime(entry.created_at));
+    const subtitle = subtitleParts.filter(Boolean).join(' · ');
+    return `
+      <li class="${classes.join(' ')}">
+        <button type="button" class="notification-link" data-notification-id="${entry.id}">
+          <span class="notification-item-dot" aria-hidden="true"></span>
+          <div>
+            <strong>${escapeHtml(entry.title || 'Hinweis')}</strong>
+            <p>${escapeHtml(entry.message || '')}</p>
+            <small>${escapeHtml(subtitle)}</small>
+          </div>
+        </button>
+        <button
+          type="button"
+          class="notification-check"
+          data-notification-check="${entry.id}"
+          aria-pressed="${entry.read_at ? 'true' : 'false'}"
+          aria-label="${entry.read_at ? 'Als ungelesen markieren' : 'Benachrichtigung als gelesen markieren'}"
+        >
+          ✓
+        </button>
+      </li>
+    `;
+  }
+
+  function updateNotificationUi() {
+    const notifications = state.notifications || [];
+    const badge = document.getElementById('notificationBadge');
+    const list = document.getElementById('notificationList');
+    const emptyState = document.getElementById('notificationEmptyState');
+    const unreadCount = notifications.filter((entry) => !entry.read_at).length;
+    const visibleNotifications = notifications.filter((entry) => !entry.read_at && !entry.metadata?.closed);
+    if (badge) {
+      badge.textContent = String(unreadCount);
+      if (unreadCount > 0) {
+        badge.removeAttribute('hidden');
+      } else {
+        badge.setAttribute('hidden', 'hidden');
+      }
+    }
+    if (list) {
+      if (!visibleNotifications.length) {
+        list.innerHTML = '';
+        if (emptyState) emptyState.removeAttribute('hidden');
+      } else {
+        if (emptyState) emptyState.setAttribute('hidden', 'hidden');
+        list.innerHTML = visibleNotifications.map((entry) => renderNotificationItem(entry)).join('');
+      }
+    }
+    renderNotificationArchive();
+  }
+
+  function renderNotificationArchive() {
+    const notifications = state.notifications || [];
+    const list = document.getElementById('notificationArchiveList');
+    const emptyState = document.getElementById('notificationArchiveEmpty');
+    const countLabel = document.getElementById('notificationArchiveCount');
+    const unreadCount = notifications.filter((entry) => !entry.read_at).length;
+    const readCount = notifications.length - unreadCount;
+    if (countLabel) {
+      countLabel.textContent = `${unreadCount} offen · ${readCount} abgeschlossen`;
+    }
+    updateNotificationArchiveTabs();
+    if (!list) return;
+    const activeTab = state.notificationArchiveTab || 'open';
+    const filtered =
+      activeTab === 'open'
+        ? notifications.filter((entry) => !entry.read_at)
+        : notifications.filter((entry) => entry.read_at);
+    const emptyMessage =
+      activeTab === 'open' ? 'Keine offenen Benachrichtigungen.' : 'Keine abgeschlossenen Benachrichtigungen.';
+    if (emptyState) {
+      emptyState.textContent = emptyMessage;
+    }
+    if (!filtered.length) {
+      list.innerHTML = '';
+      if (emptyState) emptyState.removeAttribute('hidden');
+      return;
+    }
+    if (emptyState) emptyState.setAttribute('hidden', 'hidden');
+    list.innerHTML = filtered.map((entry) => renderNotificationItem(entry)).join('');
+  }
+
+  function updateNotificationArchiveTabs() {
+    const activeTab = state.notificationArchiveTab || 'open';
+    document.querySelectorAll('[data-archive-tab]').forEach((button) => {
+      const isActive = button.dataset.archiveTab === activeTab;
+      button.classList.toggle('active', isActive);
+      button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      button.tabIndex = isActive ? 0 : -1;
+    });
+  }
+
+  function setNotificationArchiveTab(tab) {
+    const normalized = tab === 'closed' ? 'closed' : 'open';
+    if (state.notificationArchiveTab === normalized) {
+      updateNotificationArchiveTabs();
+      return;
+    }
+    state.notificationArchiveTab = normalized;
+    renderNotificationArchive();
+  }
+
+  function toggleNotificationPanel(forceOpen = null) {
+    const center = document.getElementById('notificationCenter');
+    const panel = document.getElementById('notificationPanel');
+    if (!center || !panel) return;
+    const shouldOpen = forceOpen === null ? !state.notificationPanelOpen : Boolean(forceOpen);
+    state.notificationPanelOpen = shouldOpen;
+    center.classList.toggle('open', shouldOpen);
+    panel.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+    if (shouldOpen) {
+      refreshNotifications();
+    }
+  }
+
+  async function handleNotificationClick(notification) {
+    if (!notification) return;
+    updateNotificationUi();
+    toggleNotificationPanel(false);
+    const href = buildNotificationLink(notification);
+    if (href) {
+      window.location.href = href;
+    }
+  }
+
+  async function handleNotificationCheck(notificationId) {
+    if (!notificationId) return;
+    const notification = state.notifications.find((entry) => entry.id === notificationId);
+    if (!notification) return;
+    const isCurrentlyRead = Boolean(notification.read_at);
+    const endpoint = isCurrentlyRead ? 'unread' : 'read';
+    try {
+      const updated = await request(`/api/notifications/${encodeURIComponent(notification.id)}/${endpoint}`, {
+        method: 'POST'
+      });
+      notification.read_at = updated.read_at || null;
+      updateNotificationUi();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    try {
+      const data = await request('/api/notifications/read-all', { method: 'POST' });
+      state.notifications = data.notifications || [];
+      updateNotificationUi();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  async function refreshNotifications(options = {}) {
+    const config = typeof options === 'boolean' ? { showErrors: options } : options || {};
+    const { showErrors = false, limit, unreadOnly = false } = config;
+    if (Number.isFinite(limit)) {
+      state.notificationFetchLimit = limit;
+    }
+    const effectiveLimit = Number.isFinite(limit)
+      ? limit
+      : Number.isFinite(state.notificationFetchLimit)
+        ? state.notificationFetchLimit
+        : 25;
+    if (!state.user) return;
+    try {
+      const params = new URLSearchParams();
+      if (Number.isFinite(effectiveLimit)) {
+        params.set('limit', String(effectiveLimit));
+      }
+      if (unreadOnly) {
+        params.set('unread', 'true');
+      }
+      const query = params.toString();
+      const endpoint = query ? `/api/notifications?${query}` : '/api/notifications';
+      const data = await request(endpoint);
+      state.notifications = data.notifications || [];
+      updateNotificationUi();
+    } catch (err) {
+      if (showErrors) {
+        showToast('Benachrichtigungen konnten nicht geladen werden.');
+      }
+      console.warn('Benachrichtigungen konnten nicht geladen werden', err.message);
+    }
+  }
+
+  function scheduleNotificationPolling() {
+    if (state.notificationPollInterval) {
+      clearInterval(state.notificationPollInterval);
+    }
+    state.notificationPollInterval = window.setInterval(() => {
+      refreshNotifications();
+    }, 60000);
+  }
+
+  function bindNotificationUi() {
+    if (state.notificationHandlersBound) return;
+    const center = document.getElementById('notificationCenter');
+    const toggle = document.getElementById('notificationToggle');
+    const list = document.getElementById('notificationList');
+    if (!center || !toggle) return;
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleNotificationPanel();
+    });
+    if (list) {
+      list.addEventListener('click', (event) => {
+        const checkTarget = event.target.closest('[data-notification-check]');
+        if (checkTarget) {
+          event.preventDefault();
+          event.stopPropagation();
+          handleNotificationCheck(checkTarget.dataset.notificationCheck);
+          return;
+        }
+        const viewTarget = event.target.closest('[data-notification-id]');
+        if (!viewTarget) return;
+        event.preventDefault();
+        const notification = state.notifications.find((entry) => entry.id === viewTarget.dataset.notificationId);
+        handleNotificationClick(notification);
+      });
+    }
+    document.addEventListener('click', (event) => {
+      if (!state.notificationPanelOpen) return;
+      if (center.contains(event.target)) return;
+      toggleNotificationPanel(false);
+    });
+    state.notificationHandlersBound = true;
+  }
+
+  async function initNotificationsPage() {
+    const list = document.getElementById('notificationArchiveList');
+    if (list) {
+      list.addEventListener('click', (event) => {
+        const checkTarget = event.target.closest('[data-notification-check]');
+        if (checkTarget) {
+          event.preventDefault();
+          event.stopPropagation();
+          handleNotificationCheck(checkTarget.dataset.notificationCheck);
+          return;
+        }
+        const viewTarget = event.target.closest('[data-notification-id]');
+        if (!viewTarget) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const notification = state.notifications.find((entry) => entry.id === viewTarget.dataset.notificationId);
+        handleNotificationClick(notification);
+      });
+    }
+    const refreshBtn = document.getElementById('notificationArchiveRefresh');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        await refreshNotifications({ showErrors: true, limit: 200 });
+      });
+    }
+    const markAllBtn = document.getElementById('notificationArchiveMarkAll');
+    if (markAllBtn) {
+      markAllBtn.addEventListener('click', async () => {
+        await markAllNotificationsRead();
+      });
+    }
+    document.querySelectorAll('[data-archive-tab]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        const targetTab = event.currentTarget?.dataset?.archiveTab;
+        setNotificationArchiveTab(targetTab);
+      });
+    });
+    renderNotificationArchive();
+    await refreshNotifications({ showErrors: true, limit: 200 });
+  }
+
   function formatDurationSeconds(seconds) {
     if (!Number.isFinite(seconds) || seconds <= 0) return '–';
     const days = Math.floor(seconds / 86400);
@@ -591,6 +900,17 @@ function ensureTechpackActiveMedia(spec) {
     }
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours} Std ${minutes} Min`;
+  }
+
+  function formatDurationMs(milliseconds) {
+    if (!Number.isFinite(milliseconds) || milliseconds < 0) return '';
+    if (milliseconds < 1000) {
+      return `${Math.round(milliseconds)} ms`;
+    }
+    if (milliseconds < 60000) {
+      return `${(milliseconds / 1000).toFixed(1)} s`;
+    }
+    return `${(milliseconds / 60000).toFixed(1)} min`;
   }
 
   function formatBytes(bytes) {
@@ -804,12 +1124,13 @@ function ensureTechpackActiveMedia(spec) {
   function updateLanguageSwitcherState() {
     const select = document.getElementById('languageSelect');
     if (!select) return;
-    if (state.user?.role === 'SUPPLIER') {
-      select.value = 'tr';
+    const forcedLocale = getForcedLocaleForRole(state.user?.role);
+    if (forcedLocale) {
+      select.value = forcedLocale;
       select.disabled = true;
-    } else {
-      select.disabled = false;
+      return;
     }
+    select.disabled = false;
   }
 
   function buildTicketLink(ticket) {
@@ -1007,194 +1328,54 @@ function ensureTechpackActiveMedia(spec) {
       .join('');
   }
 
-  function renderAutoSyncPanel(status = null) {
-    const panel = document.getElementById('autosyncPanel');
-    if (!panel) return;
-    const snapshot = status || state.autosync?.status || { enabled: false };
-    const statusEl = document.getElementById('autosyncStatus');
-    if (statusEl) {
-      let badgeClass = 'warn';
-      let label = 'Deaktiviert';
-      let detail = 'AutoSync ist nicht konfiguriert.';
-      if (snapshot.enabled === false) {
-        badgeClass = 'warn';
-      } else if (snapshot.online) {
-        badgeClass = 'ok';
-        label = 'Online';
-        detail = snapshot.data?.message || 'Service bereit.';
-      } else if (snapshot.enabled) {
-        badgeClass = 'danger';
-        label = 'Offline';
-        detail = snapshot.error || snapshot.logs_error || 'Keine Verbindung.';
-      }
-      statusEl.innerHTML = `<span class="status-pill ${badgeClass}">${label}</span> ${escapeHtml(detail || '')}`;
-    }
-    const disableForms = snapshot.enabled === false || (snapshot.enabled && !snapshot.online);
-    panel.querySelectorAll('form').forEach((form) => {
-      const allowOffline = form.dataset.allowOffline === 'true';
-      form.querySelectorAll('input, select, textarea, button').forEach((el) => {
-        if (allowOffline) return;
-        el.disabled = disableForms;
-      });
-    });
-    const logs = state.autosync?.logs?.length ? state.autosync.logs : snapshot.logs || [];
-    renderAutoSyncLogs(logs);
-    renderAutoSyncActionResult();
-  }
-
-  function renderAutoSyncLogs(entries = []) {
-    const container = document.getElementById('autosyncLogs');
-    if (!container) return;
-    if (!entries.length) {
-      container.innerHTML = '<p class="muted small">Noch keine Läufe vorhanden.</p>';
-      return;
-    }
-    container.innerHTML = entries
-      .map((entry) => {
-        const relSource = entry.timestamp ? entry.timestamp.replace(' ', 'T') : null;
-        const rel = relSource ? formatRelativeTime(relSource) : 'Zeit unbekannt';
-        const woo = entry.woo_ok ? '✔️' : '❌';
-        const erp = entry.erp_ok ? '✔️' : '❌';
-        const tel = entry.telegram_ok ? '✔️' : '–';
-        const link =
-          entry.url_woo && entry.url_woo.startsWith('http')
-            ? `<div><a href="${entry.url_woo}" target="_blank" rel="noopener">${escapeHtml(entry.url_woo)}</a></div>`
-            : '';
-        const errorMessage = entry.error_erp || entry.error_woo || '';
-        return `
-          <div class="autosync-log-entry">
-            <strong>${escapeHtml(entry.sku || 'Unbekannt')}</strong>
-            <div class="autosync-log-meta">${escapeHtml(rel)} · ERP ${erp} · Woo ${woo} · Telegram ${tel}</div>
-            ${link}
-            ${errorMessage ? `<div class="autosync-log-meta danger">${escapeHtml(errorMessage)}</div>` : ''}
-          </div>
+  function renderDiagnosticsTests(tests = {}) {
+    const summaryEl = document.getElementById('diagnosticsTestsSummary');
+    if (summaryEl) {
+      const summary = tests.summary;
+      if (!summary) {
+        summaryEl.innerHTML = '<span class="muted">Keine Tests definiert.</span>';
+      } else {
+        summaryEl.innerHTML = `
+          <span>Gesamt: ${summary.total || 0}</span>
+          <span class="status-pill ok">OK: ${summary.ok || 0}</span>
+          <span class="status-pill warn">Warnungen: ${summary.warn || 0}</span>
+          <span class="status-pill danger">Fehler: ${summary.error || 0}</span>
+          <span class="status-pill muted">Übersprungen: ${summary.skipped || 0}</span>
         `;
-      })
-      .join('');
-  }
-
-  function renderAutoSyncActionResult() {
-    const pre = document.getElementById('autosyncActionResult');
-    if (!pre) return;
-    if (state.autosync?.lastResult) {
-      pre.textContent = JSON.stringify(state.autosync.lastResult, null, 2);
-    } else {
-      pre.textContent = 'Noch kein Lauf.';
+      }
     }
-  }
-
-  function renderAutoSyncSummarySection() {
-    const container = document.getElementById('autosyncSummary');
-    if (!container) return;
-    const stats = state.autosync?.metrics || state.autosync?.status?.stats || null;
-    const status = state.autosync?.status || {};
-    const cards = [];
-    cards.push({
-      title: 'Service',
-      value: status.online ? 'ONLINE' : status.enabled ? 'OFFLINE' : 'DEAKTIVIERT',
-      detail: status.logs_error ? `⚠️ ${status.logs_error}` : status.message || ''
-    });
-    cards.push({
-      title: 'Letzter Lauf',
-      value: stats?.last_run ? formatRelativeTime(stats.last_run.replace(' ', 'T')) : 'nie',
-      detail: stats?.last_success ? `Letzter Erfolg ${formatRelativeTime(stats.last_success.replace(' ', 'T'))}` : 'Keine Erfolgsdaten'
-    });
-    cards.push({
-      title: 'Erfolgsrate',
-      value: stats?.success_rate !== null && stats?.success_rate !== undefined ? `${stats.success_rate}%` : '–',
-      detail: `${stats?.success || 0}/${stats?.total || 0} OK`
-    });
-    cards.push({
-      title: 'Telegram OK',
-      value: stats?.telegram_success || 0,
-      detail: `${stats?.failures || 0} Fehler`
-    });
-    container.innerHTML = cards
-      .map(
-        (card) => `
-          <article class="card">
-            <h3>${escapeHtml(card.title)}</h3>
-            <p class="value">${escapeHtml(card.value?.toString() || '-')}</p>
-            ${card.detail ? `<p class="muted">${escapeHtml(card.detail)}</p>` : ''}
-          </article>
-        `
-      )
-      .join('');
-  }
-
-  function renderAutoSyncServiceMeta(snapshot = null) {
-    const container = document.getElementById('autosyncServiceMeta');
-    if (!container) return;
-    const status = snapshot || state.autosync?.status || {};
-    const stats = state.autosync?.metrics || status.stats || {};
-    container.innerHTML = `
-      <div class="service-row">
-        <div><strong>Status</strong><br /><span class="muted">${escapeHtml(status.online ? 'Aktiv' : status.enabled ? 'Offline' : 'Nicht konfiguriert')}</span></div>
-        <div><span class="status-pill ${status.online ? 'ok' : status.enabled ? 'danger' : 'warn'}">${status.online ? 'Online' : 'Check'}</span></div>
-      </div>
-      <div class="service-row">
-        <div><strong>Letzte Ausführung</strong><br />${escapeHtml(stats?.last_run ? formatRelativeTime(stats.last_run.replace(' ', 'T')) : 'nie')}</div>
-        <div><strong>Erfolgsrate</strong><br />${escapeHtml(
-          stats?.success_rate !== null && stats?.success_rate !== undefined ? `${stats.success_rate}%` : '–'
-        )}</div>
-      </div>
-      <div class="service-row">
-        <div><strong>ERP Fehler</strong><br />${escapeHtml(String(stats?.erp_failures || 0))}</div>
-        <div><strong>Woo Fehler</strong><br />${escapeHtml(String(stats?.woo_failures || 0))}</div>
-      </div>
-    `;
-  }
-
-  function renderAutoSyncRecentErrors(errors = []) {
-    const list = document.getElementById('autosyncRecentErrors');
+    const list = document.getElementById('diagnosticsTests');
     if (!list) return;
-    if (!errors.length) {
-      list.innerHTML = '<li class="muted">Keine Fehler protokolliert.</li>';
+    const results = Array.isArray(tests.results) ? tests.results : [];
+    if (!results.length) {
+      list.innerHTML = '<li class="muted">Keine Tests hinterlegt.</li>';
       return;
     }
-    list.innerHTML = errors
+    list.innerHTML = results
       .map((entry) => {
-        const rel = entry.timestamp ? formatRelativeTime(entry.timestamp.replace(' ', 'T')) : 'Zeit unbekannt';
-        const msg = entry.error_erp || entry.error_woo || 'Allgemeiner Fehler';
+        const status = entry.status || 'ok';
+        let pillClass = 'ok';
+        let pillLabel = 'OK';
+        if (status === 'warn') {
+          pillClass = 'warn';
+          pillLabel = 'Warnung';
+        } else if (status === 'error') {
+          pillClass = 'danger';
+          pillLabel = 'Fehler';
+        } else if (status === 'skipped') {
+          pillClass = 'muted';
+          pillLabel = 'Übersprungen';
+        }
+        const durationLabel = formatDurationMs(entry.duration_ms);
         return `
           <li>
-            <strong>${escapeHtml(entry.sku || 'Unbekannt')}</strong>
-            <div class="muted">${escapeHtml(rel)}</div>
-            <div>${escapeHtml(msg)}</div>
+            <div class="test-head">
+              <strong>${escapeHtml(entry.label || entry.id || 'Test')}</strong>
+              <span class="status-pill ${pillClass}">${pillLabel}</span>
+            </div>
+            ${entry.detail ? `<div class="muted">${escapeHtml(entry.detail)}</div>` : ''}
+            ${durationLabel ? `<div class="muted">Dauer: ${escapeHtml(durationLabel)}</div>` : ''}
           </li>
-        `;
-      })
-      .join('');
-  }
-
-  function renderAutoSyncTable(entries = []) {
-    const tableBody = document.getElementById('autosyncLogsTable');
-    if (!tableBody) return;
-    if (!entries.length) {
-      tableBody.innerHTML = '<tr><td colspan="6" class="muted">Keine AutoSync-Läufe gefunden.</td></tr>';
-      return;
-    }
-    tableBody.innerHTML = entries
-      .map((entry) => {
-        const ts = entry.timestamp ? new Date(entry.timestamp.replace(' ', 'T')).toLocaleString('de-DE') : '-';
-        const statusErp = entry.erp_ok ? '✔️' : '❌';
-        const statusWoo = entry.woo_ok ? '✔️' : '❌';
-        const statusTel = entry.telegram_ok === null ? '–' : entry.telegram_ok ? '✔️' : '❌';
-        const errorMsg = entry.error_erp || entry.error_woo || null;
-        const info = errorMsg
-          ? escapeHtml(errorMsg)
-          : entry.url_woo && entry.url_woo.startsWith('http')
-          ? `<a href="${entry.url_woo}" target="_blank" rel="noopener">Shop-Link</a>`
-          : 'OK';
-        return `
-          <tr>
-            <td>${escapeHtml(ts)}</td>
-            <td>${escapeHtml(entry.sku || '-')}</td>
-            <td>${statusErp}</td>
-            <td>${statusWoo}</td>
-            <td>${statusTel}</td>
-            <td>${info}</td>
-          </tr>
         `;
       })
       .join('');
@@ -1214,7 +1395,7 @@ function ensureTechpackActiveMedia(spec) {
           .map(
             (ticket) => `
               <li>
-                <strong><a href="${buildTicketLink(ticket)}">${escapeHtml(ticket.title)}</a></strong>
+                <strong><a href="${buildTicketLink(ticket)}">${escapeHtml(resolveTicketTitle(ticket))}</a></strong>
                 <div class="muted">${escapeHtml(ticket.order_id || '')} · ${escapeHtml(formatRelativeTime(ticket.updated_at))}</div>
               </li>
             `
@@ -1254,13 +1435,13 @@ function ensureTechpackActiveMedia(spec) {
     renderDiagnosticsSummary(data);
     renderDiagnosticsAlerts(data.alerts || []);
     renderDiagnosticsJobs(data);
-    renderAutoSyncPanel(data.autosync || null);
     renderMetricTable('diagnosticsOrdersStatus', data.orders?.by_status || [], 'Keine Bestellungen.');
     renderMetricTable('diagnosticsOrdersPhase', data.orders?.by_phase || [], 'Keine Phasen.');
     renderMetricTable('diagnosticsTicketsStatus', data.tickets?.by_status || [], 'Keine Tickets.');
     renderMetricTable('diagnosticsTicketsPriority', data.tickets?.by_priority || [], 'Keine Prioritäten.');
     renderDiagnosticsEscalated(data.tickets?.escalated || []);
     renderDiagnosticsSpecs(data.specs?.pending_review || []);
+    renderDiagnosticsTests(data.tests || {});
     renderDiagnosticsOverdue(data.orders?.overdue || []);
     renderDiagnosticsLogs(data.logs?.recent || []);
     renderDiagnosticsEvents(data.calendar?.upcoming || []);
@@ -1270,212 +1451,13 @@ function ensureTechpackActiveMedia(spec) {
     try {
       const data = await request('/api/diagnostics');
       state.diagnostics = data;
-      state.autosync = state.autosync || { status: null, logs: [], lastResult: null, metrics: null, errors: [] };
-      if (data.autosync) {
-        state.autosync.status = data.autosync;
-        state.autosync.logs = data.autosync.logs || state.autosync.logs || [];
-        state.autosync.metrics = data.autosync.stats || state.autosync.metrics || null;
-        state.autosync.errors = data.autosync.stats?.recent_errors || state.autosync.errors || [];
-      }
       renderDiagnostics(data);
-      renderAutoSyncSummarySection();
-      renderAutoSyncServiceMeta(data.autosync);
-      renderAutoSyncRecentErrors(state.autosync.errors);
-      renderAutoSyncTable(state.autosync.logs);
     } catch (err) {
       showToast(err.message);
       const list = document.getElementById('diagnosticsAlerts');
       if (list) {
         list.innerHTML = `<li class="danger">${escapeHtml(err.message)}</li>`;
       }
-    }
-  }
-
-  async function refreshAutoSyncStatus(showToastOnError = true, showSuccessToast = false) {
-    try {
-      const data = await request('/api/autosync/status');
-      state.autosync.status = data;
-      state.autosync.logs = data.logs || [];
-      state.autosync.metrics = data.stats || state.autosync.metrics || null;
-      state.autosync.errors = data.stats?.recent_errors || state.autosync.errors || [];
-      renderAutoSyncPanel(data);
-      renderAutoSyncSummarySection();
-      renderAutoSyncServiceMeta(data);
-      renderAutoSyncRecentErrors(state.autosync.errors);
-      renderAutoSyncTable(state.autosync.logs);
-      if (showSuccessToast) {
-        showToast('AutoSync-Status aktualisiert');
-      }
-    } catch (err) {
-      if (showToastOnError) {
-        showToast(err.message);
-      }
-    }
-  }
-
-  async function handleAutoSyncRun(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const sku = form.sku.value.trim();
-    if (!sku) {
-      showToast('Bitte eine SKU angeben.');
-      return;
-    }
-    const payload = { sku };
-    const bereich = form.bereich.value.trim();
-    if (bereich) payload.bereich = bereich;
-    const einkauf = parseNumberInput(form.einkauf.value);
-    const verkauf = parseNumberInput(form.verkauf.value);
-    if (einkauf !== null) payload.einkauf = einkauf;
-    if (verkauf !== null) payload.verkauf = verkauf;
-    const submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
-    try {
-      const result = await request('/api/autosync/run', { method: 'POST', body: payload });
-      state.autosync.lastResult = result;
-      renderAutoSyncActionResult();
-      showToast('AutoSync ausgelöst');
-      await refreshAutoSyncStatus(false);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
-  }
-
-  async function handleAutoSyncManual(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const payload = {};
-    for (const [key, value] of formData.entries()) {
-      payload[key] = value.toString().trim();
-    }
-    payload.einkauf = parseNumberInput(payload.einkauf);
-    payload.verkauf = parseNumberInput(payload.verkauf);
-    if (payload.einkauf === null || payload.verkauf === null) {
-      showToast('Bitte gültige Preise angeben.');
-      return;
-    }
-    const submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
-    try {
-      const result = await request('/api/autosync/manual', { method: 'POST', body: payload });
-      state.autosync.lastResult = result;
-      renderAutoSyncActionResult();
-      showToast('Manueller Sync abgeschlossen');
-      await refreshAutoSyncStatus(false);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
-  }
-
-  async function handleAutoSyncDelete(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const sku = form.sku.value.trim();
-    if (!sku) {
-      showToast('SKU fehlt.');
-      return;
-    }
-    const submitBtn = form.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
-    try {
-      const result = await request('/api/autosync/delete', { method: 'POST', body: { sku } });
-      state.autosync.lastResult = result;
-      renderAutoSyncActionResult();
-      if (result.success) {
-        showToast('Produkt wurde aus WooCommerce gelöscht.');
-      } else {
-        showToast(result.error || 'Löschen fehlgeschlagen.');
-      }
-      await refreshAutoSyncStatus(false);
-    } catch (err) {
-      showToast(err.message);
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
-  }
-
-  async function handleAutoSyncLogs(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const sku = form.sku.value.trim();
-    const limit = Math.max(1, Math.min(parseInt(form.limit.value, 10) || 20, 200));
-    const params = new URLSearchParams({ limit });
-    if (sku) params.set('sku', sku);
-    try {
-      const data = await request(`/api/autosync/logs?${params.toString()}`);
-      const entries = data.entries || data.logs || [];
-      state.autosync.logs = entries;
-      renderAutoSyncLogs(entries);
-      renderAutoSyncTable(entries);
-      showToast('Logs geladen');
-    } catch (err) {
-      showToast(err.message);
-    }
-  }
-
-  function bindAutoSyncUi() {
-    const runForm = document.getElementById('autosyncRunForm');
-    if (runForm && !runForm.dataset.bound) {
-      runForm.addEventListener('submit', handleAutoSyncRun);
-      runForm.dataset.bound = 'true';
-    }
-    const manualForm = document.getElementById('autosyncManualForm');
-    if (manualForm && !manualForm.dataset.bound) {
-      manualForm.addEventListener('submit', handleAutoSyncManual);
-      manualForm.dataset.bound = 'true';
-    }
-    const deleteForm = document.getElementById('autosyncDeleteForm');
-    if (deleteForm && !deleteForm.dataset.bound) {
-      deleteForm.addEventListener('submit', handleAutoSyncDelete);
-      deleteForm.dataset.bound = 'true';
-    }
-    const logsForm = document.getElementById('autosyncLogsForm');
-    if (logsForm && !logsForm.dataset.bound) {
-      logsForm.addEventListener('submit', handleAutoSyncLogs);
-      logsForm.dataset.bound = 'true';
-    }
-    const reloadBtn = document.getElementById('autosyncReload');
-    if (reloadBtn && !reloadBtn.dataset.bound) {
-      reloadBtn.addEventListener('click', () => refreshAutoSyncStatus(true, true));
-      reloadBtn.dataset.bound = 'true';
-    }
-  }
-
-  async function loadAutoSyncDashboard(options = {}) {
-    try {
-      const params = new URLSearchParams();
-      if (options.limit) params.set('limit', options.limit);
-      if (options.sku) params.set('sku', options.sku);
-      const query = params.toString() ? `?${params.toString()}` : '';
-      const data = await request(`/api/autosync/dashboard${query}`);
-      state.autosync.status = data;
-      state.autosync.logs = data.logs || [];
-      state.autosync.metrics = data.stats || null;
-      state.autosync.errors = data.stats?.recent_errors || [];
-      renderAutoSyncSummarySection();
-      renderAutoSyncServiceMeta(data);
-      renderAutoSyncRecentErrors(state.autosync.errors);
-      renderAutoSyncPanel(data);
-      renderAutoSyncTable(state.autosync.logs);
-      bindAutoSyncUi();
-    } catch (err) {
-      showToast(err.message);
-    }
-  }
-
-  async function initAutoSyncPage() {
-    setBreadcrumbLabel('AutoSync');
-    bindAutoSyncUi();
-    await loadAutoSyncDashboard({ limit: 50 });
-    const refreshBtn = document.getElementById('autosyncDashboardRefresh');
-    if (refreshBtn && !refreshBtn.dataset.bound) {
-      refreshBtn.addEventListener('click', () => loadAutoSyncDashboard({ limit: 50 }));
-      refreshBtn.dataset.bound = 'true';
     }
   }
 
@@ -1538,7 +1520,7 @@ function ensureTechpackActiveMedia(spec) {
   }
 
   async function initTranslationsPage() {
-    if (state.user.role !== 'BATE') {
+    if (!isInternalRole(state.user?.role)) {
       showToast('Keine Berechtigung');
       const tableBody = document.getElementById('translationTableBody');
       if (tableBody) {
@@ -1649,7 +1631,7 @@ function ensureTechpackActiveMedia(spec) {
         return `<li>
           ${preview}
           <div class="ticket-list-body">
-            <p class="ticket-list-title">${escapeHtml(ticket.title)}</p>
+            <p class="ticket-list-title">${escapeHtml(resolveTicketTitle(ticket))}</p>
             <p class="ticket-list-meta">${ticket.id}</p>
             <p class="ticket-list-meta">${escapeHtml(orderLabel)}: ${escapeHtml(ticket.order_id)}${
               ticket.position_id ? ` · ${escapeHtml(ticket.position_id)}` : ''
@@ -2060,7 +2042,7 @@ function deriveSizeList(order) {
   async function loadSession() {
     const data = await request('/api/session');
     state.user = data.user;
-    const label = document.getElementById('userLabel');
+    const label = document.getElementById('userLabelName');
     if (label) {
       const displayName = state.user.username || state.user.email || '-';
       label.textContent = displayName;
@@ -2071,6 +2053,9 @@ function deriveSizeList(order) {
     }
     applyRoleVisibility();
     updateLanguageSwitcherState();
+    bindNotificationUi();
+    await refreshNotifications(true);
+    scheduleNotificationPolling();
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', async () => {
@@ -2385,16 +2370,15 @@ function deriveSizeList(order) {
       return;
     }
     const profileTypes = CUSTOMER_ORDER_PROFILE_TYPES;
-    const meta = state.customerOrderProfiles?.[customerId] || {};
     container.innerHTML = profileTypes
-      .map((type) => buildCustomerOrderProfileCard(customerId, type, drafts[type] || [], meta[type] || null, t, editing))
+      .map((type) => buildCustomerOrderProfileCard(customerId, type, drafts[type] || [], t, editing))
       .join('');
     if (editing) {
       profileTypes.forEach((type) => bindCustomerOrderProfileCard(customerId, type));
     }
   }
 
-  function buildCustomerOrderProfileCard(customerId, orderType, rows = [], meta = null, t = (key) => key, isEditing = false) {
+  function buildCustomerOrderProfileCard(customerId, orderType, rows = [], t = (key) => key, isEditing = false) {
     const total = sumOrderProfileRows(rows);
     const sizePlaceholder = t('Größe');
     const qtyPlaceholder = t('Menge');
@@ -2620,6 +2604,7 @@ function deriveSizeList(order) {
       ]);
       state.orders = orders;
       state.tickets = tickets;
+      await localizeTicketTitlesForSupplier(tickets);
 
       const productionTable = document.getElementById('productionTable');
       const pendingOrders = orders.filter((order) => order.portal_status === 'ORDER_EINGEREICHT');
@@ -2987,6 +2972,29 @@ function persistDraftImmediately() {
     return preferred || contacts[0];
   }
 
+  function resolveDefaultCustomerRelations(customerId) {
+    const addresses = getAddressesForCustomer(customerId);
+    const normalize = (value) => (value || '').toLowerCase();
+    const billing =
+      addresses.find((addr) => normalize(addr.type) === 'rechnung') ||
+      addresses.find((addr) => addr.is_primary_address) ||
+      addresses[0] ||
+      null;
+    const shipping =
+      addresses.find((addr) => normalize(addr.type) === 'lieferung') ||
+      addresses.find((addr) => addr.is_shipping_address) ||
+      addresses.find((addr) => normalize(addr.type) === 'rechnung') ||
+      addresses[1] ||
+      billing ||
+      null;
+    const contact = getCustomerPrimaryContact(customerId);
+    return {
+      billingAddressId: billing?.id || billing?.name || null,
+      shippingAddressId: shipping?.id || shipping?.name || null,
+      contactId: contact?.id || contact?.name || null
+    };
+  }
+
   function listDispatchAddresses() {
     const addresses = Array.isArray(state.addresses) ? state.addresses : [];
     return addresses.filter((address) => {
@@ -3185,19 +3193,22 @@ function applyItemAutoFill(position, itemCode) {
 
   async function initBestellung() {
     const backButton = document.getElementById('backToList');
-    const [orders, customers, addresses, contacts, erpItems] = await Promise.all([
+    const [orders, customers, addresses, contacts, erpItems, suppliers] = await Promise.all([
       request('/api/orders'),
       request('/api/erp/customers'),
       request('/api/erp/addresses'),
       request('/api/erp/contacts'),
-      request('/api/erp/items')
+      request('/api/erp/items'),
+      request('/api/erp/suppliers')
     ]);
     state.orders = orders;
     state.customers = customers;
     state.addresses = addresses;
+    updateSupplierDirectory(addresses, suppliers);
     state.contacts = contacts;
     state.erpItems = erpItems;
     const params = new URLSearchParams(window.location.search);
+    state.ticketFocusId = params.get('ticket') || null;
     const requestedOrder = params.get('order');
     const initialOrder = orders.find((order) => order.id === requestedOrder)?.id || orders[0]?.id || '';
     if (initialOrder) {
@@ -3229,6 +3240,150 @@ function getContactsForCustomer(customerId) {
 function getAddressesForCustomer(customerId) {
   if (!customerId) return [];
   return (state.addresses || []).filter((address) => address.customer_id === customerId);
+}
+
+function resolveSupplierLinkFromAddress(address) {
+  if (!address) return null;
+  if (address.supplier_id) {
+    return {
+      id: address.supplier_id,
+      name: address.supplier_name || address.address_title || address.supplier_id
+    };
+  }
+  if (Array.isArray(address.links)) {
+    const supplierLink = address.links.find(
+      (link) => (link?.link_doctype || '').toLowerCase() === 'supplier'
+    );
+    if (supplierLink?.link_name) {
+      return {
+        id: supplierLink.link_name,
+        name: supplierLink.link_title || supplierLink.link_name
+      };
+    }
+  }
+  return null;
+}
+
+function buildSupplierDirectory(addresses = []) {
+  const directory = new Map();
+  addresses.forEach((address) => {
+    const link = resolveSupplierLinkFromAddress(address);
+    if (!link?.id) return;
+    const existing = directory.get(link.id) || {
+      id: link.id,
+      name: link.name || link.id,
+      addresses: []
+    };
+    const cityLine =
+      address.zip && address.city ? `${address.zip} ${address.city}` : address.city || address.zip || '';
+    const normalizedAddress = {
+      id: address.id,
+      street: address.street || address.address_line1 || '',
+      city: address.city || '',
+      zip: address.zip || '',
+      country: address.country || '',
+      display: address.display || '',
+      cityLine
+    };
+    existing.addresses.push(normalizedAddress);
+    const isBetterPrimary =
+      !existing.primary ||
+      address.is_primary_address ||
+      address.is_shipping_address ||
+      existing.primary.country === '';
+    if (isBetterPrimary) {
+      existing.primary = normalizedAddress;
+      existing.phone = address.phone || existing.phone || '';
+    }
+    directory.set(link.id, existing);
+  });
+  return Array.from(directory.values())
+    .map((entry) => ({
+      ...entry,
+      street: entry.primary?.street || '',
+      cityLine: entry.primary?.cityLine || '',
+      country: entry.primary?.country || '',
+      display: entry.primary?.display || '',
+      phone: entry.phone || ''
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+}
+
+function mapApiSuppliersToDirectory(records = []) {
+  return records
+    .map((supplier) => {
+      if (!supplier) return null;
+      const id = supplier.id || supplier.name || supplier.supplier_name;
+      if (!id) return null;
+      const name = supplier.name || supplier.supplier_name || id;
+      const street = supplier.street || supplier.address_line1 || '';
+      const cityLine =
+        supplier.city_line ||
+        (supplier.zip && supplier.city ? `${supplier.zip} ${supplier.city}` : supplier.city || supplier.zip || '');
+      return {
+        id,
+        name,
+        street,
+        cityLine,
+        country: supplier.country || '',
+        display: supplier.address_display || '',
+        phone: supplier.phone || supplier.mobile_no || ''
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+}
+
+function updateSupplierDirectory(addresses = state.addresses, supplierRecords = null) {
+  if (Array.isArray(supplierRecords) && supplierRecords.length) {
+    state.suppliers = mapApiSuppliersToDirectory(supplierRecords);
+    state.supplierSource = 'api';
+    return;
+  }
+  if (state.supplierSource === 'api' && Array.isArray(state.suppliers) && state.suppliers.length) {
+    return;
+  }
+  state.suppliers = buildSupplierDirectory(Array.isArray(addresses) ? addresses : []);
+  state.supplierSource = 'addresses';
+}
+
+function getSupplierById(supplierId) {
+  if (!supplierId) return null;
+  const suppliers = Array.isArray(state.suppliers) ? state.suppliers : [];
+  return suppliers.find((entry) => entry.id === supplierId) || null;
+}
+
+function formatSupplierCityLine(supplier) {
+  if (!supplier) return '';
+  if (supplier.cityLine) return supplier.cityLine;
+  const address = supplier.primary || supplier.addresses?.[0] || null;
+  if (!address) return '';
+  return address.cityLine || (address.zip && address.city ? `${address.zip} ${address.city}` : address.city || address.zip || '');
+}
+
+function formatSupplierOptionLabel(supplier) {
+  if (!supplier) return '';
+  const parts = [supplier.name, supplier.street, formatSupplierCityLine(supplier), supplier.country].filter(Boolean);
+  return parts.join(' · ');
+}
+
+  function renderSupplierPreview(supplier) {
+    setText('supplierNamePreview', supplier?.name || '-');
+    setText('supplierStreetPreview', supplier?.street || '-');
+    setText('supplierCityPreview', formatSupplierCityLine(supplier) || '-');
+    setText('supplierCountryPreview', supplier?.country || '');
+  }
+
+function populateSupplierSelect(draft) {
+  const select = document.getElementById('supplierSelect');
+  if (!select) return;
+  const suppliers = Array.isArray(state.suppliers) ? state.suppliers : [];
+  const options = suppliers.map((supplier) => ({
+    value: supplier.id,
+    label: formatSupplierOptionLabel(supplier)
+  }));
+  populateSelectOptions(select, options, 'Lieferant auswählen', draft.supplier_id || '');
+  select.disabled = !options.length;
 }
 
 function buildDraftFromOrder(order) {
@@ -3362,6 +3517,41 @@ function populateOrderCreateSelects(draft) {
     }
   }
 
+  function mergeCustomerDetailIntoState(detail) {
+    if (!detail) return;
+    const { customer, addresses = [], contact = null } = detail;
+    if (customer?.id) {
+      state.customers = Array.isArray(state.customers) ? state.customers : [];
+      const idx = state.customers.findIndex((entry) => entry.id === customer.id);
+      if (idx === -1) {
+        state.customers.push(customer);
+      } else {
+        state.customers[idx] = { ...state.customers[idx], ...customer };
+      }
+    }
+    if (Array.isArray(addresses) && addresses.length) {
+      state.addresses = Array.isArray(state.addresses) ? state.addresses : [];
+      addresses.forEach((address) => {
+        if (!address?.id) return;
+        const idx = state.addresses.findIndex((entry) => entry.id === address.id);
+        if (idx === -1) {
+          state.addresses.push(address);
+        } else {
+          state.addresses[idx] = { ...state.addresses[idx], ...address };
+        }
+      });
+    }
+    if (contact?.id) {
+      state.contacts = Array.isArray(state.contacts) ? state.contacts : [];
+      const idx = state.contacts.findIndex((entry) => entry.id === contact.id);
+      if (idx === -1) {
+        state.contacts.push(contact);
+      } else {
+        state.contacts[idx] = { ...state.contacts[idx], ...contact };
+      }
+    }
+  }
+
   function applyCompanyDefaults(draft, { ensureDispatch = true, force = false } = {}) {
     const config = getCompanyConfig(draft.company);
     if (config) {
@@ -3407,6 +3597,11 @@ function populateOrderCreateSelects(draft) {
   function hydrateOrderCreateForm() {
     const draft = ensureOrderDraft();
     const isEditing = isEditingExistingOrder();
+    if (!draft.supplier_id && Array.isArray(state.suppliers) && state.suppliers.length) {
+      draft.supplier_id = state.suppliers[0].id;
+      draft.supplier_name = state.suppliers[0].name;
+    }
+    populateSupplierSelect(draft);
     populateOrderCreateSelects(draft);
     populateCustomerDependentSelects(draft.customer_id, draft, {
       autoSelect: !draft.billing_address_id || !draft.shipping_address_id
@@ -3419,6 +3614,13 @@ function populateOrderCreateSelects(draft) {
     setInputValue('orderStatusInput', draft.portal_status || 'ORDER_EINGEREICHT');
     setInputValue('orderSeriesSelect', draft.naming_series || ORDER_SERIES_OPTIONS[0] || '');
     setInputValue('orderCompanySelect', draft.company || COMPANY_OPTIONS[0] || '');
+    setInputValue('orderSupplierIdInput', draft.supplier_id || '');
+    const supplierEntry = getSupplierById(draft.supplier_id);
+    if (supplierEntry && !draft.supplier_name) {
+      draft.supplier_name = supplierEntry.name;
+    }
+    setInputValue('orderSupplierNameInput', draft.supplier_name || '');
+    renderSupplierPreview(supplierEntry);
     const inferredCustomerNumber = draft.customer_number || getCustomerNumber(customer);
     draft.customer_number = inferredCustomerNumber || '';
     setInputValue('customerNumberInput', inferredCustomerNumber || '');
@@ -3479,6 +3681,15 @@ function populateOrderCreateSelects(draft) {
     });
     document.getElementById('customerNumberInput')?.addEventListener('input', (event) => {
       draft.customer_number = event.target.value;
+      scheduleDraftPersist();
+    });
+    document.getElementById('supplierSelect')?.addEventListener('change', (event) => {
+      const supplier = getSupplierById(event.target.value);
+      draft.supplier_id = supplier?.id || '';
+      draft.supplier_name = supplier?.name || '';
+      setInputValue('orderSupplierIdInput', draft.supplier_id || '');
+      setInputValue('orderSupplierNameInput', draft.supplier_name || '');
+      renderSupplierPreview(supplier);
       scheduleDraftPersist();
     });
     document.getElementById('customerSelect')?.addEventListener('change', (event) => {
@@ -3651,6 +3862,164 @@ function populateOrderCreateSelects(draft) {
         }
       });
     }
+    initCustomerQuickCreatePanel();
+  }
+
+  let customerQuickCreateLastTrigger = null;
+  let customerQuickCreateKeyListenerBound = false;
+
+  function toggleCustomerQuickCreate(open) {
+    const drawer = document.getElementById('customerQuickCreate');
+    if (!drawer) return;
+    const isOpen = drawer.classList.contains('open');
+    const nextState = typeof open === 'boolean' ? open : !isOpen;
+    if (nextState === isOpen) return;
+    if (nextState) {
+      drawer.hidden = false;
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      customerQuickCreateLastTrigger = document.activeElement;
+      document.body.classList.add('modal-open');
+      const focusable = drawer.querySelector(
+        'input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled)'
+      );
+      if (focusable) {
+        focusable.focus();
+      }
+    } else {
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      drawer.hidden = true;
+      const target = customerQuickCreateLastTrigger || document.getElementById('openCustomerQuickCreate');
+      if (target && typeof target.focus === 'function') {
+        target.focus();
+      }
+    }
+  }
+
+  function ensureCustomerPlaceholderRecords(customerId, payload = {}) {
+    if (!customerId) return;
+    state.customers = Array.isArray(state.customers) ? state.customers : [];
+    state.addresses = Array.isArray(state.addresses) ? state.addresses : [];
+    state.contacts = Array.isArray(state.contacts) ? state.contacts : [];
+    const fallbackCustomer = {
+      id: customerId,
+      name: payload.customerName || customerId,
+      customer_name: payload.customerName || customerId,
+      customer_number: payload.customerNumber || customerId,
+      tax_id: payload.taxId || ''
+    };
+    const customerIdx = state.customers.findIndex((entry) => entry.id === customerId);
+    if (customerIdx === -1) {
+      state.customers.push(fallbackCustomer);
+    } else {
+      state.customers[customerIdx] = { ...state.customers[customerIdx], ...fallbackCustomer };
+    }
+    const addressCandidates = [];
+    const billingAddress = buildAddressFromPayload(customerId, payload, 'rechnung');
+    if (billingAddress) addressCandidates.push(billingAddress);
+    const shippingAddress = buildAddressFromPayload(customerId, payload, 'lieferung');
+    if (shippingAddress) addressCandidates.push(shippingAddress);
+    addressCandidates.forEach((address) => {
+      const idx = state.addresses.findIndex((entry) => entry.id === address.id);
+      if (idx === -1) {
+        state.addresses.push(address);
+      } else {
+        state.addresses[idx] = { ...state.addresses[idx], ...address };
+      }
+    });
+    const contact = buildContactFromPayload(customerId, payload);
+    if (contact) {
+      const idx = state.contacts.findIndex((entry) => entry.id === contact.id);
+      if (idx === -1) {
+        state.contacts.push(contact);
+      } else {
+        state.contacts[idx] = { ...state.contacts[idx], ...contact };
+      }
+    }
+  }
+
+  function handleCustomerQuickCreateSuccess(result, payload = {}) {
+    const detail = result?.customer ? result : null;
+    const fallbackId = payload.customerNumber || payload.customerId || null;
+    const customerId = detail?.customer?.id || result?.id || fallbackId;
+    if (!customerId) {
+      showToast(translateTemplate('Neuer Kunde konnte nicht übernommen werden.'));
+      return;
+    }
+    if (detail) {
+      mergeCustomerDetailIntoState(detail);
+    } else {
+      ensureCustomerPlaceholderRecords(customerId, payload);
+    }
+    const draft = ensureOrderDraft();
+    draft.customer_id = customerId;
+    draft.customer_number =
+      detail?.customer?.customer_number || payload.customerNumber || draft.customer_number || customerId;
+    const relations = resolveDefaultCustomerRelations(customerId);
+    if (relations.billingAddressId) {
+      draft.billing_address_id = relations.billingAddressId;
+    }
+    if (relations.shippingAddressId) {
+      draft.shipping_address_id = relations.shippingAddressId;
+    }
+    if (relations.contactId) {
+      draft.contact_id = relations.contactId;
+    }
+    populateOrderCreateSelects(draft);
+    populateCustomerDependentSelects(customerId, draft, { autoSelect: true });
+    const select = document.getElementById('customerSelect');
+    if (select) {
+      select.value = customerId;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    toggleCustomerQuickCreate(false);
+    scheduleDraftPersist();
+  }
+
+  function initCustomerQuickCreatePanel() {
+    const drawer = document.getElementById('customerQuickCreate');
+    const trigger = document.getElementById('openCustomerQuickCreate');
+    if (!drawer || !trigger) return;
+    const allowed = isInternalRole(state.user?.role);
+    trigger.hidden = !allowed;
+    if (!allowed) {
+      drawer.setAttribute('aria-hidden', 'true');
+      drawer.hidden = true;
+      return;
+    }
+    trigger.removeAttribute('hidden');
+    if (!trigger.dataset.bound) {
+      trigger.addEventListener('click', () => toggleCustomerQuickCreate(true));
+      trigger.dataset.bound = 'true';
+    }
+    drawer.querySelectorAll('[data-action="close-customer-quick-create"]').forEach((node) => {
+      if (node.dataset.bound) return;
+      node.addEventListener('click', () => toggleCustomerQuickCreate(false));
+      node.dataset.bound = 'true';
+    });
+    if (!drawer.dataset.backdropBound) {
+      drawer.addEventListener('click', (event) => {
+        if (event.target === drawer) {
+          toggleCustomerQuickCreate(false);
+        }
+      });
+      drawer.dataset.backdropBound = 'true';
+    }
+    if (!customerQuickCreateKeyListenerBound) {
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && drawer.classList.contains('open')) {
+          toggleCustomerQuickCreate(false);
+        }
+      });
+      customerQuickCreateKeyListenerBound = true;
+    }
+    initCustomerCreateForm({
+      formId: 'customerQuickCreateForm',
+      mode: 'create',
+      onSuccess: (result, payload) => handleCustomerQuickCreateSuccess(result, payload || {})
+    });
   }
 
   function renderPositionsEditor() {
@@ -3812,6 +4181,10 @@ function populateOrderCreateSelects(draft) {
   function buildOrderCreatePayloadForSubmit() {
     const draft = ensureOrderDraft();
     ensureDispatchDefaults(draft);
+    const supplierEntry = getSupplierById(draft.supplier_id);
+    if (supplierEntry) {
+      draft.supplier_name = supplierEntry.name;
+    }
     const payload = {
       order_number: draft.order_number || undefined,
       order_type: draft.order_type || 'BESTELLUNG',
@@ -3928,14 +4301,16 @@ function populateOrderCreateSelects(draft) {
     const forceFresh = params.get('fresh') === '1' || (!isDraftMode && !isEditing);
 
     try {
-      const [customers, addresses, contacts, items] = await Promise.all([
+      const [customers, addresses, contacts, items, suppliers] = await Promise.all([
         request('/api/erp/customers'),
         request('/api/erp/addresses'),
         request('/api/erp/contacts'),
-        request('/api/erp/items')
+        request('/api/erp/items'),
+        request('/api/erp/suppliers')
       ]);
       state.customers = customers;
       state.addresses = addresses;
+      updateSupplierDirectory(addresses, suppliers);
       state.contacts = contacts;
       state.erpItems = items;
       ensureItemCodeSuggestions();
@@ -3972,15 +4347,17 @@ function populateOrderCreateSelects(draft) {
       return;
     }
     try {
-      const [order, customers, addresses, erpItems] = await Promise.all([
+      const [order, customers, addresses, erpItems, suppliers] = await Promise.all([
         request(`/api/orders/${orderId}`),
         request('/api/erp/customers'),
         request('/api/erp/addresses'),
-        request('/api/erp/items')
+        request('/api/erp/items'),
+        request('/api/erp/suppliers')
       ]);
       state.selectedOrder = order;
       state.customers = customers;
       state.addresses = addresses;
+      updateSupplierDirectory(addresses, suppliers);
       state.erpItems = erpItems;
       const title = document.getElementById('etikettOrderNumber');
       if (title) title.textContent = order.order_number || order.id;
@@ -4287,9 +4664,6 @@ function populateOrderCreateSelects(draft) {
           const selected = (item.unitType || 'PAIR') === choice.value ? 'selected' : '';
           return `<option value="${choice.value}" ${selected}>${choice.label}</option>`;
         }).join('');
-        const materialUpper = escapeHtml(item.materialUpper || '');
-        const materialLining = escapeHtml(item.materialLining || '');
-        const materialSole = escapeHtml(item.materialSole || '');
         const imageSrc = item.imageData ? escapeHtml(item.imageData) : '';
         const imagePreview = imageSrc
           ? `<img src="${imageSrc}" alt="Positionsbild" class="proforma-image-preview" />`
@@ -4651,11 +5025,9 @@ function populateOrderCreateSelects(draft) {
 
   function updateProformaActionState() {
     const saved = Boolean(state.proformaDraft?.meta?.id);
-    const excelBtn = document.getElementById('proformaSubmit');
     const pdfBtn = document.getElementById('proformaPdfBtn');
     const deleteBtn = document.getElementById('proformaDelete');
     const saveBtn = document.getElementById('proformaSave');
-    if (excelBtn) excelBtn.disabled = !saved;
     if (pdfBtn) pdfBtn.disabled = !saved;
     if (deleteBtn) deleteBtn.disabled = !saved;
     const readOnly = Boolean(state.proformaReadOnly);
@@ -4763,56 +5135,6 @@ function populateOrderCreateSelects(draft) {
       },
       items
     };
-  }
-
-  async function exportProformaExcel() {
-    const payload = collectProformaPayload();
-    if (!payload) return;
-    const submitBtn = document.getElementById('proformaSubmit');
-    if (submitBtn) submitBtn.disabled = true;
-    try {
-      const response = await fetch('/api/proforma/export', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error?.error || 'Export fehlgeschlagen');
-      }
-      const blob = await response.blob();
-      const savedId = response.headers.get('x-proforma-id');
-      const savedNumber = response.headers.get('x-proforma-number');
-      if (savedId) {
-        state.proformaDraft.meta = state.proformaDraft.meta || {};
-        state.proformaDraft.meta.id = savedId;
-        if (savedNumber) {
-          state.proformaDraft.meta.number = savedNumber;
-          if (!state.proformaDraft.document.invoiceNumber) {
-            state.proformaDraft.document.invoiceNumber = savedNumber;
-            hydrateProformaForm();
-          }
-        }
-        await loadProformaArchive();
-      }
-      const url = URL.createObjectURL(blob);
-      const reference = payload.document.reference || 'musterrechnung';
-      const datePart = payload.document.date || new Date().toISOString().slice(0, 10);
-      const safeName = reference.toLowerCase().replace(/[^a-z0-9-_]/g, '_') || 'musterrechnung';
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${safeName}-${datePart}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      showToast('Excel-Datei erstellt');
-    } catch (err) {
-      showToast(err.message || 'Export fehlgeschlagen');
-    } finally {
-      if (submitBtn) submitBtn.disabled = false;
-    }
   }
 
   async function exportProformaPdf() {
@@ -4949,10 +5271,23 @@ function populateOrderCreateSelects(draft) {
   async function initDiagnosticsPage() {
     setBreadcrumbLabel('Systemstatus');
     await loadDiagnostics();
-    bindAutoSyncUi();
     const refreshBtn = document.getElementById('diagnosticsRefresh');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', () => loadDiagnostics());
+    }
+    const runTestsBtn = document.getElementById('diagnosticsRunTests');
+    if (runTestsBtn) {
+      runTestsBtn.addEventListener('click', async () => {
+        const previousLabel = runTestsBtn.textContent;
+        runTestsBtn.disabled = true;
+        runTestsBtn.textContent = 'Tests laufen …';
+        try {
+          await loadDiagnostics();
+        } finally {
+          runTestsBtn.disabled = false;
+          runTestsBtn.textContent = previousLabel;
+        }
+      });
     }
     if (!state.diagnosticsInterval) {
       state.diagnosticsInterval = setInterval(loadDiagnostics, 60000);
@@ -5025,6 +5360,7 @@ function populateOrderCreateSelects(draft) {
       showToast('Bestellung oder Position fehlt');
       return;
     }
+    state.ticketFocusId = params.get('ticket') || null;
     state.techpackRequestedView = params.get('view')?.toLowerCase() || null;
     try {
       const [order, spec, tickets] = await Promise.all([
@@ -5035,6 +5371,7 @@ function populateOrderCreateSelects(draft) {
       state.selectedOrder = order;
       state.techpackSpec = spec;
       state.tickets = tickets;
+      await localizeTicketTitlesForSupplier(tickets);
       state.techpackContext = { orderId, positionId };
       state.techpackActiveMedia = null;
       ensureTechpackActiveMedia(spec);
@@ -5088,6 +5425,7 @@ function populateOrderCreateSelects(draft) {
       state.techpackSpec = spec;
       state.erpItems = erpItems;
       state.tickets = tickets;
+      await localizeTicketTitlesForSupplier(tickets);
       const orderLabel = document.getElementById('techpackListOrder');
       if (orderLabel) orderLabel.textContent = order.order_number || order.id;
       const posLabel = document.getElementById('techpackListPosition');
@@ -5110,6 +5448,7 @@ function populateOrderCreateSelects(draft) {
     try {
       const data = await request(`/api/orders/${orderId}`);
       state.selectedOrder = data;
+      await localizeTicketTitlesForSupplier(data.tickets);
       applyOrderTickets(data.id, data.tickets || []);
       setText('orderNumber', data.order_number || '-');
       setText('orderDelivery', formatDate(data.requested_delivery));
@@ -5166,6 +5505,23 @@ function populateOrderCreateSelects(draft) {
       setText('deliveryStreet', deliveryDisplay?.street || '-');
       setText('deliveryCity', deliveryDisplay?.city || '-');
       setText('deliveryCountry', deliveryDisplay?.country || '');
+      const supplierEntry = getSupplierById(data.supplier_id);
+      const supplierAddressRecord = getAddressById(data.supplier_address);
+      const supplierDisplay =
+        toPreviewAddress(supplierAddressRecord) ||
+        normalizeAddressDisplay(data.supplier_address_display) ||
+        (supplierEntry
+          ? {
+              street: supplierEntry.street,
+              city: formatSupplierCityLine(supplierEntry),
+              country: supplierEntry.country
+            }
+          : null);
+      setText('supplierNameValue', supplierEntry?.name || data.supplier_name || data.supplier_id || '-');
+      setText('supplierIdValue', data.supplier_id || '-');
+      setText('supplierStreetValue', supplierDisplay?.street || '-');
+      setText('supplierCityValue', supplierDisplay?.city || '-');
+      setText('supplierCountryValue', supplierDisplay?.country || '');
       setText('customerNameValue', customerDisplayName);
       setText('customerStreet', billingDisplay?.street || '-');
       setText('customerCity', billingDisplay?.city || '-');
@@ -5204,12 +5560,31 @@ function populateOrderCreateSelects(draft) {
       loadOrderPrintOptions(data.id);
       const editButton = document.getElementById('editOrderBtn');
       if (editButton) {
-        if (state.user?.role === 'BATE') {
+        if (isInternalRole(state.user?.role)) {
           editButton.onclick = () => {
             window.location.href = `/bestellung-neu.html?order=${encodeURIComponent(data.id)}`;
           };
         } else {
           editButton.remove();
+        }
+      }
+      const deleteButton = document.getElementById('deleteOrderBtn');
+      if (deleteButton) {
+        if (isInternalRole(state.user?.role)) {
+          deleteButton.onclick = async () => {
+            if (!window.confirm('Bestellung wirklich löschen?')) return;
+            deleteButton.disabled = true;
+            try {
+              await request(`/api/orders/${encodeURIComponent(data.id)}`, { method: 'DELETE' });
+              showToast('Bestellung gelöscht');
+              window.location.href = '/bestellungen.html';
+            } catch (err) {
+              showToast(err.message);
+              deleteButton.disabled = false;
+            }
+          };
+        } else {
+          deleteButton.remove();
         }
       }
       const ticketsBadge = document.getElementById('orderTicketsSummary');
@@ -5481,11 +5856,12 @@ function populateOrderCreateSelects(draft) {
     const badge = document.getElementById('ticketsCountBadge');
     if (!list) return;
     const effectiveView = viewKey || resolveActiveViewKey();
+    const hasViewFilter = Boolean(effectiveView);
     const tickets = (state.tickets || []).filter(
       (ticket) =>
         ticket.order_id === orderId &&
         ticket.position_id === positionId &&
-        ticketMatchesView(ticket, effectiveView)
+        (!hasViewFilter || ticketMatchesView(ticket, effectiveView))
     );
     const dateLocale = state.locale === 'tr' ? 'tr-TR' : 'de-DE';
     if (badge) badge.textContent = tickets.length.toString();
@@ -5499,8 +5875,8 @@ function populateOrderCreateSelects(draft) {
         const isOpen = ticket.status !== 'CLOSED';
         const statusLabel = translateTemplate(isOpen ? 'Offen' : 'OK');
         const statusBadge = `<span class="badge ${isOpen ? 'warning' : 'success'}">${escapeHtml(statusLabel)}</span>`;
-        const viewLabel = ticket.view_key ? getTechpackViewLabel(ticket.view_key) : translateTemplate('Allgemein');
-        const viewBadge = `<span class="badge ghost">${escapeHtml(viewLabel)}</span>`;
+    const viewLabel = ticket.view_key ? getTechpackViewLabel(ticket.view_key) : translateTemplate('Allgemein');
+    const viewBadge = `<span class="badge ghost">${escapeHtml(viewLabel)}</span>`;
         const comments = renderTicketCommentsHtml(ticket);
         const priorityLabel = formatTicketPriority(ticket.priority);
         const created = ticket.created_at ? new Date(ticket.created_at).toLocaleDateString(dateLocale) : '';
@@ -5511,18 +5887,28 @@ function populateOrderCreateSelects(draft) {
           <article class="ticket-card collapsed" data-ticket="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
             <div class="ticket-header" data-ticket-toggle="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
               <div class="ticket-header-info">
-                <strong>${escapeHtml(ticket.title)}</strong>
+                <strong>${escapeHtml(resolveTicketTitle(ticket))}</strong>
                 <small>${escapeHtml(ticket.id)} · ${escapeHtml(priorityLabel)}${created ? ` · ${escapeHtml(created)}` : ''}</small>
               </div>
               <div class="ticket-header-meta">
-                ${viewBadge}
-                ${statusBadge}
+                <div class="ticket-meta-badges">
+                  ${viewBadge}
+                  ${statusBadge}
+                </div>
+                <div class="ticket-header-actions">
+                  <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
+                    ${escapeHtml(isOpen ? closeLabel : reopenLabel)}
+                  </button>
+                  <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">${escapeHtml(deleteLabel)}</button>
+                </div>
                 <span class="chevron">⌄</span>
               </div>
             </div>
             <div class="ticket-body">
               <div class="ticket-meta">
-                <ul class="ticket-comments">${comments}</ul>
+                <div class="tickets-container ticket-comments">
+                  ${comments}
+                </div>
                 <form class="ticket-comment-form" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
                   ${buildCommentFormFields()}
                   <div class="ticket-comment-actions">
@@ -5530,18 +5916,12 @@ function populateOrderCreateSelects(draft) {
                     <label class="file-input small">
                       <span class="file-label">${escapeHtml(translateTemplate('Datei'))}</span>
                       <span class="file-name" data-file-name>${escapeHtml(translateTemplate('Keine Datei ausgewählt'))}</span>
-                      <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
+                      <input type="file" name="files" accept="image/*,application/pdf,.zip,.doc,.docx" multiple data-file-input />
                     </label>
                     <button type="submit" class="small">${escapeHtml(translateTemplate('Antwort senden'))}</button>
                   </div>
+                  <div class="comment-file-list" data-file-list hidden></div>
                 </form>
-              </div>
-              <div class="ticket-status">
-                ${statusBadge}
-                <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
-                  ${escapeHtml(isOpen ? closeLabel : reopenLabel)}
-                </button>
-                <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">${escapeHtml(deleteLabel)}</button>
               </div>
             </div>
           </article>`;
@@ -5603,35 +5983,200 @@ function populateOrderCreateSelects(draft) {
       });
     });
     bindTicketCommentForms(orderId, positionId, effectiveView);
+    focusTechpackTicketIfNeeded();
   }
 
   function resolveTicketCommentText(comment) {
     if (!comment) return '';
-    const preferred = state.user?.role === 'BATE' ? 'de' : 'tr';
+    const preferred = isInternalRole(state.user?.role) ? 'de' : 'tr';
     if (preferred === 'de') {
       return comment.message_de || comment.message || comment.message_tr || '';
     }
     return comment.message_tr || comment.message || comment.message_de || '';
   }
 
+  function renderCommentTextBlocks(comment) {
+    const isSupplier = isSupplierRole(state.user?.role);
+    const textDe = comment?.message_de || comment?.message || '';
+    const textTr = comment?.message_tr || '';
+    if (isSupplier) {
+      const text = textTr || textDe;
+      return text ? `<p>${escapeHtml(text)}</p>` : '';
+    }
+    const blocks = [];
+    if (textDe) {
+      blocks.push(`<p class="comment-lang-line"><span class="comment-lang-tag">DE</span>${escapeHtml(textDe)}</p>`);
+    }
+    if (textTr) {
+      blocks.push(`<p class="comment-lang-line"><span class="comment-lang-tag">TR</span>${escapeHtml(textTr)}</p>`);
+    }
+    if (!blocks.length) {
+      blocks.push(`<p>${escapeHtml(textDe || textTr || '')}</p>`);
+    }
+    return blocks.join('');
+  }
+
+  function getFormPendingFiles(form) {
+    if (!form) return [];
+    if (!Array.isArray(form._pendingFiles)) {
+      form._pendingFiles = [];
+    }
+    return form._pendingFiles;
+  }
+
+  function renderPendingFiles(form) {
+    const list = form?.querySelector('[data-file-list]');
+    if (!form || !list) return;
+    const pending = getFormPendingFiles(form);
+    if (!pending.length) {
+      list.innerHTML = '';
+      list.hidden = true;
+      const fileNameDisplay = form.querySelector('[data-file-name]');
+      if (fileNameDisplay) {
+        fileNameDisplay.textContent = translateTemplate('Keine Datei ausgewählt');
+      }
+      return;
+    }
+    list.hidden = false;
+    list.innerHTML = pending
+      .map(
+        (file, index) => `
+      <span class="comment-file-chip">
+        ${escapeHtml(file.name)}
+        <button type="button" class="comment-file-remove" data-file-remove="${index}" aria-label="Datei entfernen">×</button>
+      </span>`
+      )
+      .join('');
+    list.querySelectorAll('[data-file-remove]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const idx = Number(button.dataset.fileRemove);
+        const files = getFormPendingFiles(form);
+        if (Number.isInteger(idx)) {
+          files.splice(idx, 1);
+          renderPendingFiles(form);
+        }
+      });
+    });
+    const fileNameDisplay = form.querySelector('[data-file-name]');
+    if (fileNameDisplay) {
+      fileNameDisplay.textContent = translateTemplate('{{count}} Datei(en) ausgewählt', { count: pending.length });
+    }
+  }
+
+  function bindCommentFileInput(form) {
+    if (!form) return;
+    const fileInput = form.querySelector('[data-file-input]');
+    if (!fileInput || fileInput.dataset.bound === 'true') return;
+    fileInput.dataset.bound = 'true';
+    fileInput.addEventListener('change', () => {
+      const files = Array.from(fileInput.files || []);
+      if (!files.length) return;
+      const pending = getFormPendingFiles(form);
+      pending.push(...files);
+      fileInput.value = '';
+      renderPendingFiles(form);
+    });
+    renderPendingFiles(form);
+  }
+
   function buildCommentFormFields() {
     const placeholderDe = translateTemplate('Text (Deutsch)');
     const placeholderTr = translateTemplate('Text (Türkisch)');
+    const isSupplier = isSupplierRole(state.user?.role);
+    const trField = `
+        <label class="translation-field">
+          <span class="lang-label">TR</span>
+          <textarea name="message_tr" rows="2" placeholder="${escapeHtml(placeholderTr)}"></textarea>
+        </label>`;
+    if (isSupplier) {
+      return `
+      <div class="comment-fields translation-single">
+        ${trField}
+        <input type="hidden" name="message_de" />
+      </div>`;
+    }
     return `
       <div class="comment-fields translation-pair">
         <label class="translation-field">
           <span class="lang-label">DE</span>
           <textarea name="message_de" rows="2" placeholder="${escapeHtml(placeholderDe)}"></textarea>
         </label>
-        <label class="translation-field">
-          <span class="lang-label">TR</span>
-          <textarea name="message_tr" rows="2" placeholder="${escapeHtml(placeholderTr)}"></textarea>
-        </label>
+        ${trField}
       </div>`;
   }
 
   function buildAutoTranslateButton() {
+    if (isSupplierRole(state.user?.role)) return '';
     return `<button type="button" class="ghost small auto-translate-btn">${escapeHtml(translateTemplate('Automatisch übersetzen'))}</button>`;
+  }
+
+  async function localizeTicketTitlesForSupplier(tickets) {
+    if (!isSupplierRole(state.user?.role)) return;
+    if (!Array.isArray(tickets) || !tickets.length) return;
+    const jobs = [];
+    tickets.forEach((ticket) => {
+      if (!ticket || ticket.title_tr || !ticket.title) return;
+      const cacheKey = ticket.id || ticket.title;
+      if (titleTranslationCache.has(cacheKey)) {
+        ticket.title_tr = titleTranslationCache.get(cacheKey);
+        return;
+      }
+      const text = ticket.title;
+      jobs.push(
+        request('/api/translate', {
+          method: 'POST',
+          body: {
+            text,
+            source: 'de',
+            target: 'tr'
+          }
+        })
+          .then((response) => {
+            const translation = response?.translation || response?.text || text;
+            titleTranslationCache.set(cacheKey, translation);
+            ticket.title_tr = translation;
+          })
+          .catch(() => {
+            ticket.title_tr = text;
+          })
+      );
+    });
+    if (jobs.length) {
+      await Promise.allSettled(jobs);
+    }
+  }
+
+  async function ensureSupplierAutoTranslation(payload) {
+    if (!payload || !isSupplierRole(state.user?.role)) return payload;
+    const sourceText = payload.message_tr?.trim();
+    if (!sourceText || payload.message_de) return payload;
+    try {
+      const response = await request('/api/translate', {
+        method: 'POST',
+        body: {
+          text: sourceText,
+          source: 'tr',
+          target: 'de'
+        }
+      });
+      payload.message_de = response?.translation || response?.text || '';
+    } catch (err) {
+      console.warn('Automatische Übersetzung fehlgeschlagen', err.message);
+    }
+    return payload;
+  }
+
+  function formatTicketTimestamp(locale, value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   function renderTicketCommentsHtml(ticket) {
@@ -5642,30 +6187,54 @@ function populateOrderCreateSelects(draft) {
     const noComments = translateTemplate('Noch keine Antworten.');
     const comments = (ticket.comments || [])
       .map((comment) => {
-        const attachment = comment.attachment
-          ? `<a href="${escapeHtml(comment.attachment.url)}" target="_blank" rel="noopener">${escapeHtml(attachmentLinkLabel)}</a>`
-          : '';
+        const attachments = Array.isArray(comment.attachments)
+          ? comment.attachments
+          : comment.attachment
+          ? [comment.attachment]
+          : [];
         const isMine = comment.author === state.user?.email;
-        const commentClass = isMine ? 'comment-mine' : 'comment-other';
-        const preview = comment.attachment
-          ? `<img src="${escapeHtml(comment.attachment.url)}" alt="${escapeHtml(attachmentAlt)}" class="ticket-attachment-preview" />`
-          : '';
-        const timestamp = comment.ts ? new Date(comment.ts).toLocaleString(dateLocale) : '';
-        const body = resolveTicketCommentText(comment);
-        const author = comment.author || unknownAuthor;
-        return `<li class="${commentClass}">
-          <div class="comment-content">
-            <p><strong>${escapeHtml(author)}</strong>${timestamp ? ` · ${timestamp}` : ''}</p>
-            <p>${escapeHtml(body)}</p>
-            ${preview}${attachment ? `<div class="attachment-link">${attachment}</div>` : ''}
+        const timestamp = formatTicketTimestamp(dateLocale, comment.ts);
+        const body = renderCommentTextBlocks(comment);
+        const author = comment.author_name || comment.author || unknownAuthor;
+        const bubbleClass = `ticket-bubble ${isMine ? 'mine' : 'other'}`;
+        const attachmentMarkup = attachments
+          .map((file) => {
+            const isImage = /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(file?.filename || file?.url || '');
+            const preview = isImage
+              ? `<img src="${escapeHtml(file.url)}" alt="${escapeHtml(attachmentAlt)}" class="ticket-attachment-preview" />`
+              : '';
+            return `
+              <div class="ticket-attachment">
+                ${preview}
+                <div class="attachment-link">
+                  <a href="${escapeHtml(file.url)}" target="_blank" rel="noopener">${escapeHtml(attachmentLinkLabel)}</a>
+                </div>
+              </div>`;
+          })
+          .join('');
+        return `<div class="ticket-message-row ${isMine ? 'outgoing' : 'incoming'}">
+          <div class="${bubbleClass}">
+            <div class="comment-content">
+              <p><strong>${escapeHtml(author)}</strong>${timestamp ? ` · ${timestamp}` : ''}</p>
+              ${body}
+              ${attachmentMarkup}
+            </div>
+            <button type="button" class="ghost small danger" data-comment-delete="${comment.id}" data-ticket="${ticket.id}" data-ticket-created="${comment.created_at || comment.ts || ''}" data-ticket-key="${buildOrderTicketKey(ticket)}">${escapeHtml(
+              translateTemplate('Löschen')
+            )}</button>
           </div>
-          <button type="button" class="ghost small danger" data-comment-delete="${comment.id}" data-ticket="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${buildOrderTicketKey(ticket)}">${escapeHtml(
-            translateTemplate('Löschen')
-          )}</button>
-        </li>`;
+        </div>`;
       })
       .join('');
-    return comments || `<li class="muted">${escapeHtml(noComments)}</li>`;
+    return comments || `<div class="muted">${escapeHtml(noComments)}</div>`;
+  }
+
+  function resolveTicketTitle(ticket) {
+    if (!ticket) return '';
+    if (isSupplierRole(state.user?.role)) {
+      return ticket.title_tr || ticket.title || '';
+    }
+    return ticket.title || '';
   }
 
   function applyOrderTickets(orderId, tickets = []) {
@@ -5680,6 +6249,7 @@ function populateOrderCreateSelects(draft) {
   async function refreshOrderTickets(orderId) {
     if (!orderId) return [];
     const tickets = await request(`/api/orders/${encodeURIComponent(orderId)}/tickets`);
+    await localizeTicketTitlesForSupplier(tickets);
     applyOrderTickets(orderId, tickets);
     return tickets;
   }
@@ -5768,18 +6338,28 @@ function populateOrderCreateSelects(draft) {
           <article class="ticket-card collapsed" data-ticket="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
             <div class="ticket-header" data-ticket-toggle="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
               <div class="ticket-header-info">
-                <strong>${escapeHtml(ticket.title)}</strong>
+                <strong>${escapeHtml(resolveTicketTitle(ticket))}</strong>
                 <small>${escapeHtml(ticket.id)} · ${escapeHtml(priorityLabel)}${created ? ` · ${escapeHtml(created)}` : ''}</small>
               </div>
-              <div class="ticket-header-meta">
-                ${contextBadge}
-                ${statusBadge}
-                <span class="chevron">⌄</span>
-              </div>
+          <div class="ticket-header-meta">
+            <div class="ticket-meta-badges">
+              ${contextBadge}
+              ${statusBadge}
             </div>
-            <div class="ticket-body">
+            <div class="ticket-header-actions">
+              <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
+                ${escapeHtml(isOpen ? closeLabel : reopenLabel)}
+              </button>
+              <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">${escapeHtml(deleteLabel)}</button>
+            </div>
+            <span class="chevron">⌄</span>
+          </div>
+        </div>
+        <div class="ticket-body">
               <div class="ticket-meta">
-                <ul class="ticket-comments">${comments}</ul>
+                <div class="tickets-container ticket-comments">
+                  ${comments}
+                </div>
                 <form class="ticket-comment-form" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
                   ${buildCommentFormFields()}
                   <div class="ticket-comment-actions">
@@ -5787,18 +6367,12 @@ function populateOrderCreateSelects(draft) {
                     <label class="file-input small">
                       <span class="file-label">${escapeHtml(translateTemplate('Datei'))}</span>
                       <span class="file-name" data-file-name>${escapeHtml(translateTemplate('Keine Datei ausgewählt'))}</span>
-                      <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
+                      <input type="file" name="files" accept="image/*,application/pdf,.zip,.doc,.docx" multiple data-file-input />
                     </label>
                     <button type="submit" class="small">${escapeHtml(translateTemplate('Antwort senden'))}</button>
                   </div>
+                  <div class="comment-file-list" data-file-list hidden></div>
                 </form>
-              </div>
-              <div class="ticket-status">
-                ${statusBadge}
-                <button type="button" class="ghost small" data-ticket-action="${isOpen ? 'close' : 'reopen'}" data-ticket-id="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">
-                  ${escapeHtml(isOpen ? closeLabel : reopenLabel)}
-                </button>
-                <button type="button" class="ghost small danger" data-ticket-delete="${ticket.id}" data-ticket-created="${ticket.created_at || ''}" data-ticket-key="${ticketKey}">${escapeHtml(deleteLabel)}</button>
               </div>
             </div>
           </article>`;
@@ -5857,12 +6431,85 @@ function populateOrderCreateSelects(draft) {
     renderOrderTicketSummary(order);
     const hasOpen = Boolean(list.querySelector('.ticket-card:not(.collapsed)'));
     setOrderComposerEnabled(!hasOpen);
+    focusOrderTicketIfNeeded();
+  }
+
+  function focusOrderTicketIfNeeded() {
+    const targetTicketId = state.ticketFocusId;
+    if (!targetTicketId) return;
+    const list = document.getElementById('orderTicketsList');
+    const section = document.querySelector('.order-tickets-card');
+    if (!list && !section) {
+      state.ticketFocusId = null;
+      return;
+    }
+    const selector = buildTicketDataSelector(targetTicketId);
+    const targetCard = selector && list ? list.querySelector(selector) : null;
+    const scrollTarget = targetCard || section;
+    if (targetCard) {
+      targetCard.classList.remove('collapsed');
+      targetCard.classList.add('ticket-focus');
+      setOrderComposerEnabled(false);
+      window.setTimeout(() => {
+        targetCard.classList.remove('ticket-focus');
+      }, 3500);
+    }
+    if (scrollTarget) {
+      const scheduleScroll =
+        typeof window.requestAnimationFrame === 'function'
+          ? window.requestAnimationFrame.bind(window)
+          : (callback) => window.setTimeout(callback, 0);
+      scheduleScroll(() => {
+        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    state.ticketFocusId = null;
+  }
+
+  function buildTicketDataSelector(ticketId) {
+    if (!ticketId) return null;
+    if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+      return `[data-ticket="${CSS.escape(ticketId)}"]`;
+    }
+    return `[data-ticket="${String(ticketId).replace(/["\\]/g, '\\$&')}"]`;
+  }
+
+  function focusTechpackTicketIfNeeded() {
+    const targetTicketId = state.ticketFocusId;
+    if (!targetTicketId) return;
+    const list = document.getElementById('techpackTickets');
+    const section = document.querySelector('#techpack .tickets-card') || document.querySelector('.tickets-card');
+    if (!list && !section) {
+      state.ticketFocusId = null;
+      return;
+    }
+    const selector = buildTicketDataSelector(targetTicketId);
+    const targetCard = selector && list ? list.querySelector(selector) : null;
+    const scrollTarget = targetCard || section;
+    if (targetCard) {
+      targetCard.classList.remove('collapsed');
+      targetCard.classList.add('ticket-focus');
+      window.setTimeout(() => {
+        targetCard.classList.remove('ticket-focus');
+      }, 3500);
+    }
+    if (scrollTarget) {
+      const scheduleScroll =
+        typeof window.requestAnimationFrame === 'function'
+          ? window.requestAnimationFrame.bind(window)
+          : (callback) => window.setTimeout(callback, 0);
+      scheduleScroll(() => {
+        scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    state.ticketFocusId = null;
   }
 
   function bindOrderTicketCommentForms(orderId) {
     document.querySelectorAll('#orderTicketsList .ticket-comment-form').forEach((form) => {
       if (form.dataset.bound === 'true') return;
       form.dataset.bound = 'true';
+      bindCommentFileInput(form);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const ticketId = form.dataset.ticketId;
@@ -5871,9 +6518,12 @@ function populateOrderCreateSelects(draft) {
         if (!ticketId) return;
         const payload = collectCommentPayload(form);
         if (!payload) return;
+        await ensureSupplierAutoTranslation(payload);
         try {
           await submitTicketComment(ticketId, payload, { orderId, positionId: null, createdAt: ticketCreated, ticketKey });
           form.reset();
+          form._pendingFiles = [];
+          renderPendingFiles(form);
           renderOrderTickets(state.selectedOrder || { id: orderId });
           showToast('Antwort gespeichert');
         } catch (err) {
@@ -5887,14 +6537,6 @@ function populateOrderCreateSelects(draft) {
           await handleAutoTranslate(form, autoBtn);
         });
       }
-      const fileInput = form.querySelector('input[type="file"][name="file"]');
-      const fileNameDisplay = form.querySelector('[data-file-name]');
-      if (fileInput && fileNameDisplay && fileInput.dataset.bound !== 'true') {
-        fileInput.dataset.bound = 'true';
-        fileInput.addEventListener('change', () => {
-          fileNameDisplay.textContent = fileInput.files?.[0]?.name || translateTemplate('Keine Datei ausgewählt');
-        });
-      }
     });
   }
 
@@ -5903,6 +6545,7 @@ function populateOrderCreateSelects(draft) {
     if (!form) return;
     form.dataset.orderId = orderId;
     if (form.dataset.bound === 'true') return;
+    bindCommentFileInput(form);
 
     const initialCommentContainer = document.getElementById('orderTicketInitialComment');
     if (initialCommentContainer && initialCommentContainer.dataset.hydrated !== 'true') {
@@ -5933,6 +6576,7 @@ function populateOrderCreateSelects(draft) {
       const priority = prioritySelect?.value || 'mittel';
       const initialCommentPayload = collectCommentPayload(form);
       if (!initialCommentPayload) return;
+      await ensureSupplierAutoTranslation(initialCommentPayload);
       const rawTitle = initialCommentPayload.message_de || initialCommentPayload.message_tr || '';
       const fallbackTitle = translateTemplate('Neue Rückfrage');
       const title = rawTitle
@@ -5952,29 +6596,31 @@ function populateOrderCreateSelects(draft) {
         });
         const ticketKey = buildOrderTicketKey(ticket);
         if (initialCommentPayload) {
-          try {
-            await submitTicketComment(ticket.id, initialCommentPayload, {
-              orderId: currentOrderId,
-              positionId: null,
-              createdAt: ticket.created_at,
-              ticketKey
-            });
-          } catch (commentErr) {
-            console.warn('Initial ticket comment konnte nicht gespeichert werden', commentErr);
-            showToast(translateTemplate('Ticket erstellt, initialer Kommentar fehlgeschlagen.'));
-            initialCommentFailed = true;
-          }
-        }
         try {
-          await refreshOrderTickets(currentOrderId);
-        } catch (refreshErr) {
-          console.warn('Ticket refresh failed', refreshErr);
+          await submitTicketComment(ticket.id, initialCommentPayload, {
+            orderId: currentOrderId,
+            positionId: null,
+            createdAt: ticket.created_at,
+            ticketKey
+          });
+        } catch (commentErr) {
+          console.warn('Initial ticket comment konnte nicht gespeichert werden', commentErr);
+          showToast(translateTemplate('Ticket erstellt, initialer Kommentar fehlgeschlagen.'));
+          initialCommentFailed = true;
         }
-        form.reset();
-        renderOrderTickets(state.selectedOrder || { id: currentOrderId });
-        if (!initialCommentFailed) {
-          showToast(translateTemplate('Rückfrage gespeichert'));
-        }
+      }
+      try {
+        await refreshOrderTickets(currentOrderId);
+      } catch (refreshErr) {
+        console.warn('Ticket refresh failed', refreshErr);
+      }
+      form.reset();
+      form._pendingFiles = [];
+      renderPendingFiles(form);
+      renderOrderTickets(state.selectedOrder || { id: currentOrderId });
+      if (!initialCommentFailed) {
+        showToast(translateTemplate('Rückfrage gespeichert'));
+      }
       } catch (err) {
         showToast(err.message);
       }
@@ -5991,13 +6637,6 @@ function populateOrderCreateSelects(draft) {
       });
     }
 
-    const fileInput = form.querySelector('input[type="file"][name="file"]');
-    const fileNameDisplay = form.querySelector('[data-file-name]');
-    if (fileInput && fileNameDisplay) {
-      fileInput.addEventListener('change', () => {
-        fileNameDisplay.textContent = fileInput.files?.[0]?.name || translateTemplate('Keine Datei ausgewählt');
-      });
-    }
   }
 
   function bindTechpackTicketForm(orderId, positionId) {
@@ -6043,6 +6682,7 @@ function populateOrderCreateSelects(draft) {
     document.querySelectorAll('.ticket-comment-form').forEach((form) => {
       if (form.dataset.bound === 'true') return;
       form.dataset.bound = 'true';
+      bindCommentFileInput(form);
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const ticketId = form.dataset.ticketId;
@@ -6051,9 +6691,12 @@ function populateOrderCreateSelects(draft) {
         if (!ticketId) return;
         const payload = collectCommentPayload(form);
         if (!payload) return;
+        await ensureSupplierAutoTranslation(payload);
         try {
           await submitTicketComment(ticketId, payload, { orderId, positionId, createdAt: ticketCreated, ticketKey });
           form.reset();
+          form._pendingFiles = [];
+          renderPendingFiles(form);
           renderTechpackTickets(orderId, positionId, viewKey);
           showToast('Antwort gespeichert');
         } catch (err) {
@@ -6067,14 +6710,6 @@ function populateOrderCreateSelects(draft) {
           await handleAutoTranslate(form, autoBtn);
         });
       }
-      const fileInput = form.querySelector('input[type="file"][name="file"]');
-      const fileNameDisplay = form.querySelector('[data-file-name]');
-      if (fileInput && fileNameDisplay && fileInput.dataset.bound !== 'true') {
-        fileInput.dataset.bound = 'true';
-      fileInput.addEventListener('change', () => {
-        fileNameDisplay.textContent = fileInput.files?.[0]?.name || translateTemplate('Keine Datei ausgewählt');
-      });
-      }
     });
   }
 
@@ -6082,9 +6717,8 @@ function populateOrderCreateSelects(draft) {
     const { allowEmpty = false } = options;
     const messageDe = form.querySelector('[name="message_de"]')?.value.trim() || '';
     const messageTr = form.querySelector('[name="message_tr"]')?.value.trim() || '';
-    const fileInput = form.querySelector('input[name="file"]');
-    const file = fileInput?.files?.[0];
-    const hasContent = Boolean(messageDe || messageTr || file);
+    const pendingFiles = [...getFormPendingFiles(form)];
+    const hasContent = Boolean(messageDe || messageTr || pendingFiles.length);
     if (!hasContent) {
       if (allowEmpty) return null;
       showToast('Kommentar oder Datei erforderlich.');
@@ -6093,7 +6727,7 @@ function populateOrderCreateSelects(draft) {
     return {
       message_de: messageDe,
       message_tr: messageTr,
-      file: file || null
+      files: pendingFiles
     };
   }
 
@@ -6530,7 +7164,11 @@ function populateOrderCreateSelects(draft) {
     const data = new FormData();
     if (payload.message_de) data.append('message_de', payload.message_de);
     if (payload.message_tr) data.append('message_tr', payload.message_tr);
-    if (payload.file) data.append('file', payload.file);
+    if (Array.isArray(payload.files)) {
+      payload.files.forEach((file) => {
+        data.append('files', file);
+      });
+    }
     if (resolvedContext.orderId) data.append('order_id', resolvedContext.orderId);
     if (Object.prototype.hasOwnProperty.call(resolvedContext, 'positionId')) {
       data.append('position_id', resolvedContext.positionId ?? '');
@@ -6842,7 +7480,7 @@ function populateOrderCreateSelects(draft) {
     const previouslySelected = select.value;
     select.innerHTML = STATUS_CHOICES.map((entry) => `<option value="${entry.code}">${entry.label}</option>`).join('');
     select.value = order.portal_status || previouslySelected;
-    select.disabled = state.user?.role !== 'BATE';
+    select.disabled = !isInternalRole(state.user?.role);
     if (!select.dataset.bound) {
       select.addEventListener('change', (event) => {
         const nextStatus = event.target.value;
@@ -6857,7 +7495,7 @@ function populateOrderCreateSelects(draft) {
       if (!confirmBtn.dataset.defaultLabel) {
         confirmBtn.dataset.defaultLabel = confirmBtn.textContent.trim();
       }
-      const shouldShowConfirm = order.portal_status === 'ORDER_EINGEREICHT' && state.user?.role !== 'BATE';
+      const shouldShowConfirm = order.portal_status === 'ORDER_EINGEREICHT' && !isInternalRole(state.user?.role);
       confirmBtn.classList.toggle('hidden', !shouldShowConfirm);
       confirmBtn.disabled = !shouldShowConfirm || state.orderStatusBusy;
       if (!confirmBtn.dataset.bound) {
@@ -6872,7 +7510,7 @@ function populateOrderCreateSelects(draft) {
     if (typeSelect) {
       const nextValue = order.order_type || '';
       typeSelect.value = nextValue;
-      typeSelect.disabled = state.user?.role !== 'BATE';
+      typeSelect.disabled = !isInternalRole(state.user?.role);
       syncOrderTypeControlState(typeSelect.disabled);
       renderOrderTypeBadge(nextValue);
       if (!typeSelect.dataset.bound) {
@@ -7184,6 +7822,9 @@ function populateOrderCreateSelects(draft) {
     const table = document.getElementById('artikelTable');
     if (!table) return;
     const searchInput = document.getElementById('artikelSearch');
+    const groupSelect = document.getElementById('artikelGroupFilter');
+    const filtersForm = document.getElementById('artikelFilters');
+    const resetButton = document.querySelector('[data-action="reset-artikel"]');
     const backButton = document.getElementById('backToArtikelList');
     if (backButton) {
       backButton.addEventListener('click', () => {
@@ -7196,7 +7837,6 @@ function populateOrderCreateSelects(draft) {
     try {
       const erpItems = await request('/api/erp/items');
       state.erpItems = erpItems;
-      const groupSelect = document.getElementById('artikelGroupFilter');
       let filteredItems = erpItems.slice();
 
       if (groupSelect) {
@@ -7213,7 +7853,10 @@ function populateOrderCreateSelects(draft) {
         }
         table.innerHTML = items
           .map((item) => {
-            const thumbnail = item.media?.hero || item.media?.gallery?.[0]?.url || null;
+            const galleryImages = Array.isArray(item.media?.gallery) ? item.media.gallery : [];
+            const fallbackThumb = item.media?.hero || galleryImages[0]?.url || null;
+            const viewerGallery = buildViewerGallery(item, fallbackThumb);
+            const thumbnail = viewerGallery?.[0]?.url || fallbackThumb;
             const fallbackInitial = (item.item_name || item.item_code || '?').toString().slice(0, 2).toUpperCase();
             const thumbMarkup = thumbnail
               ? `<div class="artikel-thumb"><img src="${escapeHtml(thumbnail)}" alt="${escapeHtml(item.item_name || 'Artikelbild')}" loading="lazy" referrerpolicy="no-referrer" /></div>`
@@ -7260,6 +7903,19 @@ function populateOrderCreateSelects(draft) {
       }
       if (groupSelect) {
         groupSelect.addEventListener('change', applyArtikelFilters);
+      }
+      if (filtersForm) {
+        filtersForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          applyArtikelFilters();
+        });
+      }
+      if (resetButton) {
+        resetButton.addEventListener('click', () => {
+          if (searchInput) searchInput.value = '';
+          if (groupSelect) groupSelect.value = '';
+          applyArtikelFilters();
+        });
       }
 
       renderRows(filteredItems);
@@ -7348,6 +8004,11 @@ function populateOrderCreateSelects(draft) {
     });
     const sizeOptions = SIZE_COLUMNS.map((size) => `<option value="${escapeHtml(size)}"></option>`).join('');
     setBreadcrumbLabel(t('Kunden · {{name}}', { name: customer.name }));
+    const editButton = isInternalRole(state.user?.role)
+      ? `<div class="customer-detail-actions"><a class="ghost" href="/kunden-neu.html?customer=${encodeURIComponent(
+          customer.id
+        )}">${escapeHtml(t('Bearbeiten'))}</a></div>`
+      : '';
     container.innerHTML = `
       <div class="customer-profile-head">
         <div class="customer-status-meta">
@@ -7357,6 +8018,7 @@ function populateOrderCreateSelects(draft) {
         </div>
         <div class="customer-avatar">${escapeHtml(getCustomerInitials(customer.name))}</div>
       </div>
+      ${editButton}
       <div class="customer-detail-rows">
         <div class="customer-detail-row row-four">
           ${infoRowOne.map((field) => detailField(field.label, field.value)).join('')}
@@ -7412,6 +8074,581 @@ function populateOrderCreateSelects(draft) {
       subtitleId: 'customerAccessoriesSubtitle'
     }).catch((err) => console.warn('Accessory load failed for customer', err));
     refreshCustomerOrderProfiles(customer.id).catch((err) => console.warn('Order profile load failed', err));
+  }
+
+  function updateShippingFieldState(form) {
+    if (!form) return;
+    const fieldset = form.querySelector('[data-shipping-fields]');
+    const checkbox =
+      form.querySelector('[data-customer-shipping-toggle]') || form.querySelector('#customerShippingSame');
+    if (!fieldset || !checkbox) return;
+    const disabled = checkbox.checked;
+    fieldset.classList.toggle('disabled', disabled);
+    fieldset.querySelectorAll('input').forEach((input) => {
+      input.disabled = disabled;
+    });
+  }
+
+  function serializeCustomerCreateForm(form) {
+    const formData = new FormData(form);
+    const getValue = (name) => {
+      const raw = formData.get(name);
+      if (raw === null || raw === undefined) return '';
+      return raw.toString().trim();
+    };
+    const language = getValue('customerLanguage') || 'de';
+    const payload = {
+      customerId: getValue('customerId'),
+      customerName: getValue('customerName'),
+      customerNumber: getValue('customerNumber'),
+      customerType: getValue('customerType') || 'Company',
+      status: getValue('status') || 'aktiv',
+      language,
+      accountManager: getValue('accountManager'),
+      priority: getValue('priority'),
+      taxId: getValue('taxId'),
+      email: getValue('customerEmail'),
+      phone: getValue('customerPhone'),
+      woocommerceUser: getValue('woocommerceUser'),
+      woocommercePasswordHint: getValue('woocommercePassword'),
+      billingStreet: getValue('billingStreet'),
+      billingStreet2: getValue('billingStreet2'),
+      billingZip: getValue('billingZip'),
+      billingCity: getValue('billingCity'),
+      billingCountry: getValue('billingCountry') || 'Deutschland',
+      billingState: getValue('billingState'),
+      billingPhone: getValue('billingPhone'),
+      billingAddressId: getValue('billingAddressId'),
+      shippingStreet: getValue('shippingStreet'),
+      shippingStreet2: getValue('shippingStreet2'),
+      shippingZip: getValue('shippingZip'),
+      shippingCity: getValue('shippingCity'),
+      shippingCountry: getValue('shippingCountry'),
+      shippingState: getValue('shippingState'),
+      shippingPhone: getValue('shippingPhone'),
+      shippingAddressId: getValue('shippingAddressId'),
+      contactName: getValue('contactName'),
+      contactEmail: getValue('contactEmail'),
+      contactPhone: getValue('contactPhone'),
+      contactId: getValue('contactId')
+    };
+    payload.shippingSameAsBilling = formData.get('shippingSame') === 'on';
+    payload.customerLanguage = payload.language;
+    Object.keys(payload).forEach((key) => {
+      if (typeof payload[key] === 'string') {
+        payload[key] = payload[key].trim();
+        if (!payload[key]) {
+          delete payload[key];
+        }
+      }
+    });
+    if (payload.customerId) {
+      payload.customer_id = payload.customerId;
+      delete payload.customerId;
+    }
+    if (payload.billingAddressId) {
+      payload.billing_address_id = payload.billingAddressId;
+      delete payload.billingAddressId;
+    }
+    if (payload.shippingAddressId) {
+      payload.shipping_address_id = payload.shippingAddressId;
+      delete payload.shippingAddressId;
+    }
+    if (payload.contactId) {
+      payload.contact_id = payload.contactId;
+      delete payload.contactId;
+    }
+    return payload;
+  }
+
+  function buildAddressFromPayload(customerId, payload = {}, type = 'rechnung') {
+    if (!customerId) return null;
+    const prefix = type === 'lieferung' ? 'shipping' : 'billing';
+    const street = payload[`${prefix}Street`] || '';
+    const city = payload[`${prefix}City`] || '';
+    const zip = payload[`${prefix}Zip`] || '';
+    const country =
+      payload[`${prefix}Country`] || (type === 'rechnung' ? payload.billingCountry || 'Deutschland' : '');
+    if (!street && !city && !zip) return null;
+    const existingId = payload[`${prefix}AddressId`];
+    const id = existingId || `${customerId}-${type}-${Date.now()}`;
+    return {
+      id,
+      name: id,
+      customer_id: customerId,
+      type,
+      address_title: payload.customerName || customerId,
+      street,
+      address_line1: street,
+      city,
+      zip,
+      country,
+      is_primary_address: type === 'rechnung' ? 1 : 0,
+      is_shipping_address: type === 'lieferung' ? 1 : 0
+    };
+  }
+
+  function buildContactFromPayload(customerId, payload = {}) {
+    if (!customerId) return null;
+    const hasData = payload.contactName || payload.contactEmail || payload.contactPhone;
+    if (!hasData) return null;
+    const id = payload.contactId || `${customerId}-contact-${Date.now()}`;
+    return {
+      id,
+      name: payload.contactName || payload.contactEmail || id,
+      full_name: payload.contactName || '',
+      email: payload.contactEmail || '',
+      phone: payload.contactPhone || '',
+      customer_id: customerId,
+      is_primary_contact: 1
+    };
+  }
+
+  async function fetchCustomerDetailForForm(customerId) {
+    if (!customerId) {
+      throw new Error(translateTemplate('Kunde nicht gefunden'));
+    }
+    const [customers, addresses, contacts] = await Promise.all([
+      request('/api/erp/customers'),
+      request('/api/erp/addresses'),
+      request('/api/erp/contacts')
+    ]);
+    const customer = customers.find((entry) => entry.id === customerId);
+    if (!customer) {
+      throw new Error(translateTemplate('Kunde nicht gefunden'));
+    }
+    return {
+      customer,
+      addresses: addresses.filter((entry) => entry.customer_id === customerId),
+      contact: contacts.find((entry) => entry.customer_id === customerId) || null
+    };
+  }
+
+  function populateCustomerForm(form, detail) {
+    if (!form || !detail?.customer) return;
+    const { customer, addresses, contact } = detail;
+    const setValue = (name, value) => {
+      const field = form.querySelector(`[name="${name}"]`);
+      if (!field) return;
+      field.value = value ?? '';
+    };
+    setValue('customerId', customer.id || '');
+    const numberInput = form.querySelector('[name="customerNumber"]');
+    if (numberInput) {
+      numberInput.value = customer.id || customer.customer_number || '';
+      numberInput.readOnly = true;
+      numberInput.classList.add('input-readonly');
+    }
+    setValue('customerName', customer.customer_name || customer.name || '');
+    const typeValue = (customer.customer_type || 'Company').toUpperCase() === 'INDIVIDUAL' ? 'Individual' : 'Company';
+    setValue('customerType', typeValue);
+    const statusValue = (customer.status || '').toLowerCase() === 'gesperrt' ? 'gesperrt' : 'aktiv';
+    setValue('status', statusValue);
+    setValue('customerLanguage', (customer.language || 'de').toLowerCase());
+    setValue('accountManager', customer.account_manager || '');
+    setValue('priority', customer.priority || '');
+    setValue('taxId', customer.tax_id || '');
+    setValue('customerEmail', customer.email_id || customer.contact_email || '');
+    setValue('customerPhone', customer.phone || customer.contact_phone || '');
+    setValue('woocommerceUser', customer.woocommerce_user || '');
+    setValue('woocommercePassword', customer.woocommerce_password_hint || '');
+
+    const findAddress = (keyword) =>
+      addresses.find((addr) => (addr.type || '').toLowerCase().includes(keyword)) || null;
+    const billingAddress = findAddress('rechnung') || addresses[0] || null;
+    const shippingAddress = findAddress('liefer');
+
+    const fillAddressFields = (prefix, address) => {
+      setValue(`${prefix}Street`, address?.street || address?.address_line1 || '');
+      setValue(`${prefix}Street2`, address?.street2 || address?.address_line2 || '');
+      setValue(`${prefix}Zip`, address?.zip || address?.pincode || '');
+      setValue(`${prefix}City`, address?.city || '');
+      setValue(`${prefix}Country`, address?.country || '');
+      setValue(`${prefix}State`, address?.state || '');
+      setValue(`${prefix}Phone`, address?.phone || '');
+      setValue(`${prefix}AddressId`, address?.id || '');
+    };
+
+    if (billingAddress) {
+      fillAddressFields('billing', billingAddress);
+    } else {
+      setValue('billingAddressId', '');
+    }
+    if (shippingAddress) {
+      fillAddressFields('shipping', shippingAddress);
+      const shippingCheckbox = form.querySelector('#customerShippingSame');
+      if (shippingCheckbox) {
+        shippingCheckbox.checked = false;
+      }
+    } else {
+      setValue('shippingAddressId', '');
+    }
+
+    setValue('contactName', contact?.name || contact?.full_name || '');
+    setValue('contactEmail', contact?.email || contact?.email_id || '');
+    setValue('contactPhone', contact?.phone || contact?.mobile_no || '');
+    setValue('contactId', contact?.id || '');
+    updateShippingFieldState(form);
+  }
+
+  function serializeArtikelForm(form) {
+    const formData = new FormData(form);
+    const getValue = (name) => {
+      const raw = formData.get(name);
+      if (raw === null || raw === undefined) return '';
+      return raw.toString().trim();
+    };
+    const payload = {
+      item_code: getValue('itemCode'),
+      item_name: getValue('itemName'),
+      item_group: getValue('itemGroup'),
+      stock_uom: getValue('stockUom'),
+      brand: getValue('brand'),
+      status: getValue('status') || 'active',
+      collection: getValue('collection'),
+      customer_link: getValue('customerLink'),
+      customer_item_code: getValue('customerItemCode'),
+      color_code: getValue('colorCode'),
+      description: getValue('description'),
+      materials: {
+        outer: getValue('outerMaterial'),
+        inner: getValue('innerMaterial'),
+        sole: getValue('soleMaterial')
+      },
+      links: {
+        b2b: getValue('b2bLink'),
+        viewer3d: getValue('viewerLink')
+      }
+    };
+    Object.keys(payload).forEach((key) => {
+      if (typeof payload[key] === 'string') {
+        if (!payload[key]) {
+          delete payload[key];
+        }
+      }
+    });
+    if (payload.materials && !Object.values(payload.materials).some((value) => value)) {
+      delete payload.materials;
+    }
+    if (payload.links && !Object.values(payload.links).some((value) => value)) {
+      delete payload.links;
+    }
+    return payload;
+  }
+
+  function setArtikelFormLoading(form, isLoading) {
+    if (!form) return;
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = isLoading;
+      submitButton.textContent = isLoading
+        ? translateTemplate('Speichern …')
+        : form.dataset.submitLabel || translateTemplate('Artikel speichern');
+    }
+    form.querySelectorAll('input, select, textarea').forEach((element) => {
+      if (element === submitButton) return;
+      element.disabled = isLoading;
+    });
+  }
+
+  async function fetchItemDetailForForm(itemCode) {
+    if (!itemCode) {
+      throw new Error(translateTemplate('Artikel nicht gefunden'));
+    }
+    const items = await request('/api/erp/items');
+    const normalizedCode = itemCode.toString().toLowerCase();
+    const item = items.find(
+      (entry) => (entry.item_code || '').toLowerCase() === normalizedCode || entry.id.toLowerCase() === normalizedCode
+    );
+    if (!item) {
+      throw new Error(translateTemplate('Artikel nicht gefunden'));
+    }
+    return item;
+  }
+
+  function populateArtikelForm(form, item) {
+    if (!form || !item) return;
+    const setValue = (name, value) => {
+      const field = form.querySelector(`[name="${name}"]`);
+      if (!field) return;
+      field.value = value ?? '';
+    };
+    setValue('itemCode', item.item_code || item.id || '');
+    const codeInput = form.querySelector('[name="itemCode"]');
+    if (codeInput) {
+      codeInput.readOnly = true;
+      codeInput.classList.add('input-readonly');
+    }
+    setValue('itemName', item.item_name || '');
+    setValue('itemGroup', item.item_group || '');
+    setValue('stockUom', item.stock_uom || '');
+    setValue('brand', item.brand || '');
+    setValue('status', item.status === 'inactive' ? 'inactive' : 'active');
+    setValue('collection', item.collection || '');
+    setValue('customerLink', item.customer_link || '');
+    setValue('customerItemCode', item.customer_item_code || '');
+    setValue('colorCode', item.color_code || '');
+    setValue('description', item.description || '');
+    setValue('outerMaterial', item.materials?.outer || '');
+    setValue('innerMaterial', item.materials?.inner || '');
+    setValue('soleMaterial', item.materials?.sole || '');
+    setValue('b2bLink', item.links?.b2b || '');
+    setValue('viewerLink', item.links?.viewer3d || '');
+  }
+
+  function setCustomerCreateLoading(form, isLoading) {
+    if (!form) return;
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = isLoading;
+      submitButton.textContent = isLoading
+        ? translateTemplate('Speichern …')
+        : form.dataset.submitLabel || translateTemplate('Kunde anlegen');
+    }
+    form.querySelectorAll('input, select, textarea').forEach((element) => {
+      if (element === submitButton) return;
+      element.disabled = isLoading;
+    });
+    if (!isLoading) {
+      updateShippingFieldState(form);
+    }
+  }
+
+  function initCustomerCreateForm(options = {}) {
+    const { mode = 'create', customerId = null, onSuccess, formId = 'customerCreateForm' } = options;
+    const form = document.getElementById(formId);
+    if (!form) return;
+    if (!isInternalRole(state.user?.role)) {
+      return;
+    }
+    const submitLabel = mode === 'edit' ? translateTemplate('Änderungen speichern') : translateTemplate('Kunde anlegen');
+    form.dataset.submitLabel = submitLabel;
+    form.customerCreateOptions = { mode, customerId, onSuccess };
+    updateShippingFieldState(form);
+    const shippingToggle =
+      form.querySelector('[data-customer-shipping-toggle]') || form.querySelector('#customerShippingSame');
+    if (shippingToggle && !shippingToggle.dataset.bound) {
+      shippingToggle.addEventListener('change', () => updateShippingFieldState(form));
+      shippingToggle.dataset.bound = 'true';
+    }
+    if (form.dataset.customerFormBound === 'true') {
+      return;
+    }
+    form.dataset.customerFormBound = 'true';
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = serializeCustomerCreateForm(form);
+      if (!payload.customerName) {
+        showToast(translateTemplate('Kundenname ist erforderlich.'));
+        return;
+      }
+      const feedback =
+        form.querySelector('[data-customer-feedback]') || document.getElementById('customerCreateFeedback');
+      if (feedback) {
+        feedback.textContent = '';
+        feedback.classList.remove('error');
+      }
+      setCustomerCreateLoading(form, true);
+      try {
+        const currentOptions = form.customerCreateOptions || {};
+        const currentMode = currentOptions.mode || 'create';
+        const currentCustomerId = currentOptions.customerId || null;
+        const endpoint =
+          currentMode === 'edit' && currentCustomerId
+            ? `/api/erp/customers/${encodeURIComponent(currentCustomerId)}`
+            : '/api/erp/customers';
+        const result = await request(endpoint, {
+          method: currentMode === 'edit' && currentCustomerId ? 'PUT' : 'POST',
+          body: payload
+        });
+        showToast(
+          currentMode === 'edit' ? translateTemplate('Kunde aktualisiert.') : translateTemplate('Kunde angelegt.')
+        );
+        if (currentMode === 'create') {
+          form.reset();
+          updateShippingFieldState(form);
+        }
+        if (typeof currentOptions.onSuccess === 'function') {
+          currentOptions.onSuccess(result, payload);
+        }
+      } catch (err) {
+        if (feedback) {
+          feedback.textContent = err.message || translateTemplate('Kunde konnte nicht angelegt werden.');
+          feedback.classList.add('error');
+        }
+      } finally {
+        setCustomerCreateLoading(form, false);
+      }
+    });
+  }
+
+  async function initKundenNeu() {
+    const form = document.getElementById('customerCreateForm');
+    if (!form) return;
+    if (!isInternalRole(state.user?.role)) {
+      window.location.href = '/kunden.html';
+      return;
+    }
+    const backButton = document.getElementById('backToCustomers');
+    if (backButton) {
+      backButton.addEventListener('click', () => {
+        window.location.href = '/kunden.html';
+      });
+    }
+    const params = new URLSearchParams(window.location.search);
+    const editingId = params.get('customer');
+    const isEditing = Boolean(editingId);
+    if (isEditing) {
+      setBreadcrumbLabel(translateTemplate('Kunden · Bearbeiten'));
+      setCustomerCreateLoading(form, true);
+      try {
+        const detail = await fetchCustomerDetailForForm(editingId);
+        populateCustomerForm(form, detail);
+        const headerTitle = document.querySelector('.customer-create-head h2');
+        if (headerTitle) {
+          headerTitle.textContent = translateTemplate('Kunde bearbeiten');
+        }
+        initCustomerCreateForm({
+          mode: 'edit',
+          customerId: editingId,
+          onSuccess: () => {
+            const target = `/kunden.html?customer=${encodeURIComponent(editingId)}`;
+            window.location.href = target;
+          }
+        });
+      } catch (err) {
+        const message = err.message || translateTemplate('Kunde konnte nicht geladen werden.');
+        const feedback = document.getElementById('customerCreateFeedback');
+        if (feedback) {
+          feedback.textContent = message;
+          feedback.classList.add('error');
+        }
+        showToast(message);
+        setCustomerCreateLoading(form, false);
+        return;
+      }
+      setCustomerCreateLoading(form, false);
+      return;
+    }
+    initCustomerCreateForm({
+      mode: 'create',
+      onSuccess: (result) => {
+        const customerId = result?.customer?.id || result?.id || null;
+        const target = customerId ? `/kunden.html?customer=${encodeURIComponent(customerId)}` : '/kunden.html';
+        window.location.href = target;
+      }
+    });
+    setBreadcrumbLabel(translateTemplate('Kunden · Neu'));
+  }
+
+  function initArtikelForm(options = {}) {
+    const { mode = 'create', itemCode = null, onSuccess } = options;
+    const form = document.getElementById('artikelCreateForm');
+    if (!form) return;
+    if (!isInternalRole(state.user?.role)) {
+      return;
+    }
+    const submitLabel = mode === 'edit' ? translateTemplate('Änderungen speichern') : translateTemplate('Artikel speichern');
+    form.dataset.submitLabel = submitLabel;
+    const feedback = document.getElementById('artikelCreateFeedback');
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = serializeArtikelForm(form);
+      if (!payload.item_code) {
+        showToast(translateTemplate('Artikelnummer ist erforderlich.'));
+        return;
+      }
+      if (!payload.item_name) {
+        showToast(translateTemplate('Artikelname ist erforderlich.'));
+        return;
+      }
+      if (feedback) {
+        feedback.textContent = '';
+        feedback.classList.remove('error');
+      }
+      setArtikelFormLoading(form, true);
+      try {
+        const endpoint =
+          mode === 'edit' && itemCode ? `/api/erp/items/${encodeURIComponent(itemCode)}` : '/api/erp/items';
+        const result = await request(endpoint, {
+          method: mode === 'edit' && itemCode ? 'PUT' : 'POST',
+          body: payload
+        });
+        showToast(mode === 'edit' ? translateTemplate('Artikel aktualisiert.') : translateTemplate('Artikel angelegt.'));
+        if (mode === 'create') {
+          form.reset();
+        }
+        if (typeof onSuccess === 'function') {
+          onSuccess(result);
+        }
+      } catch (err) {
+        if (feedback) {
+          feedback.textContent = err.message || translateTemplate('Artikel konnte nicht gespeichert werden.');
+          feedback.classList.add('error');
+        }
+      } finally {
+        setArtikelFormLoading(form, false);
+      }
+    });
+  }
+
+  async function initArtikelNeu() {
+    const form = document.getElementById('artikelCreateForm');
+    if (!form) return;
+    if (!isInternalRole(state.user?.role)) {
+      window.location.href = '/artikel.html';
+      return;
+    }
+    const backButton = document.getElementById('backToArticles');
+    if (backButton) {
+      backButton.addEventListener('click', () => {
+        window.location.href = '/artikel.html';
+      });
+    }
+    const params = new URLSearchParams(window.location.search);
+    const editingCode = params.get('item');
+    const isEditing = Boolean(editingCode);
+    if (isEditing) {
+      setBreadcrumbLabel(translateTemplate('Artikel · Bearbeiten'));
+      setArtikelFormLoading(form, true);
+      try {
+        const detail = await fetchItemDetailForForm(editingCode);
+        populateArtikelForm(form, detail);
+        const headerTitle = document.querySelector('.customer-create-head h2');
+        if (headerTitle) {
+          headerTitle.textContent = translateTemplate('Artikel bearbeiten');
+        }
+        initArtikelForm({
+          mode: 'edit',
+          itemCode: editingCode,
+          onSuccess: () => {
+            const target = `/artikel.html?item=${encodeURIComponent(editingCode)}`;
+            window.location.href = target;
+          }
+        });
+      } catch (err) {
+        const message = err.message || translateTemplate('Artikel konnte nicht geladen werden.');
+        const feedback = document.getElementById('artikelCreateFeedback');
+        if (feedback) {
+          feedback.textContent = message;
+          feedback.classList.add('error');
+        }
+        showToast(message);
+        setArtikelFormLoading(form, false);
+        return;
+      }
+      setArtikelFormLoading(form, false);
+      return;
+    }
+    initArtikelForm({
+      mode: 'create',
+      onSuccess: (item) => {
+        const targetCode = item?.item_code || item?.id || null;
+        const target = targetCode ? `/artikel.html?item=${encodeURIComponent(targetCode)}` : '/artikel.html';
+        window.location.href = target;
+      }
+    });
+    setBreadcrumbLabel(translateTemplate('Artikel · Neu'));
   }
 
   function resolvePositionHeroImage(position, item) {
@@ -7616,6 +8853,11 @@ function populateOrderCreateSelects(draft) {
     }
     const colorCode = getItemColorCode(item);
     const statusMeta = getItemStatusMeta(item);
+    const editButton = isInternalRole(state.user?.role)
+      ? `<div class="artikel-detail-actions"><a class="ghost" href="/artikel-neu.html?item=${encodeURIComponent(
+          item.item_code
+        )}">${escapeHtml(t('Bearbeiten'))}</a></div>`
+      : '';
     const heroFields = [
       { label: t('Artikelnummer'), value: item.item_code },
       { label: t('Artikelname'), value: item.item_name }
@@ -7684,6 +8926,7 @@ function populateOrderCreateSelects(draft) {
     const sizeCount = (item.sizes || []).length || 0;
     const sizeMetaText = t('{{count}} verfügbare Größen', { count: sizeCount });
     container.innerHTML = `
+      ${editButton}
       <div class="artikel-hero-grid">
         <div class="artikel-hero-fields">
           <div class="artikel-detail-primary">
@@ -7823,6 +9066,8 @@ function populateOrderCreateSelects(draft) {
     if (!tableBody) return;
     const searchInput = document.getElementById('customerSearch');
     const numberInput = document.getElementById('customerNumberSearch');
+    const filtersForm = document.getElementById('customerFilters');
+    const resetButton = document.querySelector('[data-action="reset-customers"]');
     const backButton = document.getElementById('backToCustomerList');
     if (backButton) {
       backButton.addEventListener('click', () => {
@@ -7840,8 +9085,9 @@ function populateOrderCreateSelects(draft) {
       ]);
       state.customers = customers;
       state.addresses = addresses;
+      updateSupplierDirectory(addresses);
       state.contacts = contacts;
-      let filteredCustomers = customers.slice();
+      let filteredCustomers = state.customers.slice();
 
       const highlightRow = (customerId) => {
         tableBody.querySelectorAll('tr').forEach((tr) => tr.classList.remove('active'));
@@ -7886,8 +9132,8 @@ function populateOrderCreateSelects(draft) {
       const applyCustomerFilters = () => {
         const nameTerm = (searchInput?.value || '').toLowerCase();
         const numberTerm = (numberInput?.value || '').toLowerCase();
-        filteredCustomers = customers.filter((customer) => {
-      const matchesName = nameTerm ? customer.name.toLowerCase().includes(nameTerm) : true;
+        filteredCustomers = state.customers.filter((customer) => {
+          const matchesName = nameTerm ? customer.name.toLowerCase().includes(nameTerm) : true;
           const matchesId = numberTerm ? customer.id.toLowerCase().includes(numberTerm) : true;
           return matchesName && matchesId;
         });
@@ -7900,12 +9146,25 @@ function populateOrderCreateSelects(draft) {
       if (numberInput) {
         numberInput.addEventListener('input', applyCustomerFilters);
       }
+      if (filtersForm) {
+        filtersForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          applyCustomerFilters();
+        });
+      }
+      if (resetButton) {
+        resetButton.addEventListener('click', () => {
+          if (searchInput) searchInput.value = '';
+          if (numberInput) numberInput.value = '';
+          applyCustomerFilters();
+        });
+      }
 
       renderTable(filteredCustomers);
       const params = new URLSearchParams(window.location.search);
       const requestedId = params.get('customer');
       if (requestedId) {
-        const exists = customers.some((customer) => customer.id === requestedId);
+        const exists = state.customers.some((customer) => customer.id === requestedId);
         if (exists) {
           state.activeCustomerId = requestedId;
           highlightRow(requestedId);
@@ -7965,7 +9224,7 @@ function populateOrderCreateSelects(draft) {
     const btn = document.getElementById('newEventBtn');
     const dialog = document.getElementById('eventDialog');
     if (btn && dialog) {
-      if (state.user.role !== 'BATE') {
+      if (!isInternalRole(state.user?.role)) {
         btn.disabled = true;
       } else {
         btn.addEventListener('click', () => dialog.showModal());
@@ -8202,14 +9461,23 @@ function populateOrderCreateSelects(draft) {
       case 'artikel':
         await initArtikel();
         break;
+      case 'artikel-neu':
+        await initArtikelNeu();
+        break;
       case 'kunden':
         await initKunden();
+        break;
+      case 'kunden-neu':
+        await initKundenNeu();
         break;
       case 'tickets':
         await initTickets();
         break;
       case 'prozessstatus':
         await initProzessstatus();
+        break;
+      case 'kalender':
+        await initKalender();
         break;
       case 'etiketten':
         await initEtikettenPage();
@@ -8223,14 +9491,14 @@ function populateOrderCreateSelects(draft) {
       case 'musterrechnung-detail':
         await initMusterProformaDetailPage();
         break;
-      case 'autosync':
-        await initAutoSyncPage();
-        break;
       case 'diagnostics':
         await initDiagnosticsPage();
         break;
       case 'translations':
         await initTranslationsPage();
+        break;
+      case 'notifications':
+        await initNotificationsPage();
         break;
       case 'techpack-list':
         await initTechpackListPage();

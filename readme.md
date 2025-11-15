@@ -34,13 +34,32 @@ ERP_API_KEY=a3da39ca870122d
 ERP_API_SECRET=35d3f6beda59e7c
 # Optionales Fallback (falls oben nicht gesetzt)
 ERP_TOKEN=token123
+ERP_ITEM_GROUP=Alle Artikel
+ERP_ITEM_STOCK_UOM=Pair
+# Customer Defaults (optional)
+ERP_CUSTOMER_SERIES=BA-.#####
+ERP_CUSTOMER_LANGUAGE=de
+ERP_CUSTOMER_TERRITORY=Deutschland
+ERP_CUSTOMER_GROUP=Retail
+ERP_CUSTOMER_TYPE=Company
 SYNC_INTERVAL_CRON=*/10 * * * *
 AUTOSYNC_SERVICE_URL=http://localhost:5050
 AUTOSYNC_SERVICE_TOKEN=super-secret
 AUTOSYNC_TIMEOUT_MS=120000
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=portal@example.com
+SMTP_PASSWORD=super-secret
+SMTP_FROM="BATE Portal <portal@example.com>"
+NOTIFICATION_PORTAL_URL=https://portal.example.com
+NOTIFICATION_EMAIL_SUBJECT_PREFIX=BATE Portal
+NOTIFICATION_EMAIL_OVERRIDE=tester@example.com
 ```
 
 `ERP_URL` kann entweder mit oder ohne `/api` angegeben werden – falls der Suffix fehlt, hängt das Backend ihn automatisch an.
+
+Sobald SMTP-Zugangsdaten hinterlegt sind, verschickt das Portal zusätzlich E-Mail-Hinweise für neue Benachrichtigungen. Über `NOTIFICATION_PORTAL_URL` lässt sich der Deep-Link steuern, `NOTIFICATION_EMAIL_SUBJECT_PREFIX` setzt den Präfix der Betreffzeile. Mit `NOTIFICATION_EMAIL_OVERRIDE` kann testweise eine feste Zieladresse hinterlegt werden – der ursprüngliche Empfänger wird dann im Mailtext genannt.
 
 ### AutoSync-Brücke
 
@@ -110,7 +129,6 @@ frontend/public/images/techpack-placeholders/
 - Portal-Orders inkl. Workflow (`/api/orders`, `/api/orders/:id`, `/api/orders/:id/workflow`, Statuswechsel via `PATCH`).
 - Spezifikationen pro Position (`/api/specs/...`) mit Kommentaren, Uploads, Flag-Updates und Notifications.
 - Tickets CRUD, Calendar Auto+Manual, Notifications, Audit-Logs, Health/Snyc Endpoint.
-- **AutoSync Konsole** (`/autosync.html` + `/api/autosync/*`): zeigt Service-Health, Erfolgskennzahlen, Log-Tabelle und erlaubt SKU-Läufe, manuelle Payloads, Woo-Löschungen sowie Log-Queries – alles im Portal-Design.
 
 ## Tests
 

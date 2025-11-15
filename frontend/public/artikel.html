@@ -10,14 +10,23 @@
     <main class="layout">
       <aside class="sidebar" data-component="sidebar"></aside>
       <section class="content" id="artikel">
-        <div class="artikel-layout">
-          <article class="card artikel-list-card" id="artikelListView">
-            <header class="artikel-list-head">
-              <input type="search" id="artikelSearch" placeholder="Artikel suchen" />
-              <select id="artikelGroupFilter">
+        <div class="orders-toolbar artikel-header">
+          <form class="filters" id="artikelFilters">
+            <label><select id="artikelGroupFilter" name="group">
                 <option value="">Alle Artikelgruppen</option>
               </select>
-            </header>
+            </label>
+            <label><input type="search" id="artikelSearch" name="search" placeholder="Artikelnummer, Name oder Farbcode" />
+            </label>
+            <div class="filter-actions">
+              <button type="submit">Filtern</button>
+              <button type="button" class="ghost" data-action="reset-artikel">Zurücksetzen</button>
+            </div>
+            <a class="btn primary bate-only" data-display="inline-flex" href="/artikel-neu.html" data-role="new-order-btn">+ Neuer Artikel</a>
+          </form>
+        </div>
+        <div class="artikel-layout">
+          <article class="card artikel-list-card" id="artikelListView">
             <div class="table-scroll">
               <table class="artikel-table">
                 <thead>

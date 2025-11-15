@@ -342,5 +342,29 @@
     "order_id": "BT-B2500017",
     "start": "2025-12-12T00:00:00.000Z",
     "end": "2025-12-12T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500018-prod",
+    "title": "BT-B2500018 Produktion",
+    "type": "auto",
+    "order_id": "BT-B2500018",
+    "start": "2025-11-28T00:00:00.000Z",
+    "end": "2025-11-29T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500018-ship",
+    "title": "BT-B2500018 Versand",
+    "type": "auto",
+    "order_id": "BT-B2500018",
+    "start": "2025-12-09T00:00:00.000Z",
+    "end": "2025-12-10T00:00:00.000Z"
+  },
+  {
+    "id": "CAL-BT-B2500018-pickup",
+    "title": "BT-B2500018 Abholung",
+    "type": "auto",
+    "order_id": "BT-B2500018",
+    "start": "2025-12-12T00:00:00.000Z",
+    "end": "2025-12-12T00:00:00.000Z"
   }
 ]

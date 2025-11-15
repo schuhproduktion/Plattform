@@ -14,6 +14,7 @@
           <button type="button" id="backToList">← Zurück zu Bestellungen</button>
           <div class="back-card-actions">
             <button type="button" id="editOrderBtn" class="ghost small">Bearbeiten</button>
+            <button type="button" id="deleteOrderBtn" class="ghost small danger">Löschen</button>
             <button type="button" id="openLabelManager" class="ghost small">Kartons</button>
             <button type="button" id="openShoeboxManager" class="ghost small">Schuhbox</button>
           </div>
@@ -62,6 +63,13 @@
             </div>
           </div>
           <div class="order-info-grid">
+            <div class="info-card">
+              <p class="info-label">Lieferant</p>
+              <p class="info-line info-strong" id="supplierNameValue">-</p>
+              <p class="info-line" id="supplierStreetValue">-</p>
+              <p class="info-line" id="supplierCityValue">-</p>
+              <p class="info-line muted" id="supplierCountryValue">-</p>
+            </div>
             <div class="info-card">
               <p class="info-label">Absender</p>
               <p class="info-line info-strong" id="senderName">-</p>
@@ -129,31 +137,6 @@
             </div>
           </div>
         </div>
-        </div>
-
-        <div class="card print-card">
-          <div class="print-card-head">
-            <div>
-              <h4>Dokument drucken</h4>
-              <p class="muted">Format, Sprache und Briefkopf wählen, um die ERP-PDF zu erzeugen.</p>
-            </div>
-            <button type="button" class="ghost small" id="refreshPrintOptions">Optionen aktualisieren</button>
-          </div>
-          <div class="print-grid">
-            <label>Druckformat
-              <select id="printFormatSelect"></select>
-            </label>
-            <label>Sprache
-              <select id="printLanguageSelect"></select>
-            </label>
-            <label>Briefkopf
-              <select id="printLetterheadSelect"></select>
-            </label>
-          </div>
-          <div class="print-actions">
-            <button type="button" id="printOrderPdfBtn">PDF anzeigen</button>
-            <p class="muted" id="printOptionsStatus"></p>
-          </div>
         </div>
 
         <div class="card positions-card">
@@ -228,14 +211,40 @@
                 <label class="file-input">
                   <span class="file-label">Datei</span>
                   <span class="file-name" data-file-name>Keine Datei ausgewählt</span>
-                  <input type="file" name="file" accept="image/*,application/pdf,.zip,.doc,.docx" />
+                  <input type="file" name="files" accept="image/*,application/pdf,.zip,.doc,.docx" multiple data-file-input />
                 </label>
               </div>
               <button type="submit">Rückfrage speichern</button>
             </div>
+            <div class="comment-file-list composer-file-list" data-file-list hidden></div>
           </form>
           <div id="orderTicketsList" class="tickets-list">
             <p class="muted">Noch keine Tickets.</p>
+          </div>
+        </div>
+
+        <div class="card print-card">
+          <div class="print-card-head">
+            <div>
+              <h4>Dokument drucken</h4>
+              <p class="muted">Format, Sprache und Briefkopf wählen, um die ERP-PDF zu erzeugen.</p>
+            </div>
+            <button type="button" class="ghost small" id="refreshPrintOptions">Optionen aktualisieren</button>
+          </div>
+          <div class="print-grid">
+            <label>Druckformat
+              <select id="printFormatSelect"></select>
+            </label>
+            <label>Sprache
+              <select id="printLanguageSelect"></select>
+            </label>
+            <label>Briefkopf
+              <select id="printLetterheadSelect"></select>
+            </label>
+          </div>
+          <div class="print-actions">
+            <button type="button" id="printOrderPdfBtn">PDF anzeigen</button>
+            <p class="muted" id="printOptionsStatus"></p>
           </div>
         </div>
 

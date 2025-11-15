@@ -1,4 +1,5 @@
-const { fetchResource, fetchPurchaseOrders } = require('./erpClient');
+require('dotenv').config();
+const { fetchResource, fetchPurchaseOrders, fetchSalesOrders } = require('./erpClient');
 const { writeJson, readJson } = require('./dataStore');
 const { getPhaseForStatus } = require('./workflows');
 
@@ -309,6 +310,47 @@ function normalizeCustomers(rawCustomers = []) {
   });
 }
 
+function parseSupplierAddressDisplay(display) {
+  if (!display) return null;
+  const normalized = stripHtml(display)
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (!normalized.length) return null;
+  const street = normalized[0] || '';
+  const country = normalized.length > 2 ? normalized[normalized.length - 1] : normalized[normalized.length - 1] || '';
+  const cityLine = normalized.length > 1 ? normalized[1] : '';
+  return { street, cityLine, country };
+}
+
+function normalizeSuppliers(rawSuppliers = []) {
+  return rawSuppliers.map((supplier, idx) => {
+    if (supplier?.__normalized_supplier) {
+      return supplier;
+    }
+    const id = supplier?.name || supplier?.supplier_name || `supplier-${idx}`;
+    const addressInfo = parseSupplierAddressDisplay(supplier?.address_display);
+    const name = supplier?.supplier_name || supplier?.name || id;
+    return {
+      ...supplier,
+      __normalized_supplier: true,
+      id,
+      name,
+      status: supplier?.disabled ? 'Deaktiviert' : 'Aktiviert',
+      supplier_group: supplier?.supplier_group || '',
+      email: supplier?.email_id || '',
+      phone: supplier?.mobile_no || supplier?.phone || '',
+      street: supplier?.address_line1 || addressInfo?.street || '',
+      city_line:
+        supplier?.city && supplier?.pincode
+          ? `${supplier.pincode} ${supplier.city}`
+          : supplier?.city || supplier?.pincode || addressInfo?.cityLine || '',
+      country: supplier?.country || addressInfo?.country || '',
+      address_display: supplier?.address_display || ''
+    };
+  });
+}
+
 function resolveCustomerIdFromLinks(links, customerLabelLookup = new Map()) {
   if (Array.isArray(links)) {
     const direct = links.find((link) => (link?.link_doctype || '').toLowerCase() === 'customer');
@@ -544,7 +586,15 @@ function resolveCustomerForOrder(orderDoc, positions, context = {}) {
   return null;
 }
 
-function normalizeOrders(rawOrders = [], context = {}) {
+function normalizeOrders(rawOrders = [], context = {}, options = {}) {
+  const docType = options.docType || 'purchase';
+  const idPrefix = options.idPrefix || (docType === 'sales' ? 'sales-order' : 'order');
+  const requestedDeliveryField =
+    options.requestedDeliveryField || (docType === 'sales' ? 'delivery_date' : 'schedule_date');
+  const fallbackDeliveryField =
+    options.fallbackDeliveryField ||
+    (docType === 'sales' ? 'schedule_date' : 'delivery_date');
+  const documentTypeLabel = docType === 'sales' ? 'SALES_ORDER' : 'PURCHASE_ORDER';
   return rawOrders
     .map((order, idx) => {
       if (order?.__normalized_order) {
@@ -556,37 +606,42 @@ function normalizeOrders(rawOrders = [], context = {}) {
       if (rawDocStatus === 2) {
         return null;
       }
-    const id = order?.name || order?.id || `order-${idx}`;
-    const positions = normalizeOrderPositions(order?.items || [], order);
-    const customerId = resolveCustomerForOrder(order, positions, context);
-    const customer = customerId ? context.customersById?.get(customerId) : null;
-    const erpStatusOverride = normalizeErpStatus(order?.status);
-    const portalStatus =
-      erpStatusOverride ||
-      normalizeCustomPortalStatus(order?.custom_bestellstatus) ||
-      order?.portal_status ||
-      'ORDER_EINGEREICHT';
-    const orderType = normalizeOrderType(order?.custom_c || order?.custom_bestellart || order?.order_type_portal || order?.order_type);
-    const customCustomerId = order?.custom_kunde || null;
-    const customCustomerName = order?.custom_kunde_name || order?.custom_kunde_title || null;
-    const displayCustomerName = customCustomerName || customer?.name || order?.customer_name || order?.custom_kunde || null;
-    const addressBucket = customerId ? context.addressesByCustomer?.get(customerId) : null;
-    const billingAddress = addressBucket?.rechnung || addressBucket?.billing || addressBucket?.primary || addressBucket?.all?.[0] || null;
-    const shippingAddress = addressBucket?.lieferung || addressBucket?.shipping || addressBucket?.primary || addressBucket?.all?.[0] || null;
-    const customerSnapshot = customerId
-      ? {
-          id: customCustomerId || customerId,
-          name: displayCustomerName || customerId,
-          tax_id: customer?.tax_id || null,
-          billing_address: billingAddress,
-          shipping_address: shippingAddress
-        }
-      : customCustomerId
-      ? {
-          id: customCustomerId,
-          name: displayCustomerName || customCustomerId
-        }
-      : null;
+      const id = order?.name || order?.id || `${idPrefix}-${idx}`;
+      const positions = normalizeOrderPositions(order?.items || [], order);
+      const customerId = resolveCustomerForOrder(order, positions, context);
+      const customer = customerId ? context.customersById?.get(customerId) : null;
+      const erpStatusOverride = normalizeErpStatus(order?.status);
+      const portalStatus =
+        erpStatusOverride ||
+        normalizeCustomPortalStatus(order?.custom_bestellstatus) ||
+        order?.portal_status ||
+        'ORDER_EINGEREICHT';
+      const orderType = normalizeOrderType(
+        order?.custom_c || order?.custom_bestellart || order?.order_type_portal || order?.order_type
+      );
+      const customCustomerId = order?.custom_kunde || null;
+      const customCustomerName = order?.custom_kunde_name || order?.custom_kunde_title || null;
+      const displayCustomerName =
+        customCustomerName || customer?.name || order?.customer_name || order?.custom_kunde || null;
+      const addressBucket = customerId ? context.addressesByCustomer?.get(customerId) : null;
+      const billingAddress =
+        addressBucket?.rechnung || addressBucket?.billing || addressBucket?.primary || addressBucket?.all?.[0] || null;
+      const shippingAddress =
+        addressBucket?.lieferung || addressBucket?.shipping || addressBucket?.primary || addressBucket?.all?.[0] || null;
+      const customerSnapshot = customerId
+        ? {
+            id: customCustomerId || customerId,
+            name: displayCustomerName || customerId,
+            tax_id: customer?.tax_id || null,
+            billing_address: billingAddress,
+            shipping_address: shippingAddress
+          }
+        : customCustomerId
+        ? {
+            id: customCustomerId,
+            name: displayCustomerName || customCustomerId
+          }
+        : null;
       return {
         ...order,
         __normalized_order: true,
@@ -597,10 +652,14 @@ function normalizeOrders(rawOrders = [], context = {}) {
         customer_name: displayCustomerName,
         customer_custom_id: customCustomerId,
         customer_custom_name: customCustomerName,
-        supplier_id: order?.supplier || order?.supplier_id || null,
-        supplier_name: order?.supplier_name || order?.supplier || null,
+        supplier_id: docType === 'sales' ? order?.supplier || null : order?.supplier || order?.supplier_id || null,
+        supplier_name:
+          docType === 'sales'
+            ? order?.supplier_name || order?.supplier || null
+            : order?.supplier_name || order?.supplier || null,
         order_type: orderType,
-        requested_delivery: order?.schedule_date || order?.transaction_date || null,
+        requested_delivery:
+          order?.[requestedDeliveryField] || order?.[fallbackDeliveryField] || order?.transaction_date || null,
         currency: order?.currency || 'EUR',
         total: typeof order?.total === 'number' ? order.total : null,
         total_amount: typeof order?.grand_total === 'number' ? order.grand_total : order?.total || null,
@@ -618,7 +677,8 @@ function normalizeOrders(rawOrders = [], context = {}) {
         customer_snapshot: customerSnapshot,
         created_at: order?.creation ? new Date(order.creation).toISOString() : null,
         last_updated: order?.modified ? new Date(order.modified).toISOString() : null,
-        timeline: Array.isArray(order?.timeline) ? order.timeline : []
+        timeline: Array.isArray(order?.timeline) ? order.timeline : [],
+        document_type: documentTypeLabel
       };
     })
     .filter(Boolean);
@@ -692,13 +752,15 @@ function generateAutoCalendarEntries(orders) {
 }
 
 async function syncERPData() {
-  const [rawCustomers, rawAddresses, rawContacts, rawItems, rawItemPrices, rawOrders] = await Promise.all([
+  const [rawCustomers, rawAddresses, rawContacts, rawItems, rawItemPrices, rawOrders, rawSalesOrders, rawSuppliers] = await Promise.all([
     fetchResource('customers'),
     fetchResource('addresses'),
     fetchResource('contacts'),
     fetchResource('items'),
     fetchResource('item_prices'),
-    fetchPurchaseOrders()
+    fetchPurchaseOrders(),
+    fetchSalesOrders(),
+    fetchResource('suppliers')
   ]);
 
   const customers = normalizeCustomers(rawCustomers);
@@ -724,6 +786,20 @@ async function syncERPData() {
     customerLabelLookup,
     customersById
   }).map((order) => mergeOrderState(order, previousOrderMap.get(order.id)));
+  const previousSalesOrders = (await readJson('sales_orders.json', [])) || [];
+  const previousSalesOrderMap = new Map(previousSalesOrders.map((order) => [(order?.id || order?.name), order]));
+  const normalizedSalesOrders = normalizeOrders(
+    rawSalesOrders,
+    {
+      addressMap,
+      addressesByCustomer,
+      customerLabelLookup,
+      customersById
+    },
+    { docType: 'sales' }
+  ).map((order) => mergeOrderState(order, previousSalesOrderMap.get(order.id)));
+
+  const suppliers = normalizeSuppliers(rawSuppliers);
 
   await Promise.all([
     writeJson('customers.json', customers),
@@ -731,7 +807,9 @@ async function syncERPData() {
     writeJson('contacts.json', contacts),
     writeJson('items.json', items),
     writeJson('item_prices.json', rawItemPrices),
-    writeJson('purchase_orders.json', normalizedOrders)
+    writeJson('purchase_orders.json', normalizedOrders),
+    writeJson('sales_orders.json', normalizedSalesOrders),
+    writeJson('suppliers.json', suppliers)
   ]);
 
   const existingCalendar = (await readJson('calendar.json', [])) || [];
@@ -748,8 +826,10 @@ async function syncERPData() {
   return {
     customers: customers.length,
     orders: normalizedOrders.length,
+    sales_orders: normalizedSalesOrders.length,
     items: items.length,
     item_prices: rawItemPrices.length,
+    suppliers: suppliers.length,
     lastSync
   };
 }
@@ -757,3 +837,31 @@ async function syncERPData() {
 module.exports = {
   syncERPData
 };
+
+if (require.main === module) {
+  // Allow running `node backend/lib/sync.js` as a manual sync command.
+  require('dotenv').config();
+  syncERPData()
+    .then((result) => {
+      console.log(
+        '[sync] abgeschlossen:',
+        JSON.stringify(
+          {
+            customers: result.customers,
+            suppliers: result.suppliers,
+            orders: result.orders,
+            sales_orders: result.sales_orders,
+            items: result.items,
+            item_prices: result.item_prices
+          },
+          null,
+          2
+        )
+      );
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('[sync] fehlgeschlagen:', err);
+      process.exit(1);
+    });
+}

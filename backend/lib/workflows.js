@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
 const { readJson, writeJson, appendToArray } = require('./dataStore');
-const { updatePortalStatus } = require('./erpClient');
+const { updatePortalStatus, updateSalesPortalStatus } = require('./erpClient');
 
 const STATUS_FLOW = [
   'ORDER_EINGEREICHT',
@@ -72,8 +72,16 @@ function normalizePortalOrder(order) {
   };
 }
 
-async function updateOrderWorkflow({ orderId, nextStatus, actor }) {
-  const orders = (await readJson('purchase_orders.json', [])) || [];
+async function updateDocumentWorkflow({
+  storeFile,
+  orderId,
+  nextStatus,
+  actor,
+  portalUpdater,
+  logKey,
+  entityType
+}) {
+  const orders = (await readJson(storeFile, [])) || [];
   const index = orders.findIndex((o) => o.id === orderId);
   if (index === -1) {
     throw new Error('Bestellung nicht gefunden');
@@ -100,11 +108,12 @@ async function updateOrderWorkflow({ orderId, nextStatus, actor }) {
     created_at: now
   });
   orders[index] = order;
-  await writeJson('purchase_orders.json', orders);
+  await writeJson(storeFile, orders);
 
   await appendToArray('status_logs.json', {
     id: `LOG-${randomUUID()}`,
-    order_id: orderId,
+    [logKey]: orderId,
+    entity_type: entityType,
     action: 'STATUS_CHANGE',
     from: currentStatus,
     to: nextStatus,
@@ -113,7 +122,9 @@ async function updateOrderWorkflow({ orderId, nextStatus, actor }) {
   });
 
   try {
-    await updatePortalStatus(orderId, nextStatus);
+    if (typeof portalUpdater === 'function') {
+      await portalUpdater(orderId, nextStatus);
+    }
   } catch (err) {
     console.warn('ERP portal_status Update fehlgeschlagen', err.message);
   }
@@ -121,10 +132,35 @@ async function updateOrderWorkflow({ orderId, nextStatus, actor }) {
   return normalizePortalOrder(order);
 }
 
+async function updateOrderWorkflow({ orderId, nextStatus, actor }) {
+  return updateDocumentWorkflow({
+    storeFile: 'purchase_orders.json',
+    orderId,
+    nextStatus,
+    actor,
+    portalUpdater: updatePortalStatus,
+    logKey: 'order_id',
+    entityType: 'PURCHASE_ORDER'
+  });
+}
+
+async function updateSalesOrderWorkflow({ orderId, nextStatus, actor }) {
+  return updateDocumentWorkflow({
+    storeFile: 'sales_orders.json',
+    orderId,
+    nextStatus,
+    actor,
+    portalUpdater: updateSalesPortalStatus,
+    logKey: 'sales_order_id',
+    entityType: 'SALES_ORDER'
+  });
+}
+
 module.exports = {
   getWorkflowDefinition,
   normalizePortalOrder,
   updateOrderWorkflow,
+  updateSalesOrderWorkflow,
   getPhaseForStatus,
   getStatusLabel,
   STATUS_LABELS,

@@ -6,11 +6,14 @@ export const state = {
   erpItems: [],
   customers: [],
   addresses: [],
+  suppliers: [],
+  supplierSource: 'addresses',
   customerAccessories: {},
   customerOrderProfiles: {},
   customerOrderProfileDrafts: {},
   customerOrderProfileEditing: {},
   selectedOrder: null,
+  projectOverview: null,
   selectedTicket: null,
   specs: {},
   currentLabel: null,
@@ -41,13 +44,6 @@ export const state = {
   diagnostics: null,
   diagnosticsInterval: null,
   orderPrintOptions: null,
-  autosync: {
-    status: null,
-    logs: [],
-    lastResult: null,
-    metrics: null,
-    errors: []
-  },
   orderDraft: null,
   orderDraftSaveTimeout: null,
   orderDraftEditingId: null,
@@ -64,7 +60,14 @@ export const state = {
     entries: {},
     filter: ''
   },
-  orderStatusBusy: false
+  orderStatusBusy: false,
+  notifications: [],
+  notificationPanelOpen: false,
+  notificationHandlersBound: false,
+  notificationPollInterval: null,
+  notificationFetchLimit: 25,
+  notificationArchiveTab: 'open',
+  ticketFocusId: null
 };
 
 export const SUPPORTED_LOCALES = [
@@ -79,10 +82,9 @@ export const NAV_LINKS = [
   { href: '/kunden.html', label: 'Kunden', page: 'kunden', className: 'bate-only' },
   { href: '/tickets.html', label: 'Tickets', page: 'tickets' },
   { href: '/prozessstatus.html', label: 'Prozessstatus', page: 'prozessstatus' },
-  { href: '/lieferanten-guide.html', label: 'Lieferanten-Anleitung', page: 'lieferanten-guide' },
+  { href: '/lieferanten-guide.html', label: 'Lieferanten-Anleitung', page: 'lieferanten-guide', className: 'supplier-hidden' },
   { href: '/musterrechnung.html', label: 'Muster Proforma', page: 'musterrechnung' },
   { href: '/translations.html', label: 'Übersetzungen', page: 'translations', className: 'bate-only' },
-  { href: '/autosync.html', label: 'AutoSync', page: 'autosync', className: 'bate-only' },
   { href: '/diagnostics.html', label: 'Systemstatus', page: 'diagnostics', className: 'bate-only' }
 ];
 
@@ -153,3 +155,31 @@ export const TECHPACK_MEDIA_STATUS = {
 export const TRANSLATABLE_ATTRIBUTES = ['placeholder', 'aria-label', 'title'];
 
 export const VAT_RATE = 0.19;
+
+const ROLE_DIACRITIC_REGEX = /[\u0300-\u036f]/g;
+const SUPPLIER_ROLE_KEYS = new Set(['SUPPLIER', 'LIEFERANT']);
+const INTERNAL_ROLE_KEYS = new Set(['BATE', 'ADMINISTRATOR', 'HANDLER', 'HAENDLER']);
+
+export function normalizeRole(role) {
+  if (!role) return '';
+  return role
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(ROLE_DIACRITIC_REGEX, '');
+}
+
+export function isSupplierRole(role) {
+  return SUPPLIER_ROLE_KEYS.has(normalizeRole(role));
+}
+
+export function isInternalRole(role) {
+  return INTERNAL_ROLE_KEYS.has(normalizeRole(role));
+}
+
+export function getForcedLocaleForRole(role) {
+  if (isSupplierRole(role)) return 'tr';
+  if (isInternalRole(role)) return 'de';
+  return null;
+}

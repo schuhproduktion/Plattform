@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { state, isInternalRole } from './state.js';
 import { showToast } from './ui.js';
 
 export async function request(path, { method = 'GET', body, headers = {} } = {}) {
@@ -33,7 +33,7 @@ export async function ensureFreshSnapshot(force = false) {
     const health = await request('/api/health');
     const lastSync = health.last_sync?.last_run ? new Date(health.last_sync.last_run) : null;
     const minutesSinceSync = lastSync ? (Date.now() - lastSync.getTime()) / 60000 : Infinity;
-    const shouldSync = force || (state.user.role === 'BATE' && minutesSinceSync > 30);
+    const shouldSync = force || (isInternalRole(state.user?.role) && minutesSinceSync > 30);
     if (shouldSync) {
       showToast('ERP Sync wird ausgeführt …');
       await request('/api/sync', { method: 'POST' });

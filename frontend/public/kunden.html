@@ -10,14 +10,21 @@
     <main class="layout">
       <aside class="sidebar" data-component="sidebar"></aside>
       <section class="content" id="kunden">
+        <div class="orders-toolbar">
+          <form class="filters" id="customerFilters">
+            <label><input type="search" id="customerSearch" placeholder="Kundenname" />
+            </label>
+            <label><input type="search" id="customerNumberSearch" placeholder="Kundennummer" />
+            </label>
+            <div class="filter-actions">
+              <button type="submit">Filtern</button>
+              <button type="button" class="ghost" data-action="reset-customers">Zurücksetzen</button>
+            </div>
+            <a class="btn primary bate-only" data-display="inline-flex" href="/kunden-neu.html" data-role="new-order-btn">+ Neuen Kunden</a>
+          </form>
+        </div>
         <div class="customer-layout">
           <article class="card customer-list-card" id="customerListView">
-            <header class="customer-list-head">
-              <div class="customer-filters">
-                <input type="search" id="customerSearch" placeholder="Nach Name suchen" />
-                <input type="search" id="customerNumberSearch" placeholder="Kundennummer" />
-              </div>
-            </header>
             <div class="table-scroll">
               <table class="customer-table">
                 <thead>

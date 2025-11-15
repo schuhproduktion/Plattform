@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kunde anlegen</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-kunden-neu" data-page="kunden-neu">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="kunden-neu">
+        <div class="customer-layout">
+          <button type="button" class="ghost customer-back-button" id="backToCustomers">← Zurück zur Übersicht</button>
+          <article class="card customer-create-card">
+            <header class="customer-create-head">
+              <div>
+                <p class="muted">Direkt in ERPNext speichern</p>
+                <h2>Neuen Kunden anlegen</h2>
+              </div>
+            </header>
+            <form id="customerCreateForm" class="customer-create-form">
+              <input type="hidden" name="customerId" />
+              <input type="hidden" name="billingAddressId" />
+              <input type="hidden" name="shippingAddressId" />
+              <input type="hidden" name="contactId" />
+              <section class="customer-create-section">
+                <h4>Stammdaten</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>Kundenname *</span>
+                    <input type="text" name="customerName" required />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Kundennummer</span>
+                    <input type="text" name="customerNumber" placeholder="BA-#####" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Kundenart</span>
+                    <select name="customerType">
+                      <option value="Company">Firma</option>
+                      <option value="Individual">Privat</option>
+                    </select>
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Status</span>
+                    <select name="status">
+                      <option value="aktiv">Aktiv</option>
+                      <option value="gesperrt">Gesperrt</option>
+                    </select>
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Sprache</span>
+                    <select name="customerLanguage">
+                      <option value="de">Deutsch</option>
+                      <option value="tr">Türkisch</option>
+                      <option value="en">Englisch</option>
+                    </select>
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Account Manager</span>
+                    <input type="text" name="accountManager" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Priorität</span>
+                    <input type="text" name="priority" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Steuernummer</span>
+                    <input type="text" name="taxId" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>E-Mail</span>
+                    <input type="email" name="customerEmail" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Telefon</span>
+                    <input type="text" name="customerPhone" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>WooCommerce Benutzer</span>
+                    <input type="text" name="woocommerceUser" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>WooCommerce Passwort</span>
+                    <input type="text" name="woocommercePassword" />
+                  </label>
+                </div>
+              </section>
+              <section class="customer-create-section">
+                <h4>Rechnungsadresse</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>Straße</span>
+                    <input type="text" name="billingStreet" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Adresszusatz</span>
+                    <input type="text" name="billingStreet2" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>PLZ</span>
+                    <input type="text" name="billingZip" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Stadt</span>
+                    <input type="text" name="billingCity" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Land</span>
+                    <input type="text" name="billingCountry" value="Deutschland" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Bundesland</span>
+                    <input type="text" name="billingState" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Telefon</span>
+                    <input type="text" name="billingPhone" />
+                  </label>
+                </div>
+              </section>
+              <section class="customer-create-section">
+                <div class="customer-create-section-head">
+                  <h4>Lieferadresse</h4>
+                  <label class="customer-create-toggle">
+                    <input type="checkbox" id="customerShippingSame" name="shippingSame" data-customer-shipping-toggle />
+                    <span>Entspricht Rechnungsadresse</span>
+                  </label>
+                </div>
+                <div class="customer-create-grid" data-shipping-fields>
+                  <label class="customer-create-field">
+                    <span>Straße</span>
+                    <input type="text" name="shippingStreet" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Adresszusatz</span>
+                    <input type="text" name="shippingStreet2" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>PLZ</span>
+                    <input type="text" name="shippingZip" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Stadt</span>
+                    <input type="text" name="shippingCity" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Land</span>
+                    <input type="text" name="shippingCountry" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Bundesland</span>
+                    <input type="text" name="shippingState" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Telefon</span>
+                    <input type="text" name="shippingPhone" />
+                  </label>
+                </div>
+              </section>
+              <section class="customer-create-section">
+                <h4>Kontaktperson</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>Name</span>
+                    <input type="text" name="contactName" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>E-Mail</span>
+                    <input type="email" name="contactEmail" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Telefon</span>
+                    <input type="text" name="contactPhone" />
+                  </label>
+                </div>
+              </section>
+              <div class="customer-create-footer">
+                <div id="customerCreateFeedback" class="form-feedback" data-customer-feedback aria-live="polite"></div>
+                <button type="submit" class="primary">Kunde anlegen</button>
+              </div>
+            </form>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -12,8 +12,7 @@
       <section class="content" id="orders">
         <div class="orders-toolbar">
           <form class="filters" id="orderFilters">
-            <label>Status
-              <select name="status">
+            <label><select name="status">
                 <option value="">Alle</option>
                 <option value="ORDER_EINGEREICHT">Eingereicht</option>
                 <option value="ORDER_BESTAETIGT">Bestätigt</option>
@@ -23,8 +22,7 @@
                 <option value="UEBERGEBEN_AN_SPEDITION">Abgeschlossen</option>
               </select>
             </label>
-            <label>Bestellart
-              <select name="orderType">
+            <label><select name="orderType">
                 <option value="">Alle</option>
                 <option value="BESTELLUNG">Bestellung</option>
                 <option value="PPS">PPS</option>
@@ -32,11 +30,9 @@
                 <option value="MUSTER">Muster</option>
               </select>
             </label>
-            <label>Kunde
-              <input type="search" name="customer" placeholder="Name oder Kundennummer" />
+            <label><input type="search" name="customer" placeholder="Kundennummer" />
             </label>
-            <label>Bestellnummer
-              <input type="search" name="orderNumber" placeholder="z. B. PO-1001" />
+            <label><input type="search" name="orderNumber" placeholder="Bestellnummer" />
             </label>
             <div class="filter-actions">
               <button type="submit">Filtern</button>

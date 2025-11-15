@@ -13,9 +13,15 @@ const ExcelJS = require('exceljs');
 const multer = require('multer');
 const axios = require('axios');
 
-const { authenticate, requireAuth, requireBate } = require('./lib/auth');
+const { authenticate, requireAuth, requireBate, loadUsers } = require('./lib/auth');
 const { upload, UPLOAD_ROOT } = require('./lib/files');
-const { getWorkflowDefinition, normalizePortalOrder, updateOrderWorkflow, getStatusLabel } = require('./lib/workflows');
+const {
+  getWorkflowDefinition,
+  normalizePortalOrder,
+  updateOrderWorkflow,
+  updateSalesOrderWorkflow,
+  getStatusLabel
+} = require('./lib/workflows');
 const { syncERPData } = require('./lib/sync');
 const {
   createPurchaseOrder,
@@ -23,11 +29,27 @@ const {
   fetchPrintFormats,
   fetchLetterheads,
   downloadPrintPdf,
-  isErpClientEnabled
+  isErpClientEnabled,
+  createCustomer,
+  createAddress,
+  createContact,
+  createItem,
+  updateCustomer,
+  updateAddress,
+  updateContact,
+  updateItem
 } = require('./lib/erpClient');
 const { readJson, writeJson, appendToArray } = require('./lib/dataStore');
 const { listLocales: listTranslationLocales, getLocaleEntries, upsertTranslation, deleteTranslation } = require('./lib/translations');
-const autosyncClient = require('./lib/autosyncClient');
+const { isSupplierRole, isInternalRole, getForcedLocaleForRole } = require('./lib/roles');
+const {
+  addNotifications,
+  getNotificationsForUser,
+  markNotificationRead,
+  markNotificationUnread,
+  markAllNotificationsRead,
+  markTicketNotificationsRead
+} = require('./lib/notifications');
 
 const TECHPACK_VIEWS = [
   { key: 'front', label: 'Vorderansicht' },
@@ -68,6 +90,12 @@ const ACCESSORY_SLOT_MAP = ACCESSORY_SLOTS.reduce((acc, slot) => {
   return acc;
 }, {});
 const ACCESSORY_SLOT_KEYS = new Set(ACCESSORY_SLOTS.map((slot) => slot.key));
+const SAMPLE_STAGE_KEYS = ['sms', 'pps'];
+const SAMPLE_STAGE_LABELS = {
+  sms: 'SMS Comment',
+  pps: 'PPS Comment'
+};
+const ORDER_PROJECTS_FILE = 'order_projects.json';
 const WORKFLOW_META = getWorkflowDefinition();
 const PORTAL_STATUS_SET = new Set(WORKFLOW_META.statuses);
 const STATUS_ICON_MAP = {
@@ -97,6 +125,8 @@ const ORDER_TYPE_LABELS = {
   BESTELLUNG: 'Bestellung'
 };
 const CUSTOMER_ORDER_PROFILE_TYPES = new Set(['SMS', 'PPS']);
+const CUSTOMER_TYPE_CHOICES = new Set(['COMPANY', 'INDIVIDUAL']);
+const CUSTOMER_LANGUAGE_CHOICES = new Set(['de', 'tr', 'en']);
 const PACKAGING_TYPES = new Set(['carton', 'shoebox']);
 const CM_TO_PT = 28.3464567;
 const SHOEBOX_LABEL_SIZE = [CM_TO_PT * 8.5, CM_TO_PT * 6];
@@ -109,12 +139,23 @@ const ERP_DEFAULT_PRICE_LIST = process.env.ERP_PRICE_LIST || 'Standard-Einkauf';
 const ERP_DEFAULT_SERIES = process.env.ERP_PURCHASE_ORDER_SERIES || 'BT-B.YY.#####';
 const ERP_DEFAULT_WAREHOUSE = process.env.ERP_DEFAULT_WAREHOUSE || null;
 const ERP_DEFAULT_TAX_TEMPLATE = process.env.ERP_TAX_TEMPLATE || null;
+const ERP_DEFAULT_ITEM_GROUP = process.env.ERP_ITEM_GROUP || 'Alle Artikel';
+const ERP_DEFAULT_STOCK_UOM = process.env.ERP_ITEM_STOCK_UOM || 'Pair';
+const ERP_CUSTOMER_SERIES = process.env.ERP_CUSTOMER_SERIES || 'BA-.#####';
+const ERP_CUSTOMER_LANGUAGE = process.env.ERP_CUSTOMER_LANGUAGE || 'de';
+const ERP_CUSTOMER_TERRITORY = process.env.ERP_CUSTOMER_TERRITORY || null;
+const ERP_CUSTOMER_GROUP = process.env.ERP_CUSTOMER_GROUP || null;
+const ERP_DEFAULT_CUSTOMER_TYPE = process.env.ERP_CUSTOMER_TYPE || 'Company';
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change_me';
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const SYNC_CRON = process.env.SYNC_INTERVAL_CRON || '*/10 * * * *';
+const AUTOSYNC_SERVICE_URL = (process.env.AUTOSYNC_SERVICE_URL || '').trim();
+const AUTOSYNC_SERVICE_TOKEN = process.env.AUTOSYNC_SERVICE_TOKEN || '';
+const AUTOSYNC_TIMEOUT_MS = Number(process.env.AUTOSYNC_TIMEOUT_MS) || 120000;
+const AUTOSYNC_TEST_TIMEOUT_MS = Math.min(AUTOSYNC_TIMEOUT_MS, 15000);
 
 const SUPPORTED_LOCALES = ['de', 'tr'];
 const DEFAULT_LOCALE = 'de';
@@ -338,119 +379,63 @@ function extractErpErrorMessage(err) {
   return null;
 }
 
-function normalizeAutoSyncLog(entry = {}) {
-  if (!entry || typeof entry !== 'object') {
+const SERVER_SCRIPT_DISABLED_REGEX = /ServerScriptNotEnabled/i;
+
+function sanitizeErrorMessage(message) {
+  if (!message) return '';
+  return message
+    .replace(/<br\s*\/?>(\n)?/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function resolveErpError(err, fallbackMessage = 'Aktion fehlgeschlagen', fallbackStatus = 400) {
+  const rawMessage = extractErpErrorMessage(err) || err.message || fallbackMessage;
+  if (SERVER_SCRIPT_DISABLED_REGEX.test(rawMessage || '')) {
     return {
-      sku: null,
-      timestamp: null,
-      erp_ok: false,
-      woo_ok: false,
-      telegram_ok: false
+      status: 503,
+      message: 'ERPNext meldet: Serverskripte sind deaktiviert. Bitte Server Scripts in der ERP-Konfiguration aktivieren.'
     };
   }
-  const timestamp = entry.timestamp || entry.time || entry.ts || null;
   return {
-    ...entry,
-    timestamp,
-    sku: entry.sku || entry.article_number || entry.code || null,
-    erp_ok: Boolean(entry.erp_ok),
-    woo_ok: Boolean(entry.woo_ok),
-    telegram_ok: entry.telegram_ok === undefined ? null : Boolean(entry.telegram_ok)
+    status: err?.statusCode || err?.response?.status || fallbackStatus,
+    message: sanitizeErrorMessage(rawMessage) || fallbackMessage
   };
 }
 
-function computeAutoSyncStats(rawLogs = []) {
-  const logs = rawLogs.map((entry) => normalizeAutoSyncLog(entry));
-  const total = logs.length;
-  let success = 0;
-  let telegramSuccess = 0;
-  let erpFailures = 0;
-  let wooFailures = 0;
-  let lastSuccess = null;
-  let lastFailure = null;
-  const failures = [];
-
-  for (const entry of logs) {
-    const ok = entry.erp_ok && entry.woo_ok;
-    if (ok) {
-      success += 1;
-      if (!lastSuccess) {
-        lastSuccess = entry;
-      }
-    } else {
-      if (!lastFailure) {
-        lastFailure = entry;
-      }
-      failures.push(entry);
-      if (!entry.erp_ok) erpFailures += 1;
-      if (!entry.woo_ok) wooFailures += 1;
-    }
-    if (entry.telegram_ok) {
-      telegramSuccess += 1;
-    }
-  }
-
-  return {
-    total,
-    success,
-    failures: Math.max(0, total - success),
-    success_rate: total ? Math.round((success / total) * 100) : null,
-    last_run: logs[0]?.timestamp || null,
-    last_success: lastSuccess?.timestamp || null,
-    last_failure: lastFailure?.timestamp || null,
-    erp_failures: erpFailures,
-    woo_failures: wooFailures,
-    telegram_success: telegramSuccess,
-    recent_errors: failures.slice(0, 5)
-  };
+async function loadOrdersRaw() {
+  const orders = (await readJson('purchase_orders.json', [])) || [];
+  const entries = await loadOrderProjects();
+  const lookup = new Map(entries.map((entry) => [entry.order_id, entry.project_id]));
+  applyProjectMappings(orders, lookup);
+  return orders;
 }
 
-async function getAutoSyncSnapshot({ limit = 25, sku = null } = {}) {
-  if (!autosyncClient.isEnabled()) {
-    return {
-      enabled: false,
-      online: false,
-      message: 'AutoSync-Service nicht konfiguriert.',
-      logs: [],
-      stats: null
-    };
+async function saveOrdersRaw(orders) {
+  await writeJson('purchase_orders.json', orders);
+  if (Array.isArray(orders)) {
+    const entries = orders
+      .filter((order) => order.project_id && hasSampleRelations(order))
+      .map((order) => ({
+        order_id: order.id || order.name,
+        project_id: order.project_id
+      }));
+    await writeOrderProjects(entries);
   }
-
-  const health = await autosyncClient.getHealth();
-  let logsPayload = null;
-  let logsError = null;
-  try {
-    logsPayload = sku
-      ? await autosyncClient.fetchSkuLogs(sku, { limit })
-      : await autosyncClient.fetchLatestLogs(limit);
-  } catch (err) {
-    logsPayload = { entries: [] };
-    logsError = err.message;
-  }
-
-  const logsRaw = logsPayload?.entries || logsPayload?.logs || [];
-  const logs = logsRaw.map((entry) => normalizeAutoSyncLog(entry));
-  const stats = computeAutoSyncStats(logs);
-
-  return {
-    ...health,
-    logs,
-    stats,
-    logs_error: logsError || logsPayload?.error || null,
-    sku: sku || null
-  };
-}
-
-function ensureAutoSyncConfigured(res) {
-  if (!autosyncClient.isEnabled()) {
-    respondError(res, 503, 'AutoSync-Service ist nicht konfiguriert.');
-    return false;
-  }
-  return true;
 }
 
 async function loadOrders() {
-  const orders = (await readJson('purchase_orders.json', [])) || [];
+  const orders = await loadOrdersRaw();
+  return orders.map((order) => normalizePortalOrder(order));
+}
+
+async function loadSalesOrdersRaw() {
+  return (await readJson('sales_orders.json', [])) || [];
+}
+
+async function loadSalesOrders() {
+  const orders = await loadSalesOrdersRaw();
   return orders.map((order) => normalizePortalOrder(order));
 }
 
@@ -476,6 +461,33 @@ async function loadAddressesData() {
 
 async function loadContactsData() {
   return (await readJson('contacts.json', [])) || [];
+}
+
+async function buildCustomerResponsePayload(customerId) {
+  if (!customerId) return null;
+  const [customers, addresses, contacts] = await Promise.all([
+    loadCustomersData(),
+    loadAddressesData(),
+    loadContactsData()
+  ]);
+  const customer = customers.find((entry) => entry.id === customerId) || null;
+  if (!customer) return null;
+  return {
+    customer,
+    addresses: addresses.filter((entry) => entry.customer_id === customerId),
+    contact: contacts.find((entry) => entry.customer_id === customerId) || null
+  };
+}
+
+async function buildItemResponsePayload(itemCode) {
+  if (!itemCode) return null;
+  const items = await loadItemsData();
+  const normalizedCode = itemCode.toString().toLowerCase();
+  return (
+    items.find(
+      (item) => item.id.toLowerCase() === normalizedCode || (item.item_code || '').toLowerCase() === normalizedCode
+    ) || null
+  );
 }
 
 async function loadCustomerAccessoriesData() {
@@ -554,14 +566,14 @@ function normalizeOrderProfileResponse(entry) {
 
 async function appendOrderTimelineEntry(orderId, entry, logAction = null, actorId = null) {
   if (!orderId || !entry) return null;
-  const orders = await loadOrders();
+  const orders = await loadOrdersRaw();
   const idx = orders.findIndex((order) => order.id === orderId);
   if (idx === -1) return null;
   const order = orders[idx];
   order.timeline = Array.isArray(order.timeline) ? order.timeline : [];
   order.timeline.push(entry);
   orders[idx] = order;
-  await writeJson('purchase_orders.json', orders);
+  await saveOrdersRaw(orders);
   if (logAction) {
     await appendToArray('status_logs.json', {
       id: `LOG-${randomUUID()}`,
@@ -571,7 +583,7 @@ async function appendOrderTimelineEntry(orderId, entry, logAction = null, actorI
       ts: entry.created_at
     });
   }
-  return order;
+  return normalizePortalOrder(order);
 }
 
 function buildPortalTimelineEntry(type, message, actor, label = null) {
@@ -608,6 +620,577 @@ function sanitizeBoolean(value) {
   }
   return false;
 }
+
+function normalizeCustomerType(value) {
+  const normalized = sanitizeText(value).toUpperCase();
+  if (CUSTOMER_TYPE_CHOICES.has(normalized)) {
+    return normalized === 'INDIVIDUAL' ? 'Individual' : 'Company';
+  }
+  return ERP_DEFAULT_CUSTOMER_TYPE;
+}
+
+function normalizeCustomerStatus(value) {
+  const normalized = sanitizeText(value).toLowerCase();
+  if (['gesperrt', 'disabled', 'inactive', 'blockiert'].includes(normalized)) {
+    return 'gesperrt';
+  }
+  return 'aktiv';
+}
+
+function sanitizeCustomerLanguage(value) {
+  const normalized = sanitizeText(value).toLowerCase();
+  if (CUSTOMER_LANGUAGE_CHOICES.has(normalized)) {
+    return normalized;
+  }
+  return ERP_CUSTOMER_LANGUAGE;
+}
+
+function extractAddressPayload(raw = {}, prefix) {
+  if (!raw || !prefix) return null;
+  const nested = raw[`${prefix}_address`] || raw[`${prefix}Address`];
+  if (nested && typeof nested === 'object') {
+    return nested;
+  }
+  const payload = {
+    street: raw[`${prefix}_street`] || raw[`${prefix}Street`],
+    street2: raw[`${prefix}_street2`] || raw[`${prefix}Street2`],
+    city: raw[`${prefix}_city`] || raw[`${prefix}City`],
+    zip:
+      raw[`${prefix}_zip`] ||
+      raw[`${prefix}Zip`] ||
+      raw[`${prefix}_postal_code`] ||
+      raw[`${prefix}PostalCode`] ||
+      raw[`${prefix}_pincode`] ||
+      raw[`${prefix}Pincode`],
+    country: raw[`${prefix}_country`] || raw[`${prefix}Country`],
+    state: raw[`${prefix}_state`] || raw[`${prefix}State`],
+    phone: raw[`${prefix}_phone`] || raw[`${prefix}Phone`],
+    label: raw[`${prefix}_label`] || raw[`${prefix}Label`]
+  };
+  const hasValue = Object.values(payload).some((value) => sanitizeText(value));
+  return hasValue ? payload : null;
+}
+
+function sanitizeAddressInput(rawAddress, type = 'billing') {
+  if (!rawAddress || typeof rawAddress !== 'object') return null;
+  const id = sanitizeText(rawAddress.id || rawAddress.name || rawAddress.address_id || rawAddress.addressId) || null;
+  const street = sanitizeText(rawAddress.street || rawAddress.address_line1);
+  const city = sanitizeText(rawAddress.city);
+  const country = sanitizeText(rawAddress.country) || 'Deutschland';
+  const zip = sanitizeText(rawAddress.zip || rawAddress.postal_code || rawAddress.pincode);
+  const state = sanitizeText(rawAddress.state) || null;
+  const phone = sanitizeText(rawAddress.phone) || null;
+  const street2 = sanitizeText(rawAddress.street2 || rawAddress.address_line2) || null;
+  if (!street || !city) {
+    return null;
+  }
+  return {
+    id,
+    type,
+    label: sanitizeText(rawAddress.label) || null,
+    street,
+    street2,
+    city,
+    zip: zip || null,
+    country: country || null,
+    state,
+    phone
+  };
+}
+
+function extractContactPayload(raw = {}) {
+  const nested = raw.contact || raw.contact_person || raw.contactPerson;
+  if (nested && typeof nested === 'object') {
+    return nested;
+  }
+  const name = raw.contact_name || raw.contactName || raw.contact_person || raw.contactPerson;
+  const email = raw.contact_email || raw.contactEmail || raw.contact_email_id || raw.contactEmailId;
+  const phone =
+    raw.contact_phone || raw.contactPhone || raw.contact_mobile || raw.contactMobile || raw.contact_phone_no;
+  if (name || email || phone) {
+    return { name, email, phone };
+  }
+  return null;
+}
+
+function sanitizeContactInput(rawContact) {
+  if (!rawContact || typeof rawContact !== 'object') return null;
+  const id = sanitizeText(rawContact.id || rawContact.name || rawContact.contact_id || rawContact.contactId) || null;
+  const name = sanitizeText(rawContact.name || rawContact.full_name || rawContact.contact_name);
+  const email = sanitizeText(rawContact.email || rawContact.email_id || rawContact.emailId);
+  const phone = sanitizeText(rawContact.phone || rawContact.mobile || rawContact.mobile_no || rawContact.phone_no);
+  if (!name && !email && !phone) return null;
+  return {
+    id,
+    name: name || email || phone,
+    email: email || null,
+    phone: phone || null
+  };
+}
+
+function sanitizeCustomerPayload(raw = {}, options = {}) {
+  const { requireCustomerId = false } = options;
+  const customerName = sanitizeText(raw.customer_name || raw.customerName || raw.name);
+  if (!customerName) {
+    throw createHttpError(400, 'Kundenname fehlt.');
+  }
+  const customerId = sanitizeText(raw.customer_id || raw.customerId) || null;
+  const customerNumber = sanitizeText(raw.customer_number || raw.customerNumber || raw.customerId) || null;
+  const needsNamingSeries = !customerId;
+  const namingSeries = sanitizeText(raw.naming_series || raw.namingSeries) || (needsNamingSeries ? ERP_CUSTOMER_SERIES : null);
+  if (requireCustomerId && !customerId && !customerNumber) {
+    throw createHttpError(400, 'Kundennummer fehlt.');
+  }
+  if (!customerId && !customerNumber && !namingSeries) {
+    throw createHttpError(400, 'Naming Series fehlt.');
+  }
+  const billingAddress = sanitizeAddressInput(extractAddressPayload(raw, 'billing'), 'billing');
+  let shippingAddress = sanitizeAddressInput(extractAddressPayload(raw, 'shipping'), 'shipping');
+  const shippingSameAsBilling = sanitizeBoolean(raw.shipping_same_as_billing || raw.shippingSameAsBilling);
+  if (!shippingAddress && shippingSameAsBilling && billingAddress) {
+    shippingAddress = { ...billingAddress, type: 'shipping' };
+  }
+  const contact = sanitizeContactInput(extractContactPayload(raw));
+  const billingAddressId = sanitizeText(raw.billing_address_id || raw.billingAddressId) || null;
+  const shippingAddressId = sanitizeText(raw.shipping_address_id || raw.shippingAddressId) || null;
+  const contactId = sanitizeText(raw.contact_id || raw.contactId) || null;
+  if (billingAddress) {
+    billingAddress.id = billingAddressId || billingAddress.id || null;
+  }
+  if (shippingAddress) {
+    shippingAddress.id = shippingAddressId || shippingAddress.id || null;
+  }
+  if (contact) {
+    contact.id = contactId || contact.id || null;
+  }
+  return {
+    customer_id: customerId || customerNumber || null,
+    customer_name: customerName,
+    customer_number: customerNumber,
+    naming_series: namingSeries,
+    customer_type: normalizeCustomerType(raw.customer_type || raw.customerType),
+    status: normalizeCustomerStatus(raw.status),
+    language: sanitizeCustomerLanguage(raw.language || raw.customer_language || raw.customerLanguage),
+    territory: sanitizeText(raw.territory || raw.customer_territory || raw.customerTerritory) || ERP_CUSTOMER_TERRITORY || null,
+    customer_group:
+      sanitizeText(raw.customer_group || raw.customerGroup || raw.customer_segment || raw.customerSegment) ||
+      ERP_CUSTOMER_GROUP ||
+      null,
+    tax_id: sanitizeText(raw.tax_id || raw.taxId) || null,
+    email: sanitizeText(raw.email || raw.email_id || raw.emailId) || null,
+    phone: sanitizeText(raw.phone || raw.mobile || raw.mobile_no || raw.mobileNo) || null,
+    account_manager: sanitizeText(raw.account_manager || raw.accountManager) || null,
+    priority: sanitizeText(raw.priority) || null,
+    woocommerce_user: sanitizeText(raw.woocommerce_user || raw.woocommerceUser) || null,
+    woocommerce_password_hint:
+      sanitizeText(raw.woocommerce_password_hint || raw.woocommercePasswordHint || raw.woocommerce_password) || null,
+    billing_address: billingAddress,
+    shipping_address: shippingAddress,
+    contact
+  };
+}
+
+function buildErpCustomerDoc(payload, { includeIdentity = true } = {}) {
+  const disabled = payload.status === 'gesperrt';
+  return compactObject({
+    doctype: includeIdentity ? 'Customer' : undefined,
+    customer_name: payload.customer_name,
+    name: includeIdentity ? payload.customer_number || undefined : undefined,
+    naming_series:
+      includeIdentity && !payload.customer_number ? payload.naming_series || ERP_CUSTOMER_SERIES : undefined,
+    customer_type: payload.customer_type || ERP_DEFAULT_CUSTOMER_TYPE,
+    language: payload.language || undefined,
+    territory: payload.territory || undefined,
+    customer_group: payload.customer_group || undefined,
+    disabled: disabled ? 1 : 0,
+    tax_id: payload.tax_id || undefined,
+    email_id: payload.email || undefined,
+    mobile_no: payload.phone || undefined,
+    phone: payload.phone || undefined,
+    account_manager: payload.account_manager || undefined,
+    priority: payload.priority || undefined,
+    custom_woocommerce_benutzer: payload.woocommerce_user || undefined,
+    custom_woocommerce_passwort: payload.woocommerce_password_hint || undefined
+  });
+}
+
+function buildErpAddressDoc(address, customerId, customerName, { includeLinks = true, includeDoctype = true } = {}) {
+  if (!address || !customerId) return null;
+  const typeKey = address.type === 'shipping' ? 'Shipping' : 'Billing';
+  const suffix = typeKey === 'Shipping' ? 'Lieferadresse' : 'Rechnungsadresse';
+  const baseLabel = address.label || `${customerName || customerId} ${suffix}`;
+  return compactObject({
+    doctype: includeDoctype ? 'Address' : undefined,
+    address_title: baseLabel.trim(),
+    address_type: typeKey,
+    address_line1: address.street,
+    address_line2: address.street2 || undefined,
+    city: address.city,
+    state: address.state || undefined,
+    pincode: address.zip || undefined,
+    zip: address.zip || undefined,
+    country: address.country || undefined,
+    phone: address.phone || undefined,
+    is_primary_address: typeKey === 'Billing' ? 1 : 0,
+    is_shipping_address: typeKey === 'Shipping' ? 1 : 0,
+    links: includeLinks
+      ? [
+          {
+            link_doctype: 'Customer',
+            link_name: customerId,
+            link_title: customerName || customerId
+          }
+        ]
+      : undefined
+  });
+}
+
+function buildErpContactDoc(contact, customerId, customerName, { includeLinks = true, includeDoctype = true } = {}) {
+  if (!contact || !customerId) return null;
+  const parts = (contact.name || '').split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() || contact.name || contact.email || 'Kontakt';
+  const lastName = parts.length ? parts.join(' ') : undefined;
+  const fullName = contact.name || [firstName, lastName].filter(Boolean).join(' ');
+  return compactObject({
+    doctype: includeDoctype ? 'Contact' : undefined,
+    first_name: firstName,
+    last_name: lastName,
+    full_name: fullName,
+    email_id: contact.email || undefined,
+    phone: contact.phone || undefined,
+    mobile_no: contact.phone || undefined,
+    status: 'Passive',
+    links: includeLinks
+      ? [
+          {
+            link_doctype: 'Customer',
+            link_name: customerId,
+            link_title: customerName || customerId
+          }
+        ]
+      : undefined
+  });
+}
+
+function normalizeItemStatus(value) {
+  const normalized = sanitizeText(value).toLowerCase();
+  return normalized === 'inactive' || normalized === 'gesperrt' || normalized === 'disabled' ? 'inactive' : 'active';
+}
+
+function sanitizeItemPayload(raw = {}, options = {}) {
+  const { requireItemCode = true } = options;
+  const itemCode = sanitizeText(raw.item_code || raw.itemCode || raw.id || raw.name) || null;
+  const itemName = sanitizeText(raw.item_name || raw.itemName);
+  if (requireItemCode && !itemCode) {
+    throw createHttpError(400, 'Artikelnummer fehlt.');
+  }
+  if (!itemName) {
+    throw createHttpError(400, 'Artikelname fehlt.');
+  }
+  const itemGroup = sanitizeText(raw.item_group || raw.itemGroup) || ERP_DEFAULT_ITEM_GROUP;
+  const stockUom = sanitizeText(raw.stock_uom || raw.stockUom) || ERP_DEFAULT_STOCK_UOM;
+  const status = normalizeItemStatus(raw.status);
+  const materials = raw.materials || {};
+  const links = raw.links || {};
+  return {
+    item_code: itemCode,
+    item_name: itemName,
+    item_group: itemGroup,
+    stock_uom: stockUom,
+    brand: sanitizeText(raw.brand) || null,
+    description: sanitizeText(raw.description) || null,
+    status,
+    collection: sanitizeText(raw.collection || raw.custom_kollektion) || null,
+    customer_link: sanitizeText(raw.customer_link || raw.customerLink || raw.custom_verknüpfung_zum_kunden) || null,
+    customer_item_code: sanitizeText(raw.customer_item_code || raw.customerItemCode || raw.custom_kundenartikelcode) || null,
+    color_code: sanitizeText(raw.color_code || raw.colorCode || raw.custom_farbcode) || null,
+    materials: {
+      outer: sanitizeText(materials.outer || raw.outer_material || raw.outerMaterial || raw.custom_außenmaterial || raw.custom_aussenmaterial) || null,
+      inner: sanitizeText(materials.inner || raw.inner_material || raw.innerMaterial || raw.custom_innenmaterial) || null,
+      sole: sanitizeText(materials.sole || raw.sole_material || raw.soleMaterial || raw.custom_sohle) || null
+    },
+    links: {
+      b2b: sanitizeText(links.b2b || raw.b2b_link || raw.b2bLink || raw.custom_produktlink_b2b) || null,
+      viewer3d: sanitizeText(links.viewer3d || raw.viewer_link || raw.viewerLink || raw.custom_3d_produktlink) || null
+    }
+  };
+}
+
+function buildErpItemDoc(payload, { includeIdentity = true } = {}) {
+  if (!payload) return null;
+  const disabled = payload.status === 'inactive';
+  return compactObject({
+    doctype: includeIdentity ? 'Item' : undefined,
+    item_code: includeIdentity ? payload.item_code : undefined,
+    item_name: payload.item_name,
+    item_group: payload.item_group || ERP_DEFAULT_ITEM_GROUP,
+    stock_uom: payload.stock_uom || ERP_DEFAULT_STOCK_UOM,
+    brand: payload.brand || undefined,
+    description: payload.description || undefined,
+    disabled: disabled ? 1 : 0,
+    custom_kollektion: payload.collection || undefined,
+    custom_kundenartikelcode: payload.customer_item_code || undefined,
+    custom_verknüpfung_zum_kunden: payload.customer_link || undefined,
+    custom_farbcode: payload.color_code || undefined,
+    custom_außenmaterial: payload.materials?.outer || undefined,
+    custom_aussenmaterial: payload.materials?.outer || undefined,
+    custom_innenmaterial: payload.materials?.inner || undefined,
+    custom_sohle: payload.materials?.sole || undefined,
+    custom_produktlink_b2b: payload.links?.b2b || undefined,
+    custom_3d_produktlink: payload.links?.viewer3d || undefined
+  });
+}
+
+function generateProjectId(seed = null) {
+  const normalizedSeed = seed ? seed.toString().replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+  if (normalizedSeed.length >= 6) {
+    return `PRJ-${normalizedSeed.slice(-6)}`;
+  }
+  return `PRJ-${randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
+async function loadOrderProjects() {
+  return (await readJson(ORDER_PROJECTS_FILE, [])) || [];
+}
+
+async function writeOrderProjects(entries) {
+  const normalized = (entries || [])
+    .filter((entry) => entry?.order_id && entry?.project_id)
+    .map((entry) => ({
+      order_id: entry.order_id,
+      project_id: entry.project_id
+    }));
+  await writeJson(ORDER_PROJECTS_FILE, normalized);
+}
+
+function applyProjectMappings(orders, lookup) {
+  if (!Array.isArray(orders)) return;
+  orders.forEach((order) => {
+    const id = order.id || order.name;
+    if (!id) return;
+    if (!hasSampleRelations(order)) {
+      order.project_id = null;
+      return;
+    }
+    const projectId = lookup.get(id) || null;
+    order.project_id = projectId;
+  });
+}
+
+function sanitizeSampleStage(stage) {
+  if (!stage) return null;
+  const normalized = stage.toString().trim().toLowerCase();
+  return SAMPLE_STAGE_KEYS.includes(normalized) ? normalized : null;
+}
+
+function ensureSampleContainers(order) {
+  if (!order) return;
+  if (!order.sample_feedback || typeof order.sample_feedback !== 'object') {
+    order.sample_feedback = {};
+  }
+  if (!order.sample_links || typeof order.sample_links !== 'object') {
+    order.sample_links = {};
+  }
+  if (!Array.isArray(order.sample_links.next)) {
+    order.sample_links.next = [];
+  }
+  order.sample_links.next = order.sample_links.next.filter(
+    (entry) => typeof entry === 'string' && entry.trim() && entry !== order.id
+  );
+  if (!order.sample_flags || typeof order.sample_flags !== 'object') {
+    order.sample_flags = {};
+  }
+}
+
+function hasSampleRelations(order) {
+  if (!order) return false;
+  ensureSampleContainers(order);
+  const nextLinks = Array.isArray(order.sample_links?.next) ? order.sample_links.next.filter(Boolean) : [];
+  return Boolean(order.sample_links?.previous) || nextLinks.length > 0;
+}
+
+async function removeUploadedFile(relativePath) {
+  if (!relativePath || !relativePath.startsWith('/uploads')) return;
+  const absolute = path.join(process.cwd(), relativePath);
+  try {
+    await fs.unlink(absolute);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn('Datei konnte nicht entfernt werden', absolute, err.message);
+    }
+  }
+}
+
+function findOrderIndexById(orders, orderId) {
+  if (!Array.isArray(orders) || !orderId) return -1;
+  return orders.findIndex((entry) => entry?.id === orderId || entry?.name === orderId);
+}
+
+function collectLinkedOrderIds(orders, seedIds = []) {
+  if (!Array.isArray(orders) || !Array.isArray(seedIds) || !seedIds.length) return [];
+  const queue = seedIds.filter(Boolean);
+  const visited = new Set();
+  const result = [];
+  while (queue.length) {
+    const candidate = queue.shift();
+    if (!candidate || visited.has(candidate)) continue;
+    visited.add(candidate);
+    const idx = findOrderIndexById(orders, candidate);
+    if (idx === -1) continue;
+    const current = orders[idx];
+    ensureSampleContainers(current);
+    const identifier = current.id || current.name;
+    if (!identifier) continue;
+    result.push(identifier);
+    if (current.sample_links.previous) {
+      queue.push(current.sample_links.previous);
+    }
+    current.sample_links.next.forEach((nextId) => queue.push(nextId));
+  }
+  return Array.from(new Set(result));
+}
+
+function assignProjectIdToOrders(orders, orderIds, preferredProjectId = null) {
+  if (!Array.isArray(orders) || !Array.isArray(orderIds) || !orderIds.length) return null;
+  const uniqueIds = Array.from(new Set(orderIds.filter(Boolean)));
+  const eligibleOrders = uniqueIds
+    .map((id) => {
+      const idx = findOrderIndexById(orders, id);
+      if (idx === -1) return null;
+      const entry = orders[idx];
+      return hasSampleRelations(entry) ? entry : null;
+    })
+    .filter(Boolean);
+  if (eligibleOrders.length < 2) {
+    uniqueIds.forEach((id) => {
+      const idx = findOrderIndexById(orders, id);
+      if (idx !== -1) {
+        orders[idx].project_id = null;
+      }
+    });
+    return null;
+  }
+  const existingId =
+    preferredProjectId ||
+    eligibleOrders.map((entry) => entry.project_id).find((value) => typeof value === 'string' && value.trim()) ||
+    generateProjectId(eligibleOrders[0].order_number || eligibleOrders[0].id || eligibleOrders[0].name);
+  eligibleOrders.forEach((entry) => {
+    entry.project_id = existingId;
+  });
+  return existingId;
+}
+
+function reconcileProjectAssignments(orders, seedIds = []) {
+  if (!Array.isArray(orders) || !Array.isArray(seedIds) || !seedIds.length) return;
+  const processed = new Set();
+  seedIds.forEach((seed) => {
+    if (!seed || processed.has(seed)) return;
+    const chain = collectLinkedOrderIds(orders, [seed]);
+    chain.forEach((id) => processed.add(id));
+    if (!chain.length) return;
+    assignProjectIdToOrders(orders, chain);
+  });
+}
+
+function updateSampleLinkage(orders, orderId, nextPreviousId) {
+  const targetIndex = findOrderIndexById(orders, orderId);
+  if (targetIndex === -1) {
+    throw createHttpError(404, 'Bestellung nicht gefunden');
+  }
+  const order = orders[targetIndex];
+  ensureSampleContainers(order);
+  const currentPrevious = order.sample_links.previous || null;
+  if (currentPrevious) {
+    const previousIndex = findOrderIndexById(orders, currentPrevious);
+    if (previousIndex !== -1) {
+      ensureSampleContainers(orders[previousIndex]);
+      orders[previousIndex].sample_links.next = orders[previousIndex].sample_links.next.filter(
+        (id) => id !== order.id
+      );
+    }
+    order.sample_links.previous = null;
+  }
+  let appliedPrevious = null;
+  if (nextPreviousId) {
+    if (nextPreviousId === order.id) {
+      throw createHttpError(400, 'Bestellung kann nicht mit sich selbst verknüpft werden');
+    }
+    const nextIndex = findOrderIndexById(orders, nextPreviousId);
+    if (nextIndex === -1) {
+      throw createHttpError(404, 'Verknüpfte Bestellung nicht gefunden');
+    }
+    ensureSampleContainers(orders[nextIndex]);
+    order.sample_links.previous = nextPreviousId;
+    appliedPrevious = nextPreviousId;
+    if (!orders[nextIndex].sample_links.next.includes(order.id)) {
+      orders[nextIndex].sample_links.next.push(order.id);
+    }
+  }
+  order.sample_links.next = order.sample_links.next.filter((id) => id !== order.sample_links.previous);
+  return {
+    order,
+    oldPrevious: currentPrevious,
+    newPrevious: appliedPrevious
+  };
+}
+
+async function applySampleOriginLink(orderId, previousOrderId) {
+  if (!orderId || !previousOrderId) return null;
+  const orders = await loadOrdersRaw();
+  const result = updateSampleLinkage(orders, orderId, previousOrderId);
+  reconcileProjectAssignments(orders, [orderId, previousOrderId, result.oldPrevious].filter(Boolean));
+  await saveOrdersRaw(orders);
+  return normalizePortalOrder(result.order);
+}
+
+function buildProjectOverview(order, orders = [], tickets = []) {
+  if (!order?.project_id) return null;
+  const projectOrders = orders.filter((entry) => entry.project_id === order.project_id);
+  if (!projectOrders.length) {
+    return {
+      id: order.project_id,
+      orders: [],
+      tickets: [],
+      timeline: [],
+      documents: []
+    };
+  }
+  const orderSummaries = projectOrders
+    .map((entry) => ({
+      id: entry.id,
+      order_number: entry.order_number,
+      order_type: entry.order_type,
+      portal_status: entry.portal_status,
+      status_label: getStatusLabel(entry.portal_status),
+      requested_delivery: entry.requested_delivery,
+      sample_feedback: entry.sample_feedback || {},
+      created_at: entry.creation || entry.created_at || entry.modified || null,
+      is_current: entry.id === order.id
+    }))
+    .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  const projectOrderIds = new Set(projectOrders.map((entry) => entry.id));
+  const projectTickets = tickets.filter((ticket) => projectOrderIds.has(ticket.order_id));
+  const projectTimeline = projectOrders
+    .flatMap((entry) =>
+      (entry.timeline || []).map((timelineEntry) => ({
+        ...timelineEntry,
+        order_id: entry.id,
+        order_number: entry.order_number
+      }))
+    )
+    .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  const projectDocuments = projectTimeline.filter((entry) =>
+    ['FILE_UPLOAD', 'SAMPLE_FEEDBACK', 'SAMPLE_FEEDBACK_REMOVED'].includes(entry.type)
+  );
+  return {
+    id: order.project_id,
+    orders: orderSummaries,
+    tickets: projectTickets,
+    timeline: projectTimeline,
+    documents: projectDocuments
+  };
+}
+
 
 function normalizeOrderTypeInput(value) {
   if (!value) return 'BESTELLUNG';
@@ -871,6 +1454,8 @@ function sanitizeOrderCreatePayload(raw = {}) {
     order_type: normalizeOrderTypeInput(raw.order_type),
     requested_delivery: requestedDelivery,
     portal_status: ensurePortalStatus(raw.portal_status),
+    sample_origin_id: sanitizeText(raw.sample_origin_id) || null,
+    sample_origin_stage: normalizeOrderTypeInput(raw.sample_origin_stage || raw.order_type),
     customer_id: sanitizeText(raw.customer_id),
     customer_number: sanitizeText(raw.customer_number) || undefined,
     billing_address_id: sanitizeText(raw.billing_address_id),
@@ -1778,6 +2363,48 @@ async function syncOrderStatusWithTickets(orderId, actorEmail = 'system') {
   return order;
 }
 
+async function syncSpecStatusesWithTickets(orderId, positionId, actorEmail = 'system') {
+  if (!orderId || !positionId) return null;
+  const [specs, tickets] = await Promise.all([loadSpecs(), loadTicketsData()]);
+  const idx = specs.findIndex((spec) => spec.order_id === orderId && spec.position_id === positionId);
+  if (idx === -1) return null;
+  const spec = specs[idx];
+  const mediaList = spec?.flags?.medien;
+  if (!Array.isArray(mediaList) || !mediaList.length) {
+    return spec;
+  }
+  const hasOpenTickets = tickets.some(
+    (ticket) => ticket.order_id === orderId && ticket.position_id === positionId && ticket.status !== 'CLOSED'
+  );
+  if (!hasOpenTickets) {
+    return spec;
+  }
+  const affectedMedia = [];
+  mediaList.forEach((entry) => {
+    if (entry.status === 'OK') {
+      entry.status = 'OPEN';
+      affectedMedia.push(entry.id);
+    }
+  });
+  if (!affectedMedia.length) {
+    return spec;
+  }
+  spec.last_actor = actorEmail || 'system';
+  spec.updated_at = new Date().toISOString();
+  specs[idx] = spec;
+  await saveSpecs(specs);
+  await appendToArray('status_logs.json', {
+    id: `LOG-${randomUUID()}`,
+    order_id: orderId,
+    position_id: positionId,
+    action: 'SPEC_MEDIA_AUTO_OPEN',
+    actor: actorEmail || 'system',
+    ts: spec.updated_at,
+    data: { media_ids: affectedMedia }
+  });
+  return spec;
+}
+
 function resolveTechpackViewKey(requested, existingMedias = []) {
   const normalized = (requested || '').toString().trim().toLowerCase();
   if (TECHPACK_VIEW_KEYS.has(normalized)) {
@@ -2128,7 +2755,12 @@ function buildOrderFilter(query, user) {
         order.supplier_name?.toLowerCase().includes(term);
       if (!matches) return false;
     }
-    if (user?.role === 'SUPPLIER' && user.supplier_id && order.supplier_id && order.supplier_id !== user.supplier_id) {
+    if (
+      isSupplierRole(user?.role) &&
+      user?.supplier_id &&
+      order.supplier_id &&
+      order.supplier_id !== user.supplier_id
+    ) {
       return false;
     }
     return true;
@@ -2203,16 +2835,179 @@ async function translateText(text, source, target) {
   };
 }
 
-async function collectDiagnostics(currentUserId) {
+function normalizeTestStatus(value) {
+  const normalized = (value || '').toString().toLowerCase();
+  if (normalized === 'ok' || normalized === 'pass' || normalized === 'passed') {
+    return 'ok';
+  }
+  if (normalized === 'warn' || normalized === 'warning') {
+    return 'warn';
+  }
+  if (normalized === 'error' || normalized === 'fail' || normalized === 'failed' || normalized === 'danger') {
+    return 'error';
+  }
+  if (normalized === 'skip' || normalized === 'skipped' || normalized === 'na' || normalized === 'n/a') {
+    return 'skipped';
+  }
+  return 'ok';
+}
+
+async function runSystemTests({ orders = [], tickets = [], specs = [] } = {}) {
+  const tests = [
+    {
+      id: 'session-secret',
+      label: 'Session Secret konfiguriert',
+      run: async () => {
+        if (!SESSION_SECRET) {
+          return { status: 'error', detail: 'SESSION_SECRET nicht gesetzt.' };
+        }
+        if (SESSION_SECRET === 'change_me') {
+          return { status: 'warn', detail: 'Defaultwert "change_me" wird verwendet.' };
+        }
+        if (SESSION_SECRET.length < 12) {
+          return { status: 'warn', detail: `Nur ${SESSION_SECRET.length} Zeichen gesetzt.` };
+        }
+        return { status: 'ok', detail: `${SESSION_SECRET.length} Zeichen` };
+      }
+    },
+    {
+      id: 'orders-data',
+      label: 'Bestelldaten verfügbar',
+      run: async () => {
+        if (!Array.isArray(orders)) {
+          return { status: 'error', detail: 'purchase_orders.json nicht lesbar.' };
+        }
+        if (!orders.length) {
+          return { status: 'warn', detail: 'Keine Bestellungen im Snapshot.' };
+        }
+        return { status: 'ok', detail: `${orders.length} Bestellung(en)` };
+      }
+    },
+    {
+      id: 'tickets-data',
+      label: 'Tickets ladbar',
+      run: async () => {
+        if (!Array.isArray(tickets)) {
+          return { status: 'error', detail: 'tickets.json nicht lesbar.' };
+        }
+        if (!tickets.length) {
+          return { status: 'warn', detail: 'Keine Tickets vorhanden.' };
+        }
+        return { status: 'ok', detail: `${tickets.length} Ticket(s)` };
+      }
+    },
+    {
+      id: 'specs-data',
+      label: 'Spezifikationen vollständig',
+      run: async () => {
+        if (!Array.isArray(specs)) {
+          return { status: 'error', detail: 'spec_sheets.json nicht lesbar.' };
+        }
+        const missingLinks = specs.filter((spec) => !spec.order_id || !spec.position_id).length;
+        if (missingLinks) {
+          return { status: 'warn', detail: `${missingLinks} Spezifikation(en) ohne Order/Position.` };
+        }
+        return { status: 'ok', detail: `${specs.length} Spezifikation(en)` };
+      }
+    },
+    {
+      id: 'uploads-dir',
+      label: 'Uploads beschreibbar',
+      run: async () => {
+        const probeDir = path.join(UPLOAD_ROOT, 'diagnostics');
+        const probeFile = path.join(probeDir, `.probe-${Date.now()}.txt`);
+        await fs.mkdir(probeDir, { recursive: true });
+        try {
+          await fs.writeFile(probeFile, 'ok', 'utf-8');
+          return { status: 'ok', detail: probeDir };
+        } catch (err) {
+          return { status: 'error', detail: err.message || 'Konnte Testdatei nicht schreiben.' };
+        } finally {
+          await fs.rm(probeFile, { force: true }).catch(() => {});
+        }
+      }
+    }
+  ];
+
+  tests.push({
+    id: 'autosync-bridge',
+    label: 'AutoSync-Brücke erreichbar',
+    run: async () => {
+      if (!AUTOSYNC_SERVICE_URL) {
+        return { status: 'skipped', detail: 'AUTOSYNC_SERVICE_URL nicht gesetzt.' };
+      }
+      let endpoint;
+      try {
+        endpoint = new URL('/api/logs/latest', AUTOSYNC_SERVICE_URL);
+      } catch (err) {
+        return { status: 'error', detail: `Ungültige URL: ${err.message}` };
+      }
+      const headers = {};
+      if (AUTOSYNC_SERVICE_TOKEN) {
+        headers['X-Autosync-Token'] = AUTOSYNC_SERVICE_TOKEN;
+      }
+      try {
+        const response = await axios.get(endpoint.toString(), {
+          timeout: AUTOSYNC_TEST_TIMEOUT_MS,
+          headers
+        });
+        return {
+          status: 'ok',
+          detail: `Antwort ${response.status}${response.statusText ? ` (${response.statusText})` : ''}`
+        };
+      } catch (err) {
+        return {
+          status: 'error',
+          detail: err?.response?.status ? `HTTP ${err.response.status}` : err.message || 'Keine Antwort.'
+        };
+      }
+    }
+  });
+
+  const summary = { total: 0, ok: 0, warn: 0, error: 0, skipped: 0 };
+  const results = [];
+  for (const test of tests) {
+    const started = Date.now();
+    try {
+      const outcome = (await test.run()) || {};
+      const status = normalizeTestStatus(outcome.status);
+      const detail = outcome.detail || '';
+      results.push({
+        id: test.id,
+        label: test.label,
+        status,
+        detail,
+        duration_ms: Date.now() - started,
+        ran_at: new Date().toISOString()
+      });
+      summary[status] += 1;
+    } catch (err) {
+      results.push({
+        id: test.id,
+        label: test.label,
+        status: 'error',
+        detail: err.message || 'Unbekannter Fehler',
+        duration_ms: Date.now() - started,
+        ran_at: new Date().toISOString()
+      });
+      summary.error += 1;
+    } finally {
+      summary.total += 1;
+    }
+  }
+  const overall = summary.error > 0 ? 'error' : summary.warn > 0 ? 'warn' : 'ok';
+  return { overall, summary, results };
+}
+
+async function collectDiagnostics() {
   const now = Date.now();
-  const [orders, tickets, specs, lastSync, calendar, statusLogs, autosyncSnapshot] = await Promise.all([
+  const [orders, tickets, specs, lastSync, calendar, statusLogs] = await Promise.all([
     loadOrders(),
     readJson('tickets.json', []),
     loadSpecs(),
     readJson('last_sync.json', { last_run: null, source: null }),
     readJson('calendar.json', []),
-    readJson('status_logs.json', []),
-    getAutoSyncSnapshot({ limit: 10 })
+    readJson('status_logs.json', [])
   ]);
 
   const ordersByStatus = mapCounts(countBy(orders, (order) => order.portal_status || 'UNBEKANNT'), getStatusLabel);
@@ -2306,15 +3101,8 @@ async function collectDiagnostics(currentUserId) {
       healthy: syncAgeMinutes !== null && syncAgeMinutes < 45
     }
   ];
-  if (autosyncSnapshot?.enabled) {
-    jobs.push({
-      name: 'AutoSync',
-      schedule: 'Webhook/Manuell',
-      lastRun: autosyncSnapshot.stats?.last_run || null,
-      ageMinutes: minutesSince(autosyncSnapshot.stats?.last_run),
-      healthy: Boolean(autosyncSnapshot.online)
-    });
-  }
+
+  const tests = await runSystemTests({ orders, tickets, specs });
 
   return {
     generated_at: new Date(now).toISOString(),
@@ -2338,7 +3126,6 @@ async function collectDiagnostics(currentUserId) {
       age_minutes: syncAgeMinutes,
       schedule: SYNC_CRON
     },
-    autosync: autosyncSnapshot,
     jobs,
     orders: {
       total: orders.length,
@@ -2361,12 +3148,13 @@ async function collectDiagnostics(currentUserId) {
     },
     logs: {
       recent: recentLogs
-    }
+    },
+    tests
   };
 }
 
 function orderMatchesSupplier(order, user) {
-  if (user.role === 'BATE') return true;
+  if (isInternalRole(user.role)) return true;
   if (!user.supplier_id) return false;
   // TODO: Feature-Flag für feinere Supplier-Rechte pro Order implementieren.
   return order.supplier_id === user.supplier_id;
@@ -2388,6 +3176,290 @@ async function ensureOrderAccess(orderId, user) {
   return order;
 }
 
+async function ensureSalesOrderAccess(orderId, user) {
+  const orders = await loadSalesOrders();
+  const order = orders.find((o) => o.id === orderId);
+  if (!order) {
+    const err = new Error('Auftrag nicht gefunden');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (!isInternalRole(user.role)) {
+    const err = new Error('Keine Berechtigung');
+    err.statusCode = 403;
+    throw err;
+  }
+  return order;
+}
+
+async function findOrderById(orderId) {
+  if (!orderId) return null;
+  const orders = await loadOrders();
+  return orders.find((entry) => entry.id === orderId) || null;
+}
+
+function getSupplierIdentifier(orderOrSupplier) {
+  if (!orderOrSupplier) return null;
+  if (typeof orderOrSupplier === 'string') {
+    return orderOrSupplier;
+  }
+  return orderOrSupplier.supplier_id || orderOrSupplier.supplier || null;
+}
+
+function resolveActorLabel(user) {
+  if (!user) return 'System';
+  return user.username || user.email || user.id || 'System';
+}
+
+async function enrichTicketComments(tickets) {
+  if (!Array.isArray(tickets) || !tickets.length) return tickets;
+  const users = await loadUsers();
+  const userLookup = new Map(
+    users
+      .map((user) => {
+        const email = typeof user.email === 'string' ? user.email.toLowerCase() : '';
+        if (!email) return null;
+        return [email, user.username || user.email];
+      })
+      .filter(Boolean)
+  );
+  tickets.forEach((ticket) => {
+    if (!Array.isArray(ticket?.comments)) return;
+    ticket.comments.forEach((comment) => {
+      if (!comment || comment.author_name) return;
+      const email = typeof comment.author === 'string' ? comment.author.toLowerCase() : '';
+      if (email) {
+        const display = userLookup.get(email);
+        if (display) {
+          comment.author_name = display;
+        }
+      }
+    });
+  });
+  return tickets;
+}
+
+async function gatherNotificationRecipients(
+  { supplierId = null, includeSuppliers = false, includeInternal = false, watcherIds = [] } = {},
+  actorId = null
+) {
+  const users = await loadUsers();
+  const recipients = new Map();
+  const normalizedSupplierId = supplierId ? supplierId.toString().trim() : null;
+  if (includeSuppliers && normalizedSupplierId) {
+    users.forEach((user) => {
+      if (user.supplier_id && user.supplier_id === normalizedSupplierId) {
+        recipients.set(user.id, user);
+      }
+    });
+  }
+  if (includeInternal) {
+    users.forEach((user) => {
+      if (isInternalRole(user.role)) {
+        recipients.set(user.id, user);
+      }
+    });
+  }
+  if (Array.isArray(watcherIds) && watcherIds.length) {
+    watcherIds.forEach((watcher) => {
+      if (!watcher) return;
+      const lookup = watcher.toString().trim().toLowerCase();
+      const match = users.find((user) => {
+        if (user.id === watcher) return true;
+        if (!user.email) return false;
+        return user.email.toLowerCase() === lookup;
+      });
+      if (match) {
+        recipients.set(match.id, match);
+      }
+    });
+  }
+  if (actorId) {
+    recipients.delete(actorId);
+  }
+  return Array.from(recipients.values());
+}
+
+function isTicketClosedStatus(status) {
+  if (!status) return false;
+  const normalized = status.toString().trim().toUpperCase();
+  return normalized === 'CLOSED' || normalized === 'OK';
+}
+
+async function notifyOrderCreated(order, actor) {
+  try {
+    if (!order) return;
+    const supplierId = getSupplierIdentifier(order);
+    if (!supplierId) return;
+    const recipients = await gatherNotificationRecipients(
+      { supplierId, includeSuppliers: true },
+      actor?.id || null
+    );
+    if (!recipients.length) return;
+    const orderNumber = order.order_number || order.id;
+    const supplierName = order.supplier_name || supplierId;
+    const actorName = resolveActorLabel(actor);
+    await addNotifications(
+      recipients.map((recipient) => ({
+        type: 'order.created',
+        title: 'Neue Bestellung eingereicht',
+        message: `Bestellung ${orderNumber} wurde eingereicht.`,
+        recipient_id: recipient.id,
+        order_id: order.id,
+        actor_id: actor?.id || null,
+        actor_name: actorName,
+        metadata: {
+          supplier_name: supplierName,
+          order_number: orderNumber,
+          order_type: order.order_type || order.phase || null,
+          requested_delivery: order.requested_delivery || order.schedule_date || null,
+          total_qty: order.total_qty || order.total_quantity || null
+        }
+      }))
+    );
+  } catch (err) {
+    console.warn('Benachrichtigung (Bestellung erstellt) fehlgeschlagen', err.message);
+  }
+}
+
+async function notifyTicketCreated(ticket, actor, order = null) {
+  try {
+    if (!ticket) return;
+    const supplierId = getSupplierIdentifier(order || ticket.supplier_id);
+    const notifyInternal = isSupplierRole(actor?.role);
+    const notifySuppliers = !notifyInternal;
+    const recipients = await gatherNotificationRecipients(
+      {
+        supplierId,
+        includeSuppliers: notifySuppliers,
+        includeInternal: notifyInternal,
+        watcherIds: ticket.watchers || []
+      },
+      actor?.id || null
+    );
+    if (!recipients.length) return;
+    const actorName = resolveActorLabel(actor);
+    const orderNumber = order?.order_number || order?.id || ticket.order_id || '';
+    await addNotifications(
+      recipients.map((recipient) => ({
+        type: 'ticket.created',
+        title: 'Neues Ticket',
+        message: `${actorName} hat ein Ticket${orderNumber ? ` zu ${orderNumber}` : ''} erstellt.`,
+        recipient_id: recipient.id,
+        order_id: ticket.order_id || null,
+        ticket_id: ticket.id,
+        position_id: ticket.position_id || null,
+        actor_id: actor?.id || null,
+        actor_name: actorName,
+        metadata: {
+          order_number: orderNumber || null,
+          ticket_title: ticket.title || null,
+          priority: ticket.priority || null,
+          view_key: ticket.view_key || null
+        }
+      }))
+    );
+  } catch (err) {
+    console.warn('Benachrichtigung (Ticket erstellt) fehlgeschlagen', err.message);
+  }
+}
+
+async function notifyTicketComment(ticket, comment, actor, order = null) {
+  try {
+    if (!ticket || !comment) return;
+    const supplierId = getSupplierIdentifier(order || ticket.supplier_id);
+    const notifyInternal = isSupplierRole(actor?.role);
+    const notifySuppliers = !notifyInternal;
+    const recipients = await gatherNotificationRecipients(
+      {
+        supplierId,
+        includeSuppliers: notifySuppliers,
+        includeInternal: notifyInternal,
+        watcherIds: ticket.watchers || []
+      },
+      actor?.id || null
+    );
+    if (!recipients.length) return;
+    const actorName = resolveActorLabel(actor);
+    const orderNumber = order?.order_number || order?.id || ticket.order_id || '';
+    await addNotifications(
+      recipients.map((recipient) => ({
+        type: 'ticket.comment',
+        title: 'Neue Ticket-Antwort',
+        message: `${actorName} hat im Ticket "${ticket.title}" geantwortet.`,
+        recipient_id: recipient.id,
+        order_id: ticket.order_id || null,
+        ticket_id: ticket.id,
+        position_id: ticket.position_id || null,
+        actor_id: actor?.id || null,
+        actor_name: actorName,
+        metadata: {
+          order_number: orderNumber || null,
+          ticket_title: ticket.title || null,
+          comment_id: comment.id,
+          has_attachment: Boolean(comment.attachment),
+          priority: ticket.priority || null,
+          view_key: ticket.view_key || null
+        }
+      }))
+    );
+  } catch (err) {
+    console.warn('Benachrichtigung (Ticket-Kommentar) fehlgeschlagen', err.message);
+  }
+}
+
+async function notifyTicketClosed(ticket, actor, order = null) {
+  try {
+    if (!ticket) return;
+    if (!isTicketClosedStatus(ticket.status)) return;
+    const supplierId = getSupplierIdentifier(order || ticket.supplier_id);
+    const notifyInternal = isSupplierRole(actor?.role);
+    const notifySuppliers = !notifyInternal;
+    const recipients = await gatherNotificationRecipients(
+      {
+        supplierId,
+        includeSuppliers: notifySuppliers,
+        includeInternal: notifyInternal,
+        watcherIds: ticket.watchers || []
+      },
+      actor?.id || null
+    );
+    if (!recipients.length) return;
+    const actorName = resolveActorLabel(actor);
+    const orderNumber = order?.order_number || order?.id || ticket.order_id || '';
+    const contextLabel = ticket.position_id
+      ? `Artikelspezifikation ${ticket.position_id}`
+      : orderNumber
+        ? `Bestellung ${orderNumber}`
+        : '';
+    const message = contextLabel
+      ? `${actorName} hat das Ticket "${ticket.title}" geschlossen (${contextLabel}).`
+      : `${actorName} hat das Ticket "${ticket.title}" geschlossen.`;
+    await addNotifications(
+      recipients.map((recipient) => ({
+        type: 'ticket.closed',
+        title: 'Ticket geschlossen',
+        message,
+        recipient_id: recipient.id,
+        order_id: ticket.order_id || null,
+        ticket_id: ticket.id,
+        position_id: ticket.position_id || null,
+        actor_id: actor?.id || null,
+        actor_name: actorName,
+        metadata: {
+          order_number: orderNumber || null,
+          ticket_title: ticket.title || null,
+          priority: ticket.priority || null,
+          view_key: ticket.view_key || null,
+          closed: true
+        }
+      }))
+    );
+  } catch (err) {
+    console.warn('Benachrichtigung (Ticket geschlossen) fehlgeschlagen', err.message);
+  }
+}
+
 // Auth routes
 app.post('/api/login', async (req, res) => {
   const identifier = req.body?.identifier || req.body?.email || req.body?.username || '';
@@ -2400,7 +3472,8 @@ app.post('/api/login', async (req, res) => {
     if (!user) {
       return respondError(res, 401, 'Ungültige Anmeldedaten');
     }
-    const enforcedLocale = user.role === 'SUPPLIER' ? 'tr' : resolveLocale(user.locale || DEFAULT_LOCALE);
+    const forcedLocale = getForcedLocaleForRole(user.role);
+    const enforcedLocale = forcedLocale || resolveLocale(user.locale || DEFAULT_LOCALE);
     user.locale = enforcedLocale;
     req.session.user = user;
     req.session.locale = enforcedLocale;
@@ -2423,10 +3496,183 @@ app.get('/api/session', (req, res) => {
   return res.json({ user: req.session.user });
 });
 
+app.get('/api/notifications', requireAuth(), async (req, res) => {
+  const unreadOnly = req.query.unread === 'true';
+  const limit = Number.parseInt(req.query.limit, 10);
+  const notifications = await getNotificationsForUser(req.session.user.id, {
+    unreadOnly,
+    limit: Number.isFinite(limit) ? limit : 50
+  });
+  res.json({ notifications });
+});
+
+app.post('/api/notifications/:id/read', requireAuth(), async (req, res) => {
+  const notification = await markNotificationRead(req.params.id, req.session.user.id);
+  if (!notification) {
+    return respondError(res, 404, 'Benachrichtigung nicht gefunden');
+  }
+  res.json(notification);
+});
+
+app.post('/api/notifications/:id/unread', requireAuth(), async (req, res) => {
+  const notification = await markNotificationUnread(req.params.id, req.session.user.id);
+  if (!notification) {
+    return respondError(res, 404, 'Benachrichtigung nicht gefunden');
+  }
+  res.json(notification);
+});
+
+app.post('/api/notifications/read-all', requireAuth(), async (req, res) => {
+  const notifications = await markAllNotificationsRead(req.session.user.id);
+  res.json({ notifications });
+});
+
 // ERP cache endpoints
 app.get('/api/erp/customers', requireAuth(), async (req, res) => {
   const data = await readJson('customers.json', []);
   res.json(data);
+});
+
+app.get('/api/erp/suppliers', requireAuth(), async (_req, res) => {
+  const data = await readJson('suppliers.json', []);
+  res.json(data);
+});
+
+app.post('/api/erp/customers', requireBate(), async (req, res) => {
+  if (!isErpClientEnabled()) {
+    return respondError(res, 503, 'ERP Client ist nicht konfiguriert.');
+  }
+  try {
+    const payload = sanitizeCustomerPayload(req.body || {});
+    const existingCustomers = await loadCustomersData();
+    if (payload.customer_number) {
+      const normalizedId = payload.customer_number.toLowerCase();
+      const duplicate = existingCustomers.some((customer) => (customer?.id || '').toLowerCase() === normalizedId);
+      if (duplicate) {
+        return respondError(res, 409, 'Kundennummer ist bereits vergeben.');
+      }
+    }
+    const customerDoc = buildErpCustomerDoc(payload);
+    const createdCustomer = await createCustomer(customerDoc);
+    const customerId = createdCustomer?.name || payload.customer_number;
+    if (!customerId) {
+      throw new Error('ERP hat keine Kundennummer zurückgegeben.');
+    }
+    const relationDocs = [];
+    const billingDoc = buildErpAddressDoc(payload.billing_address, customerId, payload.customer_name);
+    if (billingDoc) {
+      relationDocs.push(createAddress(billingDoc));
+    }
+    const shippingDoc = buildErpAddressDoc(payload.shipping_address, customerId, payload.customer_name);
+    if (shippingDoc) {
+      relationDocs.push(createAddress(shippingDoc));
+    }
+    const contactDoc = buildErpContactDoc(payload.contact, customerId, payload.customer_name);
+    if (contactDoc) {
+      relationDocs.push(createContact(contactDoc));
+    }
+    if (relationDocs.length) {
+      await Promise.all(relationDocs);
+    }
+    let detailedResponse = null;
+    try {
+      await syncERPData();
+      detailedResponse = await buildCustomerResponsePayload(customerId);
+    } catch (syncErr) {
+      console.warn('Customer sync failed', syncErr.message);
+    }
+    if (detailedResponse) {
+      return res.status(201).json(detailedResponse);
+    }
+    return res.status(201).json({
+      id: customerId,
+      message: 'Kunde wurde angelegt. Daten werden nach dem nächsten Sync aktualisiert.'
+    });
+  } catch (err) {
+    const { status, message } = resolveErpError(err, 'Kunde konnte nicht angelegt werden');
+    return respondError(res, status, message);
+  }
+});
+
+app.put('/api/erp/customers/:id', requireBate(), async (req, res) => {
+  if (!isErpClientEnabled()) {
+    return respondError(res, 503, 'ERP Client ist nicht konfiguriert.');
+  }
+  try {
+    const sanitized = sanitizeCustomerPayload(
+      {
+        ...req.body,
+        customer_id: req.params.id
+      },
+      { requireCustomerId: true }
+    );
+    const customerId = sanitized.customer_id;
+    const customerDoc = buildErpCustomerDoc(sanitized, { includeIdentity: false });
+    await updateCustomer(customerId, customerDoc);
+    const relationPromises = [];
+    if (sanitized.billing_address) {
+      const billingIsUpdate = Boolean(sanitized.billing_address.id);
+      const billingDoc = buildErpAddressDoc(sanitized.billing_address, customerId, sanitized.customer_name, {
+        includeDoctype: !billingIsUpdate,
+        includeLinks: !billingIsUpdate
+      });
+      if (billingDoc) {
+        relationPromises.push(
+          billingIsUpdate
+            ? updateAddress(sanitized.billing_address.id, billingDoc)
+            : createAddress(billingDoc)
+        );
+      }
+    }
+    if (sanitized.shipping_address) {
+      const shippingIsUpdate = Boolean(sanitized.shipping_address.id);
+      const shippingDoc = buildErpAddressDoc(sanitized.shipping_address, customerId, sanitized.customer_name, {
+        includeDoctype: !shippingIsUpdate,
+        includeLinks: !shippingIsUpdate
+      });
+      if (shippingDoc) {
+        relationPromises.push(
+          shippingIsUpdate
+            ? updateAddress(sanitized.shipping_address.id, shippingDoc)
+            : createAddress(shippingDoc)
+        );
+      }
+    }
+    if (sanitized.contact) {
+      const contactIsUpdate = Boolean(sanitized.contact.id);
+      const contactDoc = buildErpContactDoc(sanitized.contact, customerId, sanitized.customer_name, {
+        includeDoctype: !contactIsUpdate,
+        includeLinks: !contactIsUpdate
+      });
+      if (contactDoc) {
+        relationPromises.push(
+          contactIsUpdate
+            ? updateContact(sanitized.contact.id, contactDoc)
+            : createContact(contactDoc)
+        );
+      }
+    }
+    if (relationPromises.length) {
+      await Promise.all(relationPromises);
+    }
+    let detailedResponse = null;
+    try {
+      await syncERPData();
+      detailedResponse = await buildCustomerResponsePayload(customerId);
+    } catch (syncErr) {
+      console.warn('Customer sync failed', syncErr.message);
+    }
+    if (detailedResponse) {
+      return res.json(detailedResponse);
+    }
+    return res.json({
+      id: customerId,
+      message: 'Kunde wurde aktualisiert. Daten werden nach dem nächsten Sync aktualisiert.'
+    });
+  } catch (err) {
+    const { status, message } = resolveErpError(err, 'Kunde konnte nicht aktualisiert werden');
+    return respondError(res, status, message);
+  }
 });
 
 app.get('/api/erp/addresses', requireAuth(), async (req, res) => {
@@ -2442,6 +3688,76 @@ app.get('/api/erp/contacts', requireAuth(), async (req, res) => {
 app.get('/api/erp/items', requireAuth(), async (req, res) => {
   const data = await readJson('items.json', []);
   res.json(data);
+});
+
+app.post('/api/erp/items', requireBate(), async (req, res) => {
+  if (!isErpClientEnabled()) {
+    return respondError(res, 503, 'ERP Client ist nicht konfiguriert.');
+  }
+  try {
+    const payload = sanitizeItemPayload(req.body || {}, { requireItemCode: true });
+    const existingItems = await loadItemsData();
+    if (
+      existingItems.some(
+        (item) => (item.item_code || item.id || '').toLowerCase() === payload.item_code.toLowerCase()
+      )
+    ) {
+      return respondError(res, 409, 'Artikelnummer ist bereits vergeben.');
+    }
+    const erpDoc = buildErpItemDoc(payload, { includeIdentity: true });
+    await createItem(erpDoc);
+    let createdItem = null;
+    try {
+      await syncERPData();
+      createdItem = await buildItemResponsePayload(payload.item_code);
+    } catch (syncErr) {
+      console.warn('Item sync failed', syncErr.message);
+    }
+    if (createdItem) {
+      return res.status(201).json(createdItem);
+    }
+    return res.status(201).json({
+      id: payload.item_code,
+      message: 'Artikel wurde angelegt. Daten werden nach dem nächsten Sync aktualisiert.'
+    });
+  } catch (err) {
+    const { status, message } = resolveErpError(err, 'Artikel konnte nicht angelegt werden');
+    return respondError(res, status, message);
+  }
+});
+
+app.put('/api/erp/items/:id', requireBate(), async (req, res) => {
+  if (!isErpClientEnabled()) {
+    return respondError(res, 503, 'ERP Client ist nicht konfiguriert.');
+  }
+  try {
+    const sanitized = sanitizeItemPayload(
+      {
+        ...req.body,
+        item_code: req.params.id
+      },
+      { requireItemCode: true }
+    );
+    const itemCode = sanitized.item_code;
+    const erpDoc = buildErpItemDoc(sanitized, { includeIdentity: false });
+    await updateItem(req.params.id, erpDoc);
+    try {
+      await syncERPData();
+      const updatedItem = await buildItemResponsePayload(itemCode);
+      if (updatedItem) {
+        return res.json(updatedItem);
+      }
+    } catch (syncErr) {
+      console.warn('Item sync failed', syncErr.message);
+    }
+    return res.json({
+      id: itemCode,
+      message: 'Artikel wurde aktualisiert. Daten werden nach dem nächsten Sync aktualisiert.'
+    });
+  } catch (err) {
+    const { status, message } = resolveErpError(err, 'Artikel konnte nicht aktualisiert werden');
+    return respondError(res, status, message);
+  }
 });
 
 app.get('/api/customers/:id/accessories', requireAuth(), async (req, res) => {
@@ -2782,13 +4098,98 @@ app.get('/api/orders/:id', requireAuth(), async (req, res) => {
     await saveSpecs(specs);
   }
   const orderTickets = tickets.filter((ticket) => ticket.order_id === order.id);
+  await enrichTicketComments(orderTickets);
   const timelineLogs = logs.filter((log) => log.order_id === order.id);
+  const projectOverview = buildProjectOverview(order, orders, tickets);
   res.json({
     ...order,
     specs: orderSpecs,
     tickets: orderTickets,
+    audit: timelineLogs,
+    project: projectOverview
+  });
+});
+
+app.delete('/api/orders/:id', requireBate(), async (req, res) => {
+  const orderId = req.params.id;
+  if (!orderId) {
+    return respondError(res, 400, 'Bestell-ID fehlt');
+  }
+  const orders = await loadOrdersRaw();
+  const idx = orders.findIndex((order) => order.id === orderId);
+  if (idx === -1) {
+    return respondError(res, 404, 'Bestellung nicht gefunden');
+  }
+  orders.splice(idx, 1);
+  await saveOrdersRaw(orders);
+  const specs = await loadSpecs();
+  const filteredSpecs = specs.filter((spec) => spec.order_id !== orderId);
+  if (filteredSpecs.length !== specs.length) {
+    await saveSpecs(filteredSpecs);
+  }
+  const tickets = await loadTicketsData();
+  const remainingTickets = tickets.filter((ticket) => ticket.order_id !== orderId);
+  if (remainingTickets.length !== tickets.length) {
+    await writeJson('tickets.json', remainingTickets);
+  }
+  res.json({ ok: true });
+});
+
+// Sales orders (ERP Sales Order → Portal Aufträge)
+app.get('/api/sales-orders', requireBate(), async (req, res) => {
+  const orders = await loadSalesOrders();
+  const filtered = orders.filter(buildOrderFilter(req.query, req.session.user));
+  res.json(filtered);
+});
+
+app.get('/api/sales-orders/:id', requireBate(), async (req, res) => {
+  const [orders, logs] = await Promise.all([loadSalesOrders(), readJson('status_logs.json', [])]);
+  const order = orders.find((o) => o.id === req.params.id);
+  if (!order) {
+    return respondError(res, 404, 'Auftrag nicht gefunden');
+  }
+  const timelineLogs = logs.filter((log) => {
+    if (log.sales_order_id) {
+      return log.sales_order_id === order.id;
+    }
+    if (log.entity_type === 'SALES_ORDER' && log.order_id) {
+      return log.order_id === order.id;
+    }
+    return false;
+  });
+  res.json({
+    ...order,
     audit: timelineLogs
   });
+});
+
+app.get('/api/sales-orders/:id/workflow', requireBate(), async (req, res) => {
+  try {
+    const order = await ensureSalesOrderAccess(req.params.id, req.session.user);
+    res.json({
+      definition: getWorkflowDefinition(),
+      order
+    });
+  } catch (err) {
+    respondError(res, err.statusCode || 500, err.message || 'Workflow konnte nicht geladen werden.');
+  }
+});
+
+app.patch('/api/sales-orders/:id', requireBate(), async (req, res) => {
+  const { nextStatus } = req.body || {};
+  if (!nextStatus) {
+    return respondError(res, 400, 'Keine Änderungen angegeben');
+  }
+  try {
+    const updated = await updateSalesOrderWorkflow({
+      orderId: req.params.id,
+      nextStatus,
+      actor: req.session.user?.email
+    });
+    res.json(updated);
+  } catch (err) {
+    respondError(res, err.statusCode || 500, err.message || 'Auftrag konnte nicht aktualisiert werden.');
+  }
 });
 
 app.get('/api/orders/:id/tickets', requireAuth(), async (req, res) => {
@@ -2796,6 +4197,7 @@ app.get('/api/orders/:id/tickets', requireAuth(), async (req, res) => {
     const order = await ensureOrderAccess(req.params.id, req.session.user);
     const tickets = await loadTicketsData();
     const orderTickets = tickets.filter((ticket) => ticket.order_id === order.id);
+    await enrichTicketComments(orderTickets);
     res.json(orderTickets);
   } catch (err) {
     respondError(res, err.statusCode || 500, err.message || 'Tickets konnten nicht geladen werden.');
@@ -3324,13 +4726,29 @@ app.post('/api/orders', requireBate(), async (req, res) => {
     } catch (syncErr) {
       console.warn('Sync nach Bestellung fehlgeschlagen', syncErr.message);
     }
+    if (createdOrder && sanitizedPayload.sample_origin_id) {
+      try {
+        const linked = await applySampleOriginLink(orderId, sanitizedPayload.sample_origin_id);
+        if (linked) {
+          createdOrder = linked;
+        }
+      } catch (linkErr) {
+        console.warn('Sample-Verknüpfung fehlgeschlagen', linkErr.message);
+      }
+    }
     if (createdOrder) {
       const timelineEntry = buildPortalTimelineEntry(
         'ORDER_CREATED',
         'Bestellung im Portal angelegt',
         req.session.user?.email
       );
-      const updatedOrder = await appendOrderTimelineEntry(orderId, timelineEntry, 'ORDER_CREATED', req.session.user?.id);
+      const updatedOrder = await appendOrderTimelineEntry(
+        orderId,
+        timelineEntry,
+        'ORDER_CREATED',
+        req.session.user?.id
+      );
+      await notifyOrderCreated(updatedOrder || createdOrder, req.session.user);
       return res.status(201).json(updatedOrder || createdOrder);
     }
     return res.status(201).json({
@@ -3340,8 +4758,7 @@ app.post('/api/orders', requireBate(), async (req, res) => {
       message: 'Bestellung wurde angelegt. Daten werden nach dem nächsten Sync aktualisiert.'
     });
   } catch (err) {
-    const status = err.statusCode || err.response?.status || 400;
-    const message = extractErpErrorMessage(err) || err.message || 'Bestellung konnte nicht angelegt werden';
+    const { status, message } = resolveErpError(err, 'Bestellung konnte nicht angelegt werden');
     return respondError(res, status, message);
   }
 });
@@ -3360,11 +4777,11 @@ app.patch('/api/orders/:id', requireAuth(), async (req, res, next) => {
     if (!orderMatchesSupplier(order, req.session.user)) {
       return respondError(res, 403, req.t('forbidden'));
     }
-    if (req.session.user.role !== 'BATE' && order.supplier_id !== req.session.user.supplier_id) {
+    if (!isInternalRole(req.session.user.role) && order.supplier_id !== req.session.user.supplier_id) {
       return respondError(res, 403, req.t('forbidden'));
     }
     if (full_update) {
-      if (req.session.user.role !== 'BATE') {
+      if (!isInternalRole(req.session.user.role)) {
         return respondError(res, 403, req.t('forbidden'));
       }
       try {
@@ -3399,8 +4816,7 @@ app.patch('/api/orders/:id', requireAuth(), async (req, res, next) => {
         );
         return res.json(orderWithTimeline || updatedOrder || normalizePortalOrder(order));
       } catch (err) {
-        const status = err.statusCode || err.response?.status || 400;
-        const message = extractErpErrorMessage(err) || err.message || 'Bestellung konnte nicht aktualisiert werden';
+        const { status, message } = resolveErpError(err, 'Bestellung konnte nicht aktualisiert werden');
         return respondError(res, status, message);
       }
     }
@@ -3413,7 +4829,7 @@ app.patch('/api/orders/:id', requireAuth(), async (req, res, next) => {
       return res.json(updated);
     }
     order.order_type = order_type || order.order_type;
-    await writeJson('purchase_orders.json', orders);
+    await saveOrdersRaw(orders);
     res.json(normalizePortalOrder(order));
   } catch (err) {
     next(err);
@@ -3459,7 +4875,7 @@ app.post('/api/orders/:id/comments', requireAuth(), async (req, res) => {
   order.timeline = order.timeline || [];
   order.timeline.push(entry);
   orders[idx] = order;
-  await writeJson('purchase_orders.json', orders);
+  await saveOrdersRaw(orders);
   await appendToArray('status_logs.json', {
     id: `LOG-${randomUUID()}`,
     order_id: order.id,
@@ -3494,7 +4910,7 @@ app.post('/api/orders/:id/upload', requireAuth(), upload.single('file'), async (
   order.timeline = order.timeline || [];
   order.timeline.push(fileEntry);
   orders[idx] = order;
-  await writeJson('purchase_orders.json', orders);
+  await saveOrdersRaw(orders);
   await appendToArray('status_logs.json', {
     id: `LOG-${randomUUID()}`,
     order_id: order.id,
@@ -3503,6 +4919,160 @@ app.post('/api/orders/:id/upload', requireAuth(), upload.single('file'), async (
     ts: fileEntry.created_at
   });
   res.status(201).json(fileEntry);
+});
+
+app.post('/api/orders/:id/sample-feedback/:stage', requireBate(), upload.single('file'), async (req, res) => {
+  const stage = sanitizeSampleStage(req.params.stage);
+  if (!stage) {
+    if (req.file?.path) {
+      await removeUploadedFile(req.file.path.replace(process.cwd(), ''));
+    }
+    return respondError(res, 400, 'Unbekannte Kommentarkategorie');
+  }
+  if (!req.file) {
+    return respondError(res, 400, 'Datei fehlt');
+  }
+  const mimeType = (req.file.mimetype || '').toLowerCase();
+  if (!mimeType.includes('pdf')) {
+    await removeUploadedFile(req.file.path.replace(process.cwd(), ''));
+    return respondError(res, 400, 'Nur PDF-Dateien erlaubt');
+  }
+  const orders = await loadOrdersRaw();
+  const idx = findOrderIndexById(orders, req.params.id);
+  if (idx === -1) {
+    await removeUploadedFile(req.file.path.replace(process.cwd(), ''));
+    return respondError(res, 404, 'Bestellung nicht gefunden');
+  }
+  const order = orders[idx];
+  ensureSampleContainers(order);
+  if (order.sample_feedback[stage]?.url) {
+    await removeUploadedFile(order.sample_feedback[stage].url);
+  }
+  const now = new Date().toISOString();
+  const relativePath = req.file.path.replace(process.cwd(), '');
+  order.sample_feedback[stage] = {
+    id: `sample-${stage}-${randomUUID()}`,
+    stage,
+    filename: req.file.originalname || req.file.filename,
+    url: relativePath,
+    uploaded_at: now,
+    uploaded_by: req.session.user.email
+  };
+  order.timeline = order.timeline || [];
+  order.timeline.push(
+    buildPortalTimelineEntry(
+      'SAMPLE_FEEDBACK',
+      `${SAMPLE_STAGE_LABELS[stage]} hochgeladen`,
+      req.session.user.email,
+      SAMPLE_STAGE_LABELS[stage]
+    )
+  );
+  orders[idx] = order;
+  await saveOrdersRaw(orders);
+  await appendToArray('status_logs.json', {
+    id: `LOG-${randomUUID()}`,
+    order_id: order.id,
+    action: 'SAMPLE_FEEDBACK_UPLOAD',
+    actor: req.session.user.id,
+    stage,
+    ts: now
+  });
+  res.status(201).json(normalizePortalOrder(order));
+});
+
+app.delete('/api/orders/:id/sample-feedback/:stage', requireBate(), async (req, res) => {
+  const stage = sanitizeSampleStage(req.params.stage);
+  if (!stage) {
+    return respondError(res, 400, 'Unbekannte Kommentarkategorie');
+  }
+  const orders = await loadOrdersRaw();
+  const idx = findOrderIndexById(orders, req.params.id);
+  if (idx === -1) {
+    return respondError(res, 404, 'Bestellung nicht gefunden');
+  }
+  const order = orders[idx];
+  ensureSampleContainers(order);
+  const existing = order.sample_feedback[stage];
+  if (!existing) {
+    return respondError(res, 404, 'Keine Datei hinterlegt');
+  }
+  await removeUploadedFile(existing.url);
+  delete order.sample_feedback[stage];
+  const now = new Date().toISOString();
+  order.timeline = order.timeline || [];
+  order.timeline.push(
+    buildPortalTimelineEntry(
+      'SAMPLE_FEEDBACK_REMOVED',
+      `${SAMPLE_STAGE_LABELS[stage]} entfernt`,
+      req.session.user.email,
+      SAMPLE_STAGE_LABELS[stage]
+    )
+  );
+  orders[idx] = order;
+  await saveOrdersRaw(orders);
+  await appendToArray('status_logs.json', {
+    id: `LOG-${randomUUID()}`,
+    order_id: order.id,
+    action: 'SAMPLE_FEEDBACK_REMOVED',
+    actor: req.session.user.id,
+    stage,
+    ts: now
+  });
+  res.json(normalizePortalOrder(order));
+});
+
+app.post('/api/orders/:id/sample-workflow', requireBate(), async (req, res) => {
+  const orders = await loadOrdersRaw();
+  const idx = findOrderIndexById(orders, req.params.id);
+  if (idx === -1) {
+    return respondError(res, 404, 'Bestellung nicht gefunden');
+  }
+  const order = orders[idx];
+  ensureSampleContainers(order);
+  const nextPrevious = sanitizeText(req.body?.previous_order_id) || null;
+  let related = {};
+  let linkageResult = null;
+  if (nextPrevious || order.sample_links.previous) {
+    try {
+      linkageResult = updateSampleLinkage(orders, order.id, nextPrevious);
+      if (linkageResult.oldPrevious && linkageResult.oldPrevious !== linkageResult.newPrevious) {
+        const previousIndex = findOrderIndexById(orders, linkageResult.oldPrevious);
+        if (previousIndex !== -1) {
+          related[orders[previousIndex].id] = normalizePortalOrder(orders[previousIndex]);
+        }
+      }
+      if (linkageResult.newPrevious) {
+        const previousIndex = findOrderIndexById(orders, linkageResult.newPrevious);
+        if (previousIndex !== -1) {
+          related[orders[previousIndex].id] = normalizePortalOrder(orders[previousIndex]);
+        }
+      }
+    } catch (err) {
+      return respondError(res, err.statusCode || 400, err.message);
+    }
+  }
+  if (req.body?.skip_pps !== undefined) {
+    order.sample_flags.skip_pps = sanitizeBoolean(req.body.skip_pps);
+  }
+  const entry = buildPortalTimelineEntry(
+    'SAMPLE_WORKFLOW',
+    'Sample-Workflow aktualisiert',
+    req.session.user.email,
+    'Sample-Workflow'
+  );
+  order.timeline = order.timeline || [];
+  order.timeline.push(entry);
+  orders[idx] = order;
+  const seedIds = [order.id];
+  if (nextPrevious) seedIds.push(nextPrevious);
+  if (linkageResult?.oldPrevious) seedIds.push(linkageResult.oldPrevious);
+  reconcileProjectAssignments(orders, seedIds.filter(Boolean));
+  await saveOrdersRaw(orders);
+  const normalizedOrder = normalizePortalOrder(order);
+  res.json({
+    order: normalizedOrder,
+    related
+  });
 });
 
 // Specs
@@ -3887,7 +5457,7 @@ app.patch('/api/specs/:orderId/:positionId/media/:mediaId/status', requireAuth()
 
 // Tickets
 function userCanAccessTicket(ticket, user) {
-  if (user.role === 'BATE') return true;
+  if (isInternalRole(user.role)) return true;
   return ticket.owner === user.id || ticket.watchers?.includes(user.id);
 }
 
@@ -3997,7 +5567,7 @@ function normalizeCommentInput(body = {}, user = {}) {
   let messageTr = pick(body.message_tr || '').trim();
   let legacy = pick(body.comment || body.message || '').trim();
   if (!messageDe && !messageTr && legacy) {
-    if (user.role === 'BATE') {
+    if (isInternalRole(user.role)) {
       messageDe = legacy;
     } else {
       messageTr = legacy;
@@ -4030,6 +5600,7 @@ app.get('/api/tickets', requireAuth(), async (req, res) => {
     const order = orderMap.get(ticket.order_id) || amendedLookup.get(ticket.order_id);
     return order ? orderMatchesSupplier(order, req.session.user) : false;
   });
+  await enrichTicketComments(filtered);
   res.json(filtered);
 });
 
@@ -4037,6 +5608,7 @@ app.post('/api/tickets', requireAuth(), async (req, res) => {
   const { order_id, position_id, title, priority = 'mittel', view_key } = req.body;
   if (!order_id || !title) return respondError(res, 400, 'order_id und title sind Pflichtfelder');
   const tickets = await loadTicketsData();
+  const relatedOrder = await findOrderById(order_id).catch(() => null);
   const watchers =
     Array.isArray(req.body.watchers) && req.body.watchers.length
       ? req.body.watchers
@@ -4061,7 +5633,11 @@ app.post('/api/tickets', requireAuth(), async (req, res) => {
   await writeJson('tickets.json', tickets);
   if (order_id) {
     await syncOrderStatusWithTickets(order_id, req.session.user?.email);
+    if (position_id) {
+      await syncSpecStatusesWithTickets(order_id, position_id, req.session.user?.email);
+    }
   }
+  await notifyTicketCreated(ticket, req.session.user, relatedOrder);
   res.status(201).json(ticket);
 });
 
@@ -4071,27 +5647,47 @@ app.patch('/api/tickets/:id', requireAuth(), async (req, res) => {
   const ticket = findTicketEntry(tickets, req.params.id, context);
   if (!ticket) return respondError(res, 404, 'Ticket nicht gefunden');
   if (!(await ensureTicketAccess(ticket, req.session.user))) return respondError(res, 403, req.t('forbidden'));
-  ticket.status = req.body.status || ticket.status;
+  const previousStatus = ticket.status;
+  if (req.body.status) {
+    ticket.status = req.body.status;
+  }
   const commentPayload = normalizeCommentInput(req.body, req.session.user);
+  let createdComment = null;
   if (commentPayload.hasContent) {
     ticket.comments = ticket.comments || [];
-    ticket.comments.push({
+    createdComment = {
       id: `tc-${randomUUID()}`,
       author: req.session.user.email,
+      author_name: req.session.user.username || req.session.user.email,
       message: commentPayload.fallback,
       message_de: commentPayload.message_de,
       message_tr: commentPayload.message_tr,
       ts: new Date().toISOString()
-    });
+    };
+    ticket.comments.push(createdComment);
+    await markTicketNotificationsRead(ticket.id, req.session.user.id);
   }
   if (req.body.watchers) {
     ticket.watchers = Array.isArray(req.body.watchers) ? req.body.watchers : [req.body.watchers];
   }
+  const statusChanged = Boolean(req.body.status) && previousStatus !== ticket.status;
+  const closedNow = statusChanged && isTicketClosedStatus(ticket.status);
   const idx = tickets.findIndex((entry) => entry === ticket);
   tickets[idx] = ticket;
   await writeJson('tickets.json', tickets);
   if (ticket.order_id) {
     await syncOrderStatusWithTickets(ticket.order_id, req.session.user?.email);
+    if (ticket.position_id) {
+      await syncSpecStatusesWithTickets(ticket.order_id, ticket.position_id, req.session.user?.email);
+    }
+  }
+  const relatedOrder =
+    (createdComment || closedNow) && ticket.order_id ? await findOrderById(ticket.order_id).catch(() => null) : null;
+  if (createdComment) {
+    await notifyTicketComment(ticket, createdComment, req.session.user, relatedOrder);
+  }
+  if (closedNow) {
+    await notifyTicketClosed(ticket, req.session.user, relatedOrder);
   }
   res.json(ticket);
 });
@@ -4109,37 +5705,46 @@ app.delete('/api/tickets/:id', requireAuth(), async (req, res) => {
   await writeJson('tickets.json', tickets);
   if (ticket.order_id) {
     await syncOrderStatusWithTickets(ticket.order_id, req.session.user?.email);
+    if (ticket.position_id) {
+      await syncSpecStatusesWithTickets(ticket.order_id, ticket.position_id, req.session.user?.email);
+    }
   }
   res.json({ ok: true });
 });
 
-app.post('/api/tickets/:id/comment', requireAuth(), ticketUpload.single('file'), async (req, res) => {
+app.post('/api/tickets/:id/comment', requireAuth(), ticketUpload.array('files', 5), async (req, res) => {
   const tickets = await loadTicketsData();
   const context = extractTicketContext(req.body || {});
   const ticket = findTicketEntry(tickets, req.params.id, context);
   if (!ticket) return respondError(res, 404, 'Ticket nicht gefunden');
   if (!(await ensureTicketAccess(ticket, req.session.user))) return respondError(res, 403, req.t('forbidden'));
   const commentPayload = normalizeCommentInput(req.body, req.session.user);
-  if (!commentPayload.hasContent && !req.file) return respondError(res, 400, 'Kommentar oder Datei erforderlich');
+  const files = Array.isArray(req.files) ? req.files : req.file ? [req.file] : [];
+  if (!commentPayload.hasContent && !files.length) return respondError(res, 400, 'Kommentar oder Datei erforderlich');
   ticket.comments = ticket.comments || [];
   const comment = {
     id: `tc-${randomUUID()}`,
     author: req.session.user.email,
+    author_name: req.session.user.username || req.session.user.email,
     message: commentPayload.fallback,
     message_de: commentPayload.message_de,
     message_tr: commentPayload.message_tr,
     ts: new Date().toISOString()
   };
-  if (req.file) {
-    comment.attachment = {
-      filename: req.file.originalname,
-      url: `/uploads/tickets/${ticket.id}/${req.file.filename}`
-    };
+  if (files.length) {
+    comment.attachments = files.map((file) => ({
+      filename: file.originalname,
+      url: `/uploads/tickets/${ticket.id}/${file.filename}`
+    }));
+    comment.attachment = comment.attachments[0];
   }
   ticket.comments.push(comment);
+  await markTicketNotificationsRead(ticket.id, req.session.user.id);
   const idx = tickets.findIndex((entry) => entry === ticket);
   tickets[idx] = ticket;
   await writeJson('tickets.json', tickets);
+  const relatedOrder = ticket.order_id ? await findOrderById(ticket.order_id).catch(() => null) : null;
+  await notifyTicketComment(ticket, comment, req.session.user, relatedOrder);
   res.status(201).json(comment);
 });
 
@@ -4228,14 +5833,16 @@ app.post('/api/locale', requireAuth(), (req, res) => {
   if (!SUPPORTED_LOCALES.includes(requested)) {
     return respondError(res, 400, req.t('invalidLocale'));
   }
-  if (req.session?.user?.role === 'SUPPLIER' && requested !== 'tr') {
+  const forcedLocale = getForcedLocaleForRole(req.session?.user?.role);
+  if (forcedLocale && requested !== forcedLocale) {
     return respondError(res, 400, req.t('invalidLocale'));
   }
+  const localeToPersist = forcedLocale || requested;
   if (req.session?.user) {
-    req.session.user.locale = requested;
+    req.session.user.locale = localeToPersist;
   }
-  req.session.locale = requested;
-  res.json({ locale: requested });
+  req.session.locale = localeToPersist;
+  res.json({ locale: localeToPersist });
 });
 
 app.get('/api/public/locales/:locale', async (req, res) => {
@@ -4274,7 +5881,8 @@ app.get('/api/translations', requireBate(), async (req, res) => {
 app.post('/api/translate', requireAuth(), async (req, res) => {
   const { text, source, target } = req.body || {};
   const sourceLocale = resolveLocale(source || req.locale || DEFAULT_LOCALE);
-  const targetLocale = resolveLocale(target || (req.session?.user?.role === 'BATE' ? 'tr' : 'de'));
+  const prefersTr = isInternalRole(req.session?.user?.role);
+  const targetLocale = resolveLocale(target || (prefersTr ? 'tr' : 'de'));
   if (sourceLocale === targetLocale) {
     return res.json({ translation: text || '', provider: 'noop', fallback: true });
   }
@@ -4320,120 +5928,10 @@ app.delete('/api/translations/:locale', requireBate(), async (req, res) => {
 
 app.get('/api/diagnostics', requireBate(), async (req, res) => {
   try {
-    const payload = await collectDiagnostics(req.session.user?.id);
+    const payload = await collectDiagnostics();
     res.json(payload);
   } catch (err) {
     respondError(res, 500, err.message);
-  }
-});
-
-// AutoSync Service Bridge
-app.get('/api/autosync/status', requireBate(), async (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 10, 200);
-  try {
-    const snapshot = await getAutoSyncSnapshot({ limit });
-    res.json(snapshot);
-  } catch (err) {
-    respondError(res, 500, err.message);
-  }
-});
-
-app.get('/api/autosync/dashboard', requireBate(), async (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 50, 200);
-  const sku = req.query.sku?.toString().trim() || null;
-  try {
-    const snapshot = await getAutoSyncSnapshot({ limit, sku });
-    res.json(snapshot);
-  } catch (err) {
-    respondError(res, 500, err.message);
-  }
-});
-
-app.post('/api/autosync/run', requireBate(), async (req, res) => {
-  if (!ensureAutoSyncConfigured(res)) return;
-  const sku = req.body?.sku?.toString().trim();
-  if (!sku) {
-    return respondError(res, 400, 'SKU fehlt');
-  }
-  const bereich = req.body?.bereich?.toString().trim();
-  const overridePrices = {};
-  const buy = req.body?.einkauf;
-  const sell = req.body?.verkauf;
-  if (buy !== undefined && buy !== null && buy !== '') {
-    overridePrices.einkauf = Number(buy);
-  }
-  if (sell !== undefined && sell !== null && sell !== '') {
-    overridePrices.verkauf = Number(sell);
-  }
-  try {
-    const result = await autosyncClient.runSkuSync({
-      sku,
-      bereich,
-      overridePrices: Object.keys(overridePrices).length ? overridePrices : undefined
-    });
-    res.json(result);
-  } catch (err) {
-    respondError(res, 400, err.message);
-  }
-});
-
-app.post('/api/autosync/manual', requireBate(), async (req, res) => {
-  if (!ensureAutoSyncConfigured(res)) return;
-  const payload = req.body || {};
-  const required = ['sku', 'name', 'gruppe', 'viewer', 'sizes', 'einkauf', 'verkauf'];
-  const missing = required.filter((field) => !String(payload[field] ?? '').trim());
-  if (missing.length) {
-    return respondError(res, 400, `Felder fehlen: ${missing.join(', ')}`);
-  }
-  payload.sku = payload.sku.toString().trim();
-  payload.name = payload.name.toString().trim();
-  payload.gruppe = payload.gruppe.toString().trim();
-  payload.viewer = payload.viewer.toString().trim();
-  payload.sizes = payload.sizes.toString().trim();
-  payload.bereich = payload.bereich?.toString().trim() || 'BATE';
-  payload.einkauf = Number(payload.einkauf);
-  payload.verkauf = Number(payload.verkauf);
-  ['kollektion', 'aussenmaterial', 'innenmaterial', 'sohle', 'farbcode'].forEach((field) => {
-    if (payload[field] === undefined || payload[field] === null) return;
-    payload[field] = payload[field].toString().trim();
-  });
-  try {
-    const result = await autosyncClient.runManualSync(payload);
-    res.json(result);
-  } catch (err) {
-    respondError(res, 400, err.message);
-  }
-});
-
-app.post('/api/autosync/delete', requireBate(), async (req, res) => {
-  if (!ensureAutoSyncConfigured(res)) return;
-  const sku = req.body?.sku?.toString().trim();
-  if (!sku) {
-    return respondError(res, 400, 'SKU fehlt');
-  }
-  try {
-    const result = await autosyncClient.deleteWooProduct(sku);
-    res.json(result);
-  } catch (err) {
-    respondError(res, 400, err.message);
-  }
-});
-
-app.get('/api/autosync/logs', requireBate(), async (req, res) => {
-  if (!autosyncClient.isEnabled()) {
-    return res.json({ enabled: false, entries: [] });
-  }
-  const limit = Math.min(Number(req.query.limit) || 25, 200);
-  const sku = req.query.sku?.toString().trim();
-  try {
-    if (sku) {
-      const data = await autosyncClient.fetchSkuLogs(sku, { limit });
-      return res.json(data);
-    }
-    const data = await autosyncClient.fetchLatestLogs(limit);
-    return res.json(data);
-  } catch (err) {
-    respondError(res, 400, err.message);
   }
 });
 

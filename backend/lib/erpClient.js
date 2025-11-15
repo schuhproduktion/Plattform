@@ -47,7 +47,9 @@ const RESOURCE_FILE_MAP = {
   contacts: 'contacts.json',
   items: 'items.json',
   orders: 'purchase_orders.json',
-  item_prices: 'item_prices.json'
+  sales_orders: 'sales_orders.json',
+  item_prices: 'item_prices.json',
+  suppliers: 'suppliers.json'
 };
 
 // ERPNext erwartet den DocType-Namen (z. B. "Item") statt unserer internen Schlüssel.
@@ -57,7 +59,9 @@ const RESOURCE_DOC_MAP = {
   contacts: 'Contact',
   items: 'Item',
   orders: 'Purchase Order',
-  item_prices: 'Item Price'
+  sales_orders: 'Sales Order',
+  item_prices: 'Item Price',
+  suppliers: 'Supplier'
 };
 
 const RESOURCE_FIELD_MAP = {
@@ -67,12 +71,14 @@ const RESOURCE_FIELD_MAP = {
   item_prices: ['name', 'item_code', 'price_list', 'price_list_rate', 'currency', 'selling', 'buying']
 };
 
-const DETAIL_DOC_TYPES = new Set(['Item', 'Purchase Order', 'Address', 'Contact']);
+const DETAIL_DOC_TYPES = new Set(['Item', 'Purchase Order', 'Sales Order', 'Address', 'Contact', 'Supplier']);
 const DETAIL_DOC_FIELDS = {
   Item: ['*'],
   'Purchase Order': ['*'],
+  'Sales Order': ['*'],
   Address: ['*'],
-  Contact: ['*']
+  Contact: ['*'],
+  Supplier: ['*']
 };
 
 async function fetchDocList(docType, fields = ['name']) {
@@ -133,6 +139,10 @@ async function fetchPurchaseOrders() {
   return fetchResource('orders');
 }
 
+async function fetchSalesOrders() {
+  return fetchResource('sales_orders');
+}
+
 async function updatePortalStatus(orderId, portalStatus) {
   if (!orderId) return false;
   try {
@@ -146,6 +156,19 @@ async function updatePortalStatus(orderId, portalStatus) {
   }
 }
 
+async function updateSalesPortalStatus(orderId, portalStatus) {
+  if (!orderId) return false;
+  try {
+    await client.put(`/resource/Sales Order/${encodeURIComponent(orderId)}`, {
+      portal_status: portalStatus
+    });
+    return true;
+  } catch (err) {
+    err.message = `ERP Sales Order Update für ${orderId} fehlgeschlagen: ${err.message}`;
+    throw err;
+  }
+}
+
 async function createPurchaseOrder(doc) {
   if (!doc || typeof doc !== 'object') {
     throw new Error('Purchase Order Payload fehlt');
@@ -154,10 +177,93 @@ async function createPurchaseOrder(doc) {
   return data.data || data;
 }
 
+async function createCustomer(doc) {
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Customer Payload fehlt');
+  }
+  const { data } = await client.post('/resource/Customer', doc);
+  return data.data || data;
+}
+
+async function createAddress(doc) {
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Address Payload fehlt');
+  }
+  const { data } = await client.post('/resource/Address', doc);
+  return data.data || data;
+}
+
+async function createContact(doc) {
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Contact Payload fehlt');
+  }
+  const { data } = await client.post('/resource/Contact', doc);
+  return data.data || data;
+}
+
+async function createItem(doc) {
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Item Payload fehlt');
+  }
+  const { data } = await client.post('/resource/Item', doc);
+  return data.data || data;
+}
+
+async function updateCustomer(name, doc) {
+  if (!name) throw new Error('Customer ID fehlt');
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Customer Payload fehlt');
+  }
+  const { data } = await client.put(`/resource/Customer/${encodeURIComponent(name)}`, doc);
+  return data.data || data;
+}
+
+async function updateAddress(name, doc) {
+  if (!name) throw new Error('Address ID fehlt');
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Address Payload fehlt');
+  }
+  const { data } = await client.put(`/resource/Address/${encodeURIComponent(name)}`, doc);
+  return data.data || data;
+}
+
+async function updateContact(name, doc) {
+  if (!name) throw new Error('Contact ID fehlt');
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Contact Payload fehlt');
+  }
+  const { data } = await client.put(`/resource/Contact/${encodeURIComponent(name)}`, doc);
+  return data.data || data;
+}
+
+async function updateItem(name, doc) {
+  if (!name) throw new Error('Item ID fehlt');
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Item Payload fehlt');
+  }
+  const { data } = await client.put(`/resource/Item/${encodeURIComponent(name)}`, doc);
+  return data.data || data;
+}
+
 async function updatePurchaseOrder(name, doc) {
   if (!name) throw new Error('Purchase Order ID fehlt');
   if (!doc || typeof doc !== 'object') throw new Error('Purchase Order Payload fehlt');
   const { data } = await client.put(`/resource/Purchase Order/${encodeURIComponent(name)}`, doc);
+  return data.data || data;
+}
+
+async function createSalesOrder(doc) {
+  if (!doc || typeof doc !== 'object') {
+    throw new Error('Sales Order Payload fehlt');
+  }
+  const { data } = await client.post('/resource/Sales Order', doc);
+  return data.data || data;
+}
+
+async function updateSalesOrder(name, doc) {
+  if (!name) throw new Error('Sales Order ID fehlt');
+  if (!doc || typeof doc !== 'object') throw new Error('Sales Order Payload fehlt');
+  const { data } = await client.put(`/resource/Sales Order/${encodeURIComponent(name)}`, doc);
   return data.data || data;
 }
 
@@ -235,9 +341,21 @@ module.exports = {
   client,
   fetchResource,
   fetchPurchaseOrders,
+  fetchSalesOrders,
   updatePortalStatus,
+  updateSalesPortalStatus,
   createPurchaseOrder,
+  createCustomer,
+  createAddress,
+  createContact,
+  createItem,
+  updateCustomer,
+  updateAddress,
+  updateContact,
+  updateItem,
+  createSalesOrder,
   updatePurchaseOrder,
+  updateSalesOrder,
   fetchPrintFormats,
   fetchLetterheads,
   downloadPrintPdf,

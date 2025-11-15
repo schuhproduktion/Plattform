@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const { readJson } = require('./dataStore');
+const { isInternalRole } = require('./roles');
 
 async function loadUsers() {
   return (await readJson('users.json', [])) || [];
@@ -42,7 +43,7 @@ function requireBate() {
     if (!req.session?.user) {
       return res.status(401).json({ error: 'Nicht angemeldet' });
     }
-    if (req.session.user.role !== 'BATE') {
+    if (!isInternalRole(req.session.user.role)) {
       return res.status(403).json({ error: 'BATE-Rechte erforderlich' });
     }
     return next();
@@ -55,7 +56,7 @@ function requireSupplierOrOwner(ownerResolver = null) {
     if (!user) {
       return res.status(401).json({ error: 'Nicht angemeldet' });
     }
-    if (user.role === 'BATE') {
+    if (isInternalRole(user.role)) {
       return next();
     }
     if (typeof ownerResolver !== 'function') {

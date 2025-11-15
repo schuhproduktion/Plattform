@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Artikel anlegen</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-artikel-neu" data-page="artikel-neu">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="artikel-neu">
+        <div class="customer-layout">
+          <button type="button" class="ghost customer-back-button" id="backToArticles">← Zurück zur Übersicht</button>
+          <article class="card customer-create-card">
+            <header class="customer-create-head">
+              <div>
+                <p class="muted">Artikelstammdaten direkt an ERPNext übergeben</p>
+                <h2>Neuen Artikel anlegen</h2>
+              </div>
+            </header>
+            <form id="artikelCreateForm" class="customer-create-form">
+              <input type="hidden" name="itemCodeOriginal" />
+              <section class="customer-create-section">
+                <h4>Stammdaten</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>Artikelnummer *</span>
+                    <input type="text" name="itemCode" required />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Artikelname *</span>
+                    <input type="text" name="itemName" required />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Artikelgruppe</span>
+                    <input type="text" name="itemGroup" placeholder="Alle Artikel" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Bestandseinheit</span>
+                    <input type="text" name="stockUom" placeholder="Pair" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Marke</span>
+                    <input type="text" name="brand" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Status</span>
+                    <select name="status">
+                      <option value="active">Aktiv</option>
+                      <option value="inactive">Inaktiv</option>
+                    </select>
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Beschreibung</span>
+                    <textarea name="description" rows="3"></textarea>
+                  </label>
+                </div>
+              </section>
+              <section class="customer-create-section">
+                <h4>Kollektion & Kunde</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>Kollektion</span>
+                    <input type="text" name="collection" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Verknüpfung zum Kunden</span>
+                    <input type="text" name="customerLink" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Kunden-Artikelcode</span>
+                    <input type="text" name="customerItemCode" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Farbcode</span>
+                    <input type="text" name="colorCode" />
+                  </label>
+                </div>
+              </section>
+              <section class="customer-create-section">
+                <h4>Materialien</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>Außenmaterial</span>
+                    <input type="text" name="outerMaterial" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Innenmaterial</span>
+                    <input type="text" name="innerMaterial" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>Sohle</span>
+                    <input type="text" name="soleMaterial" />
+                  </label>
+                </div>
+              </section>
+              <section class="customer-create-section">
+                <h4>Links</h4>
+                <div class="customer-create-grid">
+                  <label class="customer-create-field">
+                    <span>B2B Produktlink</span>
+                    <input type="url" name="b2bLink" />
+                  </label>
+                  <label class="customer-create-field">
+                    <span>3D Viewer Link</span>
+                    <input type="url" name="viewerLink" />
+                  </label>
+                </div>
+              </section>
+              <div class="customer-create-footer">
+                <div id="artikelCreateFeedback" class="form-feedback" aria-live="polite"></div>
+                <button type="submit" class="primary">Artikel speichern</button>
+              </div>
+            </form>
+          </article>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

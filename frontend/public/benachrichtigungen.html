@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Benachrichtigungen</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="page page-notifications" data-page="notifications">
+    <header class="top-nav" data-component="top-nav"></header>
+    <main class="layout">
+      <aside class="sidebar" data-component="sidebar"></aside>
+      <section class="content" id="notificationsPage">
+        <article class="card notification-archive-card">
+          <header class="card-head card-head-split">
+            <div>
+              <h1>Benachrichtigungen</h1>
+              <p class="muted">Alle Portalmeldungen im Überblick</p>
+            </div>
+            <div class="card-head-actions">
+              <button type="button" class="ghost" id="notificationArchiveRefresh">Aktualisieren</button>
+              <button type="button" class="ghost" id="notificationArchiveMarkAll">Alle gelesen</button>
+            </div>
+          </header>
+          <div class="notification-archive-tabs" role="tablist">
+            <button type="button" class="notification-tab active" data-archive-tab="open" role="tab" aria-selected="true">
+              Offene Benachrichtigungen
+            </button>
+            <button type="button" class="notification-tab" data-archive-tab="closed" role="tab" aria-selected="false">
+              Abgeschlossene Benachrichtigungen
+            </button>
+          </div>
+          <div class="notification-archive-meta">
+            <span class="muted" id="notificationArchiveCount">-</span>
+          </div>
+          <ul class="notification-list notification-archive-list" id="notificationArchiveList"></ul>
+          <p class="notification-empty" id="notificationArchiveEmpty" hidden>Keine Benachrichtigungen vorhanden.</p>
+        </article>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
